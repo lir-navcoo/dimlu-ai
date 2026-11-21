@@ -1,0 +1,451 @@
+{
+  "schemaVersion": "0.1.0",
+  "id": "dimlu.actions",
+  "title": "事件与动作示例",
+  "entryPageId": "records",
+  "dependencies": {
+    "components": {
+      "ui.heading": "1.0.0",
+      "ui.table": "1.0.0",
+      "ui.button": "1.0.0",
+      "ui.drawer": "1.0.0",
+      "ui.form": "1.0.0",
+      "ui.input": "1.0.0",
+      "ui.formStatus": "1.0.0"
+    },
+    "actions": {
+      "state.set": "1.0.0",
+      "form.setValues": "1.0.0",
+      "form.reset": "1.0.0",
+      "form.submit": "1.0.0",
+      "demo.saveRecord": "1.0.0",
+      "ui.notify": "1.0.0"
+    }
+  },
+  "pages": [
+    {
+      "id": "records",
+      "title": "记录管理",
+      "description": "表格 → 行作用域 → 抽屉表单 → 保存并更新列表",
+      "state": [
+        {
+          "id": "records",
+          "type": "array",
+          "initial": [
+            {
+              "id": "r1",
+              "name": "林知远",
+              "department": "研发中心"
+            },
+            {
+              "id": "r2",
+              "name": "陈嘉宁",
+              "department": "产品设计部"
+            }
+          ]
+        },
+        {
+          "id": "selectedId",
+          "type": "string",
+          "initial": ""
+        },
+        {
+          "id": "drawerOpen",
+          "type": "boolean",
+          "initial": false
+        }
+      ],
+      "forms": [
+        {
+          "id": "edit",
+          "fields": [
+            {
+              "id": "recordId",
+              "path": [
+                "id"
+              ],
+              "label": "记录ID",
+              "type": "string",
+              "initial": ""
+            },
+            {
+              "id": "name",
+              "path": [
+                "name"
+              ],
+              "label": "姓名",
+              "type": "string",
+              "initial": "",
+              "rules": [
+                {
+                  "kind": "required",
+                  "message": "请填写姓名"
+                }
+              ]
+            },
+            {
+              "id": "department",
+              "path": [
+                "department"
+              ],
+              "label": "部门",
+              "type": "string",
+              "initial": "",
+              "rules": [
+                {
+                  "kind": "required",
+                  "message": "请填写部门"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "children": [
+        {
+          "id": "heading",
+          "component": "ui.heading",
+          "props": {
+            "title": {
+              "kind": "literal",
+              "value": "记录管理"
+            },
+            "description": {
+              "kind": "literal",
+              "value": "点击表格中的编辑。姓名包含“失败”可体验服务错误；右侧事件面板可修改动作。"
+            }
+          }
+        },
+        {
+          "id": "records-table",
+          "component": "ui.table",
+          "props": {
+            "data": {
+              "kind": "stateRef",
+              "stateId": "records"
+            },
+            "columns": {
+              "kind": "literal",
+              "value": [
+                {
+                  "key": "name",
+                  "title": "姓名"
+                },
+                {
+                  "key": "department",
+                  "title": "部门"
+                }
+              ]
+            },
+            "rowKey": {
+              "kind": "literal",
+              "value": "id"
+            },
+            "selectionMode": {
+              "kind": "literal",
+              "value": "none"
+            },
+            "paginate": {
+              "kind": "literal",
+              "value": false
+            }
+          },
+          "slots": {
+            "actions": {
+              "params": [
+                "row",
+                "index"
+              ],
+              "children": [
+                {
+                  "id": "edit-record",
+                  "component": "ui.button",
+                  "props": {
+                    "label": {
+                      "kind": "literal",
+                      "value": "编辑"
+                    },
+                    "variant": {
+                      "kind": "literal",
+                      "value": "secondary"
+                    },
+                    "disabled": {
+                      "kind": "expression",
+                      "language": "javascript",
+                      "source": "forms.edit.isSubmitting"
+                    }
+                  },
+                  "on": {
+                    "onClick": [
+                      {
+                        "id": "select-record",
+                        "action": "state.set",
+                        "input": {
+                          "stateId": {
+                            "kind": "literal",
+                            "value": "selectedId"
+                          },
+                          "value": {
+                            "kind": "expression",
+                            "language": "javascript",
+                            "source": "scope.row.id"
+                          }
+                        }
+                      },
+                      {
+                        "id": "reset-editor",
+                        "action": "form.reset",
+                        "input": {
+                          "formId": {
+                            "kind": "literal",
+                            "value": "edit"
+                          }
+                        }
+                      },
+                      {
+                        "id": "prefill-editor",
+                        "action": "form.setValues",
+                        "input": {
+                          "formId": {
+                            "kind": "literal",
+                            "value": "edit"
+                          },
+                          "values": {
+                            "kind": "expression",
+                            "language": "javascript",
+                            "source": "scope.row"
+                          }
+                        }
+                      },
+                      {
+                        "id": "open-editor",
+                        "action": "state.set",
+                        "input": {
+                          "stateId": {
+                            "kind": "literal",
+                            "value": "drawerOpen"
+                          },
+                          "value": {
+                            "kind": "literal",
+                            "value": true
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "record-drawer",
+          "component": "ui.drawer",
+          "props": {
+            "title": {
+              "kind": "literal",
+              "value": "编辑记录"
+            },
+            "description": {
+              "kind": "literal",
+              "value": "既支持表单内原生提交，也支持底部按钮通过 form.submit 提交。"
+            },
+            "open": {
+              "kind": "stateRef",
+              "stateId": "drawerOpen"
+            },
+            "triggerLabel": {
+              "kind": "literal",
+              "value": "编辑当前记录"
+            },
+            "width": {
+              "kind": "literal",
+              "value": 440
+            },
+            "showFooter": {
+              "kind": "literal",
+              "value": true
+            }
+          },
+          "on": {
+            "onOpenChange": [
+              {
+                "id": "toggle-editor",
+                "action": "state.set",
+                "input": {
+                  "stateId": {
+                    "kind": "literal",
+                    "value": "drawerOpen"
+                  },
+                  "value": {
+                    "kind": "expression",
+                    "language": "javascript",
+                    "source": "event"
+                  }
+                }
+              }
+            ]
+          },
+          "children": [
+            {
+              "id": "record-form",
+              "component": "ui.form",
+              "formId": "edit",
+              "props": {},
+              "on": {
+                "onSubmit": [
+                  {
+                    "id": "save-record",
+                    "action": "demo.saveRecord",
+                    "input": {
+                      "rows": {
+                        "kind": "stateRef",
+                        "stateId": "records"
+                      },
+                      "id": {
+                        "kind": "stateRef",
+                        "stateId": "selectedId"
+                      },
+                      "values": {
+                        "kind": "formValues",
+                        "formId": "edit"
+                      }
+                    },
+                    "resultTo": "records"
+                  },
+                  {
+                    "id": "saved-notice",
+                    "action": "ui.notify",
+                    "input": {
+                      "title": {
+                        "kind": "literal",
+                        "value": "记录已保存"
+                      },
+                      "tone": {
+                        "kind": "literal",
+                        "value": "success"
+                      }
+                    }
+                  },
+                  {
+                    "id": "close-editor",
+                    "action": "state.set",
+                    "input": {
+                      "stateId": {
+                        "kind": "literal",
+                        "value": "drawerOpen"
+                      },
+                      "value": {
+                        "kind": "literal",
+                        "value": false
+                      }
+                    }
+                  }
+                ]
+              },
+              "children": [
+                {
+                  "id": "record-name",
+                  "component": "ui.input",
+                  "props": {
+                    "placeholder": {
+                      "kind": "literal",
+                      "value": "请输入姓名"
+                    }
+                  },
+                  "field": {
+                    "formId": "edit",
+                    "fieldId": "name"
+                  }
+                },
+                {
+                  "id": "record-department",
+                  "component": "ui.input",
+                  "props": {
+                    "placeholder": {
+                      "kind": "literal",
+                      "value": "请输入部门"
+                    }
+                  },
+                  "field": {
+                    "formId": "edit",
+                    "fieldId": "department"
+                  }
+                },
+                {
+                  "id": "record-status",
+                  "component": "ui.formStatus",
+                  "props": {
+                    "formId": {
+                      "kind": "literal",
+                      "value": "edit"
+                    }
+                  }
+                },
+                {
+                  "id": "save-record-button",
+                  "component": "ui.button",
+                  "props": {
+                    "label": {
+                      "kind": "literal",
+                      "value": "保存记录"
+                    },
+                    "type": {
+                      "kind": "literal",
+                      "value": "submit"
+                    },
+                    "disabled": {
+                      "kind": "expression",
+                      "language": "javascript",
+                      "source": "forms.edit.isSubmitting"
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "slots": {
+            "footer": {
+              "params": [],
+              "children": [
+                {
+                  "id": "external-submit",
+                  "component": "ui.button",
+                  "props": {
+                    "label": {
+                      "kind": "literal",
+                      "value": "提交表单"
+                    },
+                    "type": {
+                      "kind": "literal",
+                      "value": "button"
+                    },
+                    "disabled": {
+                      "kind": "expression",
+                      "language": "javascript",
+                      "source": "forms.edit.isSubmitting"
+                    }
+                  },
+                  "on": {
+                    "onClick": [
+                      {
+                        "id": "external-submit-submit",
+                        "action": "form.submit",
+                        "input": {
+                          "formId": {
+                            "kind": "literal",
+                            "value": "edit"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+.canvas-breadcrumb {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-width: 0;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.canvas-breadcrumb::-webkit-scrollbar {
+  display: none;
+}
+.canvas-breadcrumb > *,
+.canvas-breadcrumb-item {
+  flex-shrink: 0;
+}
+.canvas-breadcrumb .ui-button {
+  height: 25px;
+  max-width: 160px;
+  display: inline-block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-inline: 5px;
+  font-size: 11px;
+}
+.canvas-breadcrumb [aria-current] {
+  color: var(--blue);
+  background: #edf0ff;
+}
+.canvas-breadcrumb-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.canvas-breadcrumb-slot {
+  font: 10px var(--mono);
+  color: var(--muted);
+}

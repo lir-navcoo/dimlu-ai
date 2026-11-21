@@ -1,0 +1,5 @@
+.menu-positioner,
+.select-positioner {
+  z-index: var(--layer-popup, 1500);
+  outline: none;
+}

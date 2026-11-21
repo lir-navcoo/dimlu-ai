@@ -1,0 +1,2041 @@
+{
+  "schemaVersion": "0.1.0",
+  "id": "dimlu.purchase-management",
+  "title": "采购申请管理",
+  "entryPageId": "purchases",
+  "dependencies": {
+    "components": {
+      "ui.heading": "1.0.0",
+      "ui.layout": "1.0.0",
+      "ui.card": "1.0.0",
+      "ui.input": "1.0.0",
+      "ui.select": "1.0.0",
+      "ui.date": "1.0.0",
+      "ui.button": "1.0.0",
+      "ui.table": "1.0.0",
+      "ui.pagination": "1.0.0",
+      "ui.drawer": "1.0.0",
+      "ui.form": "1.0.0",
+      "ui.fieldArray": "1.0.0",
+      "ui.alert": "1.0.0",
+      "ui.text": "1.0.0",
+      "ui.badge": "1.0.0",
+      "ui.divider": "1.0.0"
+    },
+    "actions": {
+      "state.set": "1.0.0",
+      "data.execute": "1.0.0",
+      "form.reset": "1.0.0",
+      "form.setValues": "1.0.0",
+      "demo.savePurchaseOnce": "1.0.0",
+      "ui.notify": "1.0.0"
+    },
+    "computations": {
+      "purchase.total": "1.0.0"
+    },
+    "transports": {
+      "demo.purchasesQuery": "1.0.0",
+      "demo.purchaseSave": "1.0.0"
+    }
+  },
+  "pages": [
+    {
+      "id": "purchases",
+      "title": "采购申请管理",
+      "description": "查询采购申请，新建与编辑明细，校验后保存。",
+      "state": [
+        {
+          "id": "query",
+          "type": "string",
+          "initial": ""
+        },
+        {
+          "id": "page",
+          "type": "number",
+          "initial": 1
+        },
+        {
+          "id": "pageSize",
+          "type": "number",
+          "initial": 5
+        },
+        {
+          "id": "sortKey",
+          "type": "string",
+          "initial": ""
+        },
+        {
+          "id": "sortDirection",
+          "type": "string",
+          "initial": ""
+        },
+        {
+          "id": "selectedId",
+          "type": "string",
+          "initial": ""
+        },
+        {
+          "id": "drawerOpen",
+          "type": "boolean",
+          "initial": false
+        },
+        {
+          "id": "saveCommitted",
+          "type": "boolean",
+          "initial": false
+        }
+      ],
+      "forms": [
+        {
+          "id": "purchase",
+          "computed": [
+            {
+              "id": "total",
+              "compute": "purchase.total"
+            }
+          ],
+          "rules": [
+            {
+              "test": {
+                "kind": "expression",
+                "language": "javascript",
+                "source": "forms.purchase.computed.total <= 50000"
+              },
+              "message": "单笔采购金额不能超过50,000元"
+            }
+          ],
+          "fields": [
+            {
+              "id": "name",
+              "path": [
+                "name"
+              ],
+              "label": "申请名称",
+              "type": "string",
+              "initial": "",
+              "disabled": {
+                "kind": "expression",
+                "language": "javascript",
+                "source": "state.saveCommitted"
+              },
+              "rules": [
+                {
+                  "kind": "required",
+                  "message": "请填写申请名称"
+                },
+                {
+                  "kind": "maxLength",
+                  "value": 80,
+                  "message": "申请名称最多80字"
+                }
+              ]
+            },
+            {
+              "id": "applicant",
+              "path": [
+                "applicant"
+              ],
+              "label": "申请人",
+              "type": "string",
+              "initial": "",
+              "disabled": {
+                "kind": "expression",
+                "language": "javascript",
+                "source": "state.saveCommitted"
+              },
+              "rules": [
+                {
+                  "kind": "required",
+                  "message": "请填写申请人"
+                },
+                {
+                  "kind": "maxLength",
+                  "value": 80,
+                  "message": "申请人最多80字"
+                }
+              ]
+            },
+            {
+              "id": "department",
+              "path": [
+                "department"
+              ],
+              "label": "所属部门",
+              "type": "string",
+              "initial": "",
+              "disabled": {
+                "kind": "expression",
+                "language": "javascript",
+                "source": "state.saveCommitted"
+              },
+              "rules": [
+                {
+                  "kind": "required",
+                  "message": "请填写所属部门"
+                },
+                {
+                  "kind": "maxLength",
+                  "value": 80,
+                  "message": "所属部门最多80字"
+                }
+              ]
+            },
+            {
+              "id": "purchaseDate",
+              "path": [
+                "purchaseDate"
+              ],
+              "label": "采购日期",
+              "type": "string",
+              "format": "date",
+              "initial": "",
+              "disabled": {
+                "kind": "expression",
+                "language": "javascript",
+                "source": "state.saveCommitted"
+              },
+              "rules": [
+                {
+                  "kind": "required",
+                  "message": "请选择采购日期"
+                }
+              ]
+            },
+            {
+              "id": "approvalReason",
+              "path": [
+                "approvalReason"
+              ],
+              "label": "审批说明",
+              "type": "string",
+              "initial": "",
+              "disabled": {
+                "kind": "expression",
+                "language": "javascript",
+                "source": "state.saveCommitted"
+              },
+              "when": {
+                "kind": "expression",
+                "language": "javascript",
+                "source": "forms.purchase.computed.total > 10000"
+              },
+              "rules": [
+                {
+                  "kind": "required",
+                  "message": "超过10,000元，请填写审批说明"
+                }
+              ]
+            }
+          ],
+          "arrays": [
+            {
+              "id": "items",
+              "path": [
+                "items"
+              ],
+              "label": "采购明细",
+              "minItems": 1,
+              "maxItems": 20,
+              "disabled": {
+                "kind": "expression",
+                "language": "javascript",
+                "source": "state.saveCommitted"
+              },
+              "initial": [
+                {
+                  "name": "",
+                  "quantity": 1,
+                  "price": 0
+                }
+              ],
+              "fields": [
+                {
+                  "id": "itemName",
+                  "path": [
+                    "name"
+                  ],
+                  "label": "物品名称",
+                  "type": "string",
+                  "initial": "",
+                  "rules": [
+                    {
+                      "kind": "required",
+                      "message": "请填写物品名称"
+                    },
+                    {
+                      "kind": "maxLength",
+                      "value": 80,
+                      "message": "物品名称最多80字"
+                    }
+                  ]
+                },
+                {
+                  "id": "quantity",
+                  "path": [
+                    "quantity"
+                  ],
+                  "label": "数量",
+                  "type": "number",
+                  "initial": 1,
+                  "rules": [
+                    {
+                      "kind": "required",
+                      "message": "请填写数量"
+                    },
+                    {
+                      "kind": "min",
+                      "value": 1,
+                      "message": "数量至少为1"
+                    },
+                    {
+                      "kind": "max",
+                      "value": 999,
+                      "message": "数量最多999"
+                    },
+                    {
+                      "kind": "expression",
+                      "test": {
+                        "kind": "expression",
+                        "language": "javascript",
+                        "source": "scope.row.quantity === null || scope.row.quantity % 1 === 0"
+                      },
+                      "message": "数量必须为整数"
+                    }
+                  ]
+                },
+                {
+                  "id": "price",
+                  "path": [
+                    "price"
+                  ],
+                  "label": "预计单价 / 元",
+                  "type": "number",
+                  "initial": 0,
+                  "rules": [
+                    {
+                      "kind": "required",
+                      "message": "请填写预计单价"
+                    },
+                    {
+                      "kind": "min",
+                      "value": 0,
+                      "message": "单价不能为负数"
+                    },
+                    {
+                      "kind": "expression",
+                      "test": {
+                        "kind": "expression",
+                        "language": "javascript",
+                        "source": "scope.row.price === null || Math.abs(scope.row.price * 100 - Math.round(scope.row.price * 100)) < 0.000001"
+                      },
+                      "message": "单价最多两位小数"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "dataSources": [
+        {
+          "id": "purchases",
+          "kind": "query",
+          "transport": "demo.purchasesQuery",
+          "input": {
+            "query": {
+              "kind": "stateRef",
+              "stateId": "query"
+            },
+            "page": {
+              "kind": "stateRef",
+              "stateId": "page"
+            },
+            "pageSize": {
+              "kind": "stateRef",
+              "stateId": "pageSize"
+            },
+            "sortKey": {
+              "kind": "stateRef",
+              "stateId": "sortKey"
+            },
+            "sortDirection": {
+              "kind": "stateRef",
+              "stateId": "sortDirection"
+            }
+          },
+          "initial": {
+            "items": [],
+            "total": 0,
+            "page": 1,
+            "pageSize": 5,
+            "sort": null
+          }
+        },
+        {
+          "id": "savePurchase",
+          "kind": "mutation",
+          "transport": "demo.purchaseSave",
+          "input": {
+            "id": {
+              "kind": "stateRef",
+              "stateId": "selectedId"
+            },
+            "values": {
+              "kind": "formValues",
+              "formId": "purchase"
+            }
+          },
+          "initial": {
+            "id": "",
+            "number": "",
+            "amount": 0
+          }
+        }
+      ],
+      "onEnter": [
+        {
+          "id": "enter-execute",
+          "action": "data.execute",
+          "input": {
+            "sourceId": {
+              "kind": "literal",
+              "value": "purchases"
+            }
+          }
+        },
+        {
+          "id": "enter-actual-page",
+          "action": "state.set",
+          "input": {
+            "stateId": {
+              "kind": "literal",
+              "value": "page"
+            },
+            "value": {
+              "kind": "dataRef",
+              "sourceId": "purchases",
+              "path": [
+                "page"
+              ]
+            }
+          }
+        },
+        {
+          "id": "enter-actual-size",
+          "action": "state.set",
+          "input": {
+            "stateId": {
+              "kind": "literal",
+              "value": "pageSize"
+            },
+            "value": {
+              "kind": "dataRef",
+              "sourceId": "purchases",
+              "path": [
+                "pageSize"
+              ]
+            }
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "purchase-workspace",
+          "component": "ui.layout",
+          "props": {
+            "gap": {
+              "kind": "literal",
+              "value": 16
+            }
+          },
+          "style": {
+            "paddingTop": {
+              "kind": "literal",
+              "value": 20
+            },
+            "paddingRight": {
+              "kind": "literal",
+              "value": 20
+            },
+            "paddingBottom": {
+              "kind": "literal",
+              "value": 20
+            },
+            "paddingLeft": {
+              "kind": "literal",
+              "value": 20
+            },
+            "backgroundColor": {
+              "kind": "literal",
+              "value": "#f8fafc"
+            },
+            "minWidth": {
+              "kind": "literal",
+              "value": 0
+            }
+          },
+          "children": [
+            {
+              "id": "purchase-heading",
+              "component": "ui.heading",
+              "props": {
+                "title": {
+                  "kind": "literal",
+                  "value": "采购申请管理"
+                },
+                "description": {
+                  "kind": "literal",
+                  "value": "从采购明细到金额校验，集中管理每一笔申请。演示数据，刷新页面后恢复初始记录。"
+                }
+              },
+              "style": {
+                "fontSize": {
+                  "kind": "literal",
+                  "value": 23
+                },
+                "marginBottom": {
+                  "kind": "literal",
+                  "value": 2
+                }
+              }
+            },
+            {
+              "id": "purchase-list-card",
+              "component": "ui.card",
+              "props": {},
+              "style": {
+                "backgroundColor": {
+                  "kind": "literal",
+                  "value": "#ffffff"
+                },
+                "paddingTop": {
+                  "kind": "literal",
+                  "value": 8
+                },
+                "paddingBottom": {
+                  "kind": "literal",
+                  "value": 8
+                }
+              },
+              "children": [
+                {
+                  "id": "purchase-toolbar",
+                  "component": "ui.layout",
+                  "props": {
+                    "variant": {
+                      "kind": "literal",
+                      "value": "row"
+                    },
+                    "gap": {
+                      "kind": "literal",
+                      "value": 10
+                    },
+                    "align": {
+                      "kind": "literal",
+                      "value": "end"
+                    },
+                    "justify": {
+                      "kind": "literal",
+                      "value": "space-between"
+                    }
+                  },
+                  "style": {
+                    "marginBottom": {
+                      "kind": "literal",
+                      "value": 14
+                    }
+                  },
+                  "children": [
+                    {
+                      "id": "purchase-filter",
+                      "component": "ui.input",
+                      "props": {
+                        "label": {
+                          "kind": "literal",
+                          "value": "搜索采购申请"
+                        },
+                        "value": {
+                          "kind": "stateRef",
+                          "stateId": "query"
+                        },
+                        "placeholder": {
+                          "kind": "literal",
+                          "value": "申请名称、编号、申请人或部门"
+                        }
+                      },
+                      "style": {
+                        "flexGrow": {
+                          "kind": "literal",
+                          "value": 1
+                        },
+                        "flexBasis": {
+                          "kind": "literal",
+                          "value": "240px"
+                        },
+                        "maxWidth": {
+                          "kind": "literal",
+                          "value": 420
+                        }
+                      },
+                      "on": {
+                        "onChange": [
+                          {
+                            "id": "update-query",
+                            "action": "state.set",
+                            "input": {
+                              "stateId": {
+                                "kind": "literal",
+                                "value": "query"
+                              },
+                              "value": {
+                                "kind": "expression",
+                                "language": "javascript",
+                                "source": "event.target.value"
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "id": "purchase-toolbar-buttons",
+                      "component": "ui.layout",
+                      "props": {
+                        "variant": {
+                          "kind": "literal",
+                          "value": "row"
+                        },
+                        "gap": {
+                          "kind": "literal",
+                          "value": 8
+                        }
+                      },
+                      "children": [
+                        {
+                          "id": "search-purchases",
+                          "component": "ui.button",
+                          "props": {
+                            "label": {
+                              "kind": "literal",
+                              "value": "查询"
+                            },
+                            "disabled": {
+                              "kind": "expression",
+                              "language": "javascript",
+                              "source": "sources.purchases.loading"
+                            }
+                          },
+                          "on": {
+                            "onClick": [
+                              {
+                                "id": "search-first",
+                                "action": "state.set",
+                                "input": {
+                                  "stateId": {
+                                    "kind": "literal",
+                                    "value": "page"
+                                  },
+                                  "value": {
+                                    "kind": "literal",
+                                    "value": 1
+                                  }
+                                }
+                              },
+                              {
+                                "id": "search-execute",
+                                "action": "data.execute",
+                                "input": {
+                                  "sourceId": {
+                                    "kind": "literal",
+                                    "value": "purchases"
+                                  }
+                                }
+                              },
+                              {
+                                "id": "search-actual-page",
+                                "action": "state.set",
+                                "input": {
+                                  "stateId": {
+                                    "kind": "literal",
+                                    "value": "page"
+                                  },
+                                  "value": {
+                                    "kind": "dataRef",
+                                    "sourceId": "purchases",
+                                    "path": [
+                                      "page"
+                                    ]
+                                  }
+                                }
+                              },
+                              {
+                                "id": "search-actual-size",
+                                "action": "state.set",
+                                "input": {
+                                  "stateId": {
+                                    "kind": "literal",
+                                    "value": "pageSize"
+                                  },
+                                  "value": {
+                                    "kind": "dataRef",
+                                    "sourceId": "purchases",
+                                    "path": [
+                                      "pageSize"
+                                    ]
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "id": "clear-purchases",
+                          "component": "ui.button",
+                          "props": {
+                            "label": {
+                              "kind": "literal",
+                              "value": "重置筛选"
+                            },
+                            "variant": {
+                              "kind": "literal",
+                              "value": "secondary"
+                            },
+                            "disabled": {
+                              "kind": "expression",
+                              "language": "javascript",
+                              "source": "sources.purchases.loading"
+                            }
+                          },
+                          "on": {
+                            "onClick": [
+                              {
+                                "id": "clear-query",
+                                "action": "state.set",
+                                "input": {
+                                  "stateId": {
+                                    "kind": "literal",
+                                    "value": "query"
+                                  },
+                                  "value": {
+                                    "kind": "literal",
+                                    "value": ""
+                                  }
+                                }
+                              },
+                              {
+                                "id": "clear-first",
+                                "action": "state.set",
+                                "input": {
+                                  "stateId": {
+                                    "kind": "literal",
+                                    "value": "page"
+                                  },
+                                  "value": {
+                                    "kind": "literal",
+                                    "value": 1
+                                  }
+                                }
+                              },
+                              {
+                                "id": "clear-execute",
+                                "action": "data.execute",
+                                "input": {
+                                  "sourceId": {
+                                    "kind": "literal",
+                                    "value": "purchases"
+                                  }
+                                }
+                              },
+                              {
+                                "id": "clear-actual-page",
+                                "action": "state.set",
+                                "input": {
+                                  "stateId": {
+                                    "kind": "literal",
+                                    "value": "page"
+                                  },
+                                  "value": {
+                                    "kind": "dataRef",
+                                    "sourceId": "purchases",
+                                    "path": [
+                                      "page"
+                                    ]
+                                  }
+                                }
+                              },
+                              {
+                                "id": "clear-actual-size",
+                                "action": "state.set",
+                                "input": {
+                                  "stateId": {
+                                    "kind": "literal",
+                                    "value": "pageSize"
+                                  },
+                                  "value": {
+                                    "kind": "dataRef",
+                                    "sourceId": "purchases",
+                                    "path": [
+                                      "pageSize"
+                                    ]
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "id": "new-purchase",
+                          "component": "ui.button",
+                          "props": {
+                            "label": {
+                              "kind": "literal",
+                              "value": "新建申请"
+                            },
+                            "disabled": {
+                              "kind": "expression",
+                              "language": "javascript",
+                              "source": "forms.purchase.isSubmitting"
+                            }
+                          },
+                          "on": {
+                            "onClick": [
+                              {
+                                "id": "new-marker",
+                                "action": "state.set",
+                                "input": {
+                                  "stateId": {
+                                    "kind": "literal",
+                                    "value": "saveCommitted"
+                                  },
+                                  "value": {
+                                    "kind": "literal",
+                                    "value": false
+                                  }
+                                }
+                              },
+                              {
+                                "id": "new-id",
+                                "action": "state.set",
+                                "input": {
+                                  "stateId": {
+                                    "kind": "literal",
+                                    "value": "selectedId"
+                                  },
+                                  "value": {
+                                    "kind": "literal",
+                                    "value": ""
+                                  }
+                                }
+                              },
+                              {
+                                "id": "new-form",
+                                "action": "form.reset",
+                                "input": {
+                                  "formId": {
+                                    "kind": "literal",
+                                    "value": "purchase"
+                                  }
+                                }
+                              },
+                              {
+                                "id": "new-open",
+                                "action": "state.set",
+                                "input": {
+                                  "stateId": {
+                                    "kind": "literal",
+                                    "value": "drawerOpen"
+                                  },
+                                  "value": {
+                                    "kind": "literal",
+                                    "value": true
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "purchase-count",
+                  "component": "ui.text",
+                  "props": {
+                    "value": {
+                      "kind": "expression",
+                      "language": "javascript",
+                      "source": "sources.purchases.loading ? \"正在加载采购申请…\" : \"共 \" + sources.purchases.data.total + \" 条采购申请\""
+                    },
+                    "tone": {
+                      "kind": "literal",
+                      "value": "muted"
+                    }
+                  },
+                  "style": {
+                    "fontSize": {
+                      "kind": "literal",
+                      "value": 12
+                    },
+                    "marginBottom": {
+                      "kind": "literal",
+                      "value": 10
+                    }
+                  }
+                },
+                {
+                  "id": "purchase-table",
+                  "component": "ui.table",
+                  "props": {
+                    "data": {
+                      "kind": "dataRef",
+                      "sourceId": "purchases",
+                      "path": [
+                        "items"
+                      ]
+                    },
+                    "columns": {
+                      "kind": "literal",
+                      "value": [
+                        {
+                          "key": "number",
+                          "title": "申请编号",
+                          "width": 150,
+                          "sortable": true
+                        },
+                        {
+                          "key": "name",
+                          "title": "申请名称",
+                          "width": 210
+                        },
+                        {
+                          "key": "applicant",
+                          "title": "申请人"
+                        },
+                        {
+                          "key": "department",
+                          "title": "部门"
+                        },
+                        {
+                          "key": "purchaseDate",
+                          "title": "采购日期",
+                          "sortable": true
+                        },
+                        {
+                          "key": "amount",
+                          "title": "采购金额 / 元",
+                          "align": "right",
+                          "sortable": true
+                        }
+                      ]
+                    },
+                    "rowKey": {
+                      "kind": "literal",
+                      "value": "id"
+                    },
+                    "sort": {
+                      "kind": "dataRef",
+                      "sourceId": "purchases",
+                      "path": [
+                        "sort"
+                      ]
+                    },
+                    "sortMode": {
+                      "kind": "literal",
+                      "value": "server"
+                    },
+                    "paginate": {
+                      "kind": "literal",
+                      "value": false
+                    },
+                    "selectionMode": {
+                      "kind": "literal",
+                      "value": "none"
+                    },
+                    "loading": {
+                      "kind": "expression",
+                      "language": "javascript",
+                      "source": "sources.purchases.loading"
+                    },
+                    "error": {
+                      "kind": "expression",
+                      "language": "javascript",
+                      "source": "sources.purchases.error ? sources.purchases.error.message : \"\""
+                    }
+                  },
+                  "on": {
+                    "onSortChange": [
+                      {
+                        "id": "sort-key",
+                        "action": "state.set",
+                        "input": {
+                          "stateId": {
+                            "kind": "literal",
+                            "value": "sortKey"
+                          },
+                          "value": {
+                            "kind": "expression",
+                            "language": "javascript",
+                            "source": "event ? event.key : \"\""
+                          }
+                        }
+                      },
+                      {
+                        "id": "sort-direction",
+                        "action": "state.set",
+                        "input": {
+                          "stateId": {
+                            "kind": "literal",
+                            "value": "sortDirection"
+                          },
+                          "value": {
+                            "kind": "expression",
+                            "language": "javascript",
+                            "source": "event ? event.direction : \"\""
+                          }
+                        }
+                      },
+                      {
+                        "id": "sort-first",
+                        "action": "state.set",
+                        "input": {
+                          "stateId": {
+                            "kind": "literal",
+                            "value": "page"
+                          },
+                          "value": {
+                            "kind": "literal",
+                            "value": 1
+                          }
+                        }
+                      },
+                      {
+                        "id": "sort-execute",
+                        "action": "data.execute",
+                        "input": {
+                          "sourceId": {
+                            "kind": "literal",
+                            "value": "purchases"
+                          }
+                        }
+                      },
+                      {
+                        "id": "sort-actual-page",
+                        "action": "state.set",
+                        "input": {
+                          "stateId": {
+                            "kind": "literal",
+                            "value": "page"
+                          },
+                          "value": {
+                            "kind": "dataRef",
+                            "sourceId": "purchases",
+                            "path": [
+                              "page"
+                            ]
+                          }
+                        }
+                      },
+                      {
+                        "id": "sort-actual-size",
+                        "action": "state.set",
+                        "input": {
+                          "stateId": {
+                            "kind": "literal",
+                            "value": "pageSize"
+                          },
+                          "value": {
+                            "kind": "dataRef",
+                            "sourceId": "purchases",
+                            "path": [
+                              "pageSize"
+                            ]
+                          }
+                        }
+                      }
+                    ],
+                    "onRetry": [
+                      {
+                        "id": "retry-list-execute",
+                        "action": "data.execute",
+                        "input": {
+                          "sourceId": {
+                            "kind": "literal",
+                            "value": "purchases"
+                          }
+                        }
+                      },
+                      {
+                        "id": "retry-list-actual-page",
+                        "action": "state.set",
+                        "input": {
+                          "stateId": {
+                            "kind": "literal",
+                            "value": "page"
+                          },
+                          "value": {
+                            "kind": "dataRef",
+                            "sourceId": "purchases",
+                            "path": [
+                              "page"
+                            ]
+                          }
+                        }
+                      },
+                      {
+                        "id": "retry-list-actual-size",
+                        "action": "state.set",
+                        "input": {
+                          "stateId": {
+                            "kind": "literal",
+                            "value": "pageSize"
+                          },
+                          "value": {
+                            "kind": "dataRef",
+                            "sourceId": "purchases",
+                            "path": [
+                              "pageSize"
+                            ]
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "slots": {
+                    "actions": {
+                      "params": [
+                        "row",
+                        "index"
+                      ],
+                      "children": [
+                        {
+                          "id": "edit-purchase",
+                          "component": "ui.button",
+                          "props": {
+                            "label": {
+                              "kind": "literal",
+                              "value": "编辑"
+                            },
+                            "variant": {
+                              "kind": "literal",
+                              "value": "secondary"
+                            },
+                            "disabled": {
+                              "kind": "expression",
+                              "language": "javascript",
+                              "source": "forms.purchase.isSubmitting"
+                            }
+                          },
+                          "on": {
+                            "onClick": [
+                              {
+                                "id": "edit-marker",
+                                "action": "state.set",
+                                "input": {
+                                  "stateId": {
+                                    "kind": "literal",
+                                    "value": "saveCommitted"
+                                  },
+                                  "value": {
+                                    "kind": "literal",
+                                    "value": false
+                                  }
+                                }
+                              },
+                              {
+                                "id": "edit-id",
+                                "action": "state.set",
+                                "input": {
+                                  "stateId": {
+                                    "kind": "literal",
+                                    "value": "selectedId"
+                                  },
+                                  "value": {
+                                    "kind": "expression",
+                                    "language": "javascript",
+                                    "source": "scope.row.id"
+                                  }
+                                }
+                              },
+                              {
+                                "id": "edit-reset",
+                                "action": "form.reset",
+                                "input": {
+                                  "formId": {
+                                    "kind": "literal",
+                                    "value": "purchase"
+                                  }
+                                }
+                              },
+                              {
+                                "id": "edit-prefill",
+                                "action": "form.setValues",
+                                "input": {
+                                  "formId": {
+                                    "kind": "literal",
+                                    "value": "purchase"
+                                  },
+                                  "values": {
+                                    "kind": "expression",
+                                    "language": "javascript",
+                                    "source": "scope.row.editValues"
+                                  }
+                                }
+                              },
+                              {
+                                "id": "edit-open",
+                                "action": "state.set",
+                                "input": {
+                                  "stateId": {
+                                    "kind": "literal",
+                                    "value": "drawerOpen"
+                                  },
+                                  "value": {
+                                    "kind": "literal",
+                                    "value": true
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "id": "purchase-pagination",
+                  "component": "ui.pagination",
+                  "props": {
+                    "page": {
+                      "kind": "stateRef",
+                      "stateId": "page"
+                    },
+                    "pageSize": {
+                      "kind": "stateRef",
+                      "stateId": "pageSize"
+                    },
+                    "total": {
+                      "kind": "dataRef",
+                      "sourceId": "purchases",
+                      "path": [
+                        "total"
+                      ]
+                    },
+                    "disabled": {
+                      "kind": "expression",
+                      "language": "javascript",
+                      "source": "sources.purchases.loading"
+                    }
+                  },
+                  "style": {
+                    "marginTop": {
+                      "kind": "literal",
+                      "value": 14
+                    }
+                  },
+                  "on": {
+                    "onPaginationChange": [
+                      {
+                        "id": "pagination-page",
+                        "action": "state.set",
+                        "input": {
+                          "stateId": {
+                            "kind": "literal",
+                            "value": "page"
+                          },
+                          "value": {
+                            "kind": "expression",
+                            "language": "javascript",
+                            "source": "event.page"
+                          }
+                        }
+                      },
+                      {
+                        "id": "pagination-size",
+                        "action": "state.set",
+                        "input": {
+                          "stateId": {
+                            "kind": "literal",
+                            "value": "pageSize"
+                          },
+                          "value": {
+                            "kind": "expression",
+                            "language": "javascript",
+                            "source": "event.pageSize"
+                          }
+                        }
+                      },
+                      {
+                        "id": "pagination-execute",
+                        "action": "data.execute",
+                        "input": {
+                          "sourceId": {
+                            "kind": "literal",
+                            "value": "purchases"
+                          }
+                        }
+                      },
+                      {
+                        "id": "pagination-actual-page",
+                        "action": "state.set",
+                        "input": {
+                          "stateId": {
+                            "kind": "literal",
+                            "value": "page"
+                          },
+                          "value": {
+                            "kind": "dataRef",
+                            "sourceId": "purchases",
+                            "path": [
+                              "page"
+                            ]
+                          }
+                        }
+                      },
+                      {
+                        "id": "pagination-actual-size",
+                        "action": "state.set",
+                        "input": {
+                          "stateId": {
+                            "kind": "literal",
+                            "value": "pageSize"
+                          },
+                          "value": {
+                            "kind": "dataRef",
+                            "sourceId": "purchases",
+                            "path": [
+                              "pageSize"
+                            ]
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "id": "purchase-drawer",
+              "component": "ui.drawer",
+              "props": {
+                "title": {
+                  "kind": "expression",
+                  "language": "javascript",
+                  "source": "state.selectedId ? \"编辑采购申请\" : \"新建采购申请\""
+                },
+                "description": {
+                  "kind": "literal",
+                  "value": "填写申请信息与采购明细，金额实时计算。"
+                },
+                "open": {
+                  "kind": "stateRef",
+                  "stateId": "drawerOpen"
+                },
+                "showTrigger": {
+                  "kind": "literal",
+                  "value": false
+                },
+                "showFooter": {
+                  "kind": "literal",
+                  "value": false
+                },
+                "width": {
+                  "kind": "literal",
+                  "value": 720
+                }
+              },
+              "style": {
+                "maxWidth": {
+                  "kind": "literal",
+                  "value": "100%"
+                },
+                "backgroundColor": {
+                  "kind": "literal",
+                  "value": "#ffffff"
+                }
+              },
+              "on": {
+                "onOpenChange": [
+                  {
+                    "id": "drawer-toggle",
+                    "action": "state.set",
+                    "input": {
+                      "stateId": {
+                        "kind": "literal",
+                        "value": "drawerOpen"
+                      },
+                      "value": {
+                        "kind": "expression",
+                        "language": "javascript",
+                        "source": "event"
+                      }
+                    }
+                  }
+                ]
+              },
+              "children": [
+                {
+                  "id": "purchase-refresh-warning",
+                  "component": "ui.alert",
+                  "when": {
+                    "kind": "expression",
+                    "language": "javascript",
+                    "source": "state.saveCommitted && !!sources.purchases.error"
+                  },
+                  "props": {
+                    "title": {
+                      "kind": "literal",
+                      "value": "申请已保存，仅列表刷新失败"
+                    },
+                    "description": {
+                      "kind": "literal",
+                      "value": "申请已写入，点击“仅重试刷新”即可，不会再次提交。"
+                    },
+                    "tone": {
+                      "kind": "literal",
+                      "value": "warning"
+                    }
+                  }
+                },
+                {
+                  "id": "retry-purchase-refresh",
+                  "component": "ui.button",
+                  "props": {
+                    "label": {
+                      "kind": "literal",
+                      "value": "仅重试刷新"
+                    },
+                    "disabled": {
+                      "kind": "expression",
+                      "language": "javascript",
+                      "source": "sources.purchases.loading || forms.purchase.isSubmitting"
+                    }
+                  },
+                  "on": {
+                    "onClick": [
+                      {
+                        "id": "retry-saved-execute",
+                        "action": "data.execute",
+                        "input": {
+                          "sourceId": {
+                            "kind": "literal",
+                            "value": "purchases"
+                          }
+                        }
+                      },
+                      {
+                        "id": "retry-saved-actual-page",
+                        "action": "state.set",
+                        "input": {
+                          "stateId": {
+                            "kind": "literal",
+                            "value": "page"
+                          },
+                          "value": {
+                            "kind": "dataRef",
+                            "sourceId": "purchases",
+                            "path": [
+                              "page"
+                            ]
+                          }
+                        }
+                      },
+                      {
+                        "id": "retry-saved-actual-size",
+                        "action": "state.set",
+                        "input": {
+                          "stateId": {
+                            "kind": "literal",
+                            "value": "pageSize"
+                          },
+                          "value": {
+                            "kind": "dataRef",
+                            "sourceId": "purchases",
+                            "path": [
+                              "pageSize"
+                            ]
+                          }
+                        }
+                      },
+                      {
+                        "id": "retry-saved-notice",
+                        "action": "ui.notify",
+                        "input": {
+                          "title": {
+                            "kind": "literal",
+                            "value": "采购申请已保存"
+                          },
+                          "tone": {
+                            "kind": "literal",
+                            "value": "success"
+                          }
+                        }
+                      },
+                      {
+                        "id": "retry-saved-close",
+                        "action": "state.set",
+                        "input": {
+                          "stateId": {
+                            "kind": "literal",
+                            "value": "drawerOpen"
+                          },
+                          "value": {
+                            "kind": "literal",
+                            "value": false
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "when": {
+                    "kind": "expression",
+                    "language": "javascript",
+                    "source": "state.saveCommitted"
+                  }
+                },
+                {
+                  "id": "purchase-form",
+                  "component": "ui.form",
+                  "formId": "purchase",
+                  "props": {
+                    "readOnly": {
+                      "kind": "expression",
+                      "language": "javascript",
+                      "source": "forms.purchase.isSubmitting || state.saveCommitted"
+                    },
+                    "gap": {
+                      "kind": "literal",
+                      "value": 14
+                    }
+                  },
+                  "on": {
+                    "onSubmit": [
+                      {
+                        "id": "save-purchase-once",
+                        "action": "demo.savePurchaseOnce",
+                        "input": {}
+                      },
+                      {
+                        "id": "mark-saved",
+                        "action": "state.set",
+                        "input": {
+                          "stateId": {
+                            "kind": "literal",
+                            "value": "saveCommitted"
+                          },
+                          "value": {
+                            "kind": "literal",
+                            "value": true
+                          }
+                        }
+                      },
+                      {
+                        "id": "saved-id",
+                        "action": "state.set",
+                        "input": {
+                          "stateId": {
+                            "kind": "literal",
+                            "value": "selectedId"
+                          },
+                          "value": {
+                            "kind": "dataRef",
+                            "sourceId": "savePurchase",
+                            "path": [
+                              "id"
+                            ]
+                          }
+                        }
+                      },
+                      {
+                        "id": "save-execute",
+                        "action": "data.execute",
+                        "input": {
+                          "sourceId": {
+                            "kind": "literal",
+                            "value": "purchases"
+                          }
+                        }
+                      },
+                      {
+                        "id": "save-actual-page",
+                        "action": "state.set",
+                        "input": {
+                          "stateId": {
+                            "kind": "literal",
+                            "value": "page"
+                          },
+                          "value": {
+                            "kind": "dataRef",
+                            "sourceId": "purchases",
+                            "path": [
+                              "page"
+                            ]
+                          }
+                        }
+                      },
+                      {
+                        "id": "save-actual-size",
+                        "action": "state.set",
+                        "input": {
+                          "stateId": {
+                            "kind": "literal",
+                            "value": "pageSize"
+                          },
+                          "value": {
+                            "kind": "dataRef",
+                            "sourceId": "purchases",
+                            "path": [
+                              "pageSize"
+                            ]
+                          }
+                        }
+                      },
+                      {
+                        "id": "save-notice",
+                        "action": "ui.notify",
+                        "input": {
+                          "title": {
+                            "kind": "literal",
+                            "value": "采购申请已保存"
+                          },
+                          "tone": {
+                            "kind": "literal",
+                            "value": "success"
+                          }
+                        }
+                      },
+                      {
+                        "id": "save-close",
+                        "action": "state.set",
+                        "input": {
+                          "stateId": {
+                            "kind": "literal",
+                            "value": "drawerOpen"
+                          },
+                          "value": {
+                            "kind": "literal",
+                            "value": false
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "id": "purchase-basic-title",
+                      "component": "ui.text",
+                      "props": {
+                        "value": {
+                          "kind": "literal",
+                          "value": "基本信息"
+                        }
+                      },
+                      "style": {
+                        "fontWeight": {
+                          "kind": "literal",
+                          "value": 600
+                        },
+                        "fontSize": {
+                          "kind": "literal",
+                          "value": 14
+                        }
+                      }
+                    },
+                    {
+                      "id": "purchase-basics",
+                      "component": "ui.layout",
+                      "props": {
+                        "variant": {
+                          "kind": "literal",
+                          "value": "grid2"
+                        },
+                        "gap": {
+                          "kind": "literal",
+                          "value": 12
+                        }
+                      },
+                      "children": [
+                        {
+                          "id": "purchase-name",
+                          "component": "ui.input",
+                          "props": {
+                            "placeholder": {
+                              "kind": "literal",
+                              "value": "例如：研发工位设备采购"
+                            }
+                          },
+                          "field": {
+                            "formId": "purchase",
+                            "fieldId": "name"
+                          }
+                        },
+                        {
+                          "id": "purchase-applicant",
+                          "component": "ui.input",
+                          "props": {
+                            "placeholder": {
+                              "kind": "literal",
+                              "value": "填写申请人姓名"
+                            }
+                          },
+                          "field": {
+                            "formId": "purchase",
+                            "fieldId": "applicant"
+                          }
+                        },
+                        {
+                          "id": "purchase-department",
+                          "component": "ui.select",
+                          "props": {
+                            "options": {
+                              "kind": "literal",
+                              "value": [
+                                {
+                                  "label": "研发中心",
+                                  "value": "研发中心"
+                                },
+                                {
+                                  "label": "产品设计部",
+                                  "value": "产品设计部"
+                                },
+                                {
+                                  "label": "运营中心",
+                                  "value": "运营中心"
+                                },
+                                {
+                                  "label": "行政管理部",
+                                  "value": "行政管理部"
+                                }
+                              ]
+                            },
+                            "placeholder": {
+                              "kind": "literal",
+                              "value": "选择所属部门"
+                            },
+                            "clearable": {
+                              "kind": "literal",
+                              "value": true
+                            }
+                          },
+                          "field": {
+                            "formId": "purchase",
+                            "fieldId": "department"
+                          }
+                        },
+                        {
+                          "id": "purchase-date",
+                          "component": "ui.date",
+                          "props": {
+                            "mode": {
+                              "kind": "literal",
+                              "value": "date"
+                            },
+                            "clearable": {
+                              "kind": "literal",
+                              "value": true
+                            }
+                          },
+                          "field": {
+                            "formId": "purchase",
+                            "fieldId": "purchaseDate"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "purchase-divider",
+                      "component": "ui.divider",
+                      "props": {}
+                    },
+                    {
+                      "id": "purchase-items",
+                      "component": "ui.fieldArray",
+                      "props": {
+                        "formId": {
+                          "kind": "literal",
+                          "value": "purchase"
+                        },
+                        "arrayId": {
+                          "kind": "literal",
+                          "value": "items"
+                        }
+                      },
+                      "style": {
+                        "marginTop": {
+                          "kind": "literal",
+                          "value": 2
+                        },
+                        "marginBottom": {
+                          "kind": "literal",
+                          "value": 4
+                        }
+                      }
+                    },
+                    {
+                      "id": "purchase-amount-summary",
+                      "component": "ui.layout",
+                      "props": {
+                        "variant": {
+                          "kind": "literal",
+                          "value": "row"
+                        },
+                        "justify": {
+                          "kind": "literal",
+                          "value": "space-between"
+                        },
+                        "align": {
+                          "kind": "literal",
+                          "value": "center"
+                        }
+                      },
+                      "style": {
+                        "paddingTop": {
+                          "kind": "literal",
+                          "value": 12
+                        },
+                        "paddingRight": {
+                          "kind": "literal",
+                          "value": 12
+                        },
+                        "paddingBottom": {
+                          "kind": "literal",
+                          "value": 12
+                        },
+                        "paddingLeft": {
+                          "kind": "literal",
+                          "value": 12
+                        },
+                        "backgroundColor": {
+                          "kind": "literal",
+                          "value": "#f1f5f9"
+                        }
+                      },
+                      "children": [
+                        {
+                          "id": "purchase-amount-label",
+                          "component": "ui.text",
+                          "props": {
+                            "value": {
+                              "kind": "literal",
+                              "value": "申请总金额"
+                            }
+                          },
+                          "style": {
+                            "color": {
+                              "kind": "literal",
+                              "value": "#475569"
+                            },
+                            "fontSize": {
+                              "kind": "literal",
+                              "value": 13
+                            }
+                          }
+                        },
+                        {
+                          "id": "purchase-amount",
+                          "component": "ui.text",
+                          "props": {
+                            "value": {
+                              "kind": "expression",
+                              "language": "javascript",
+                              "source": "\"¥ \" + forms.purchase.computed.total"
+                            }
+                          },
+                          "style": {
+                            "fontSize": {
+                              "kind": "literal",
+                              "value": 23
+                            },
+                            "fontWeight": {
+                              "kind": "literal",
+                              "value": 700
+                            },
+                            "color": {
+                              "kind": "literal",
+                              "value": "#0f172a"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "purchase-approval-hint",
+                      "component": "ui.badge",
+                      "props": {
+                        "value": {
+                          "kind": "expression",
+                          "language": "javascript",
+                          "source": "forms.purchase.computed.total > 10000 ? \"超过10,000元，需填写审批说明\" : \"常规采购申请\""
+                        },
+                        "tone": {
+                          "kind": "expression",
+                          "language": "javascript",
+                          "source": "forms.purchase.computed.total > 10000 ? \"amber\" : \"green\""
+                        }
+                      }
+                    },
+                    {
+                      "id": "purchase-reason",
+                      "component": "ui.input",
+                      "props": {
+                        "multiline": {
+                          "kind": "literal",
+                          "value": true
+                        },
+                        "rows": {
+                          "kind": "literal",
+                          "value": 3
+                        },
+                        "placeholder": {
+                          "kind": "literal",
+                          "value": "说明本次采购用途及必要性"
+                        }
+                      },
+                      "field": {
+                        "formId": "purchase",
+                        "fieldId": "approvalReason"
+                      }
+                    },
+                    {
+                      "id": "purchase-form-errors",
+                      "component": "ui.alert",
+                      "when": {
+                        "kind": "expression",
+                        "language": "javascript",
+                        "source": "forms.purchase.formErrors.length > 0"
+                      },
+                      "props": {
+                        "title": {
+                          "kind": "literal",
+                          "value": "请检查采购金额"
+                        },
+                        "description": {
+                          "kind": "expression",
+                          "language": "javascript",
+                          "source": "forms.purchase.formErrors[0] || \"\""
+                        },
+                        "tone": {
+                          "kind": "literal",
+                          "value": "error"
+                        }
+                      }
+                    },
+                    {
+                      "id": "purchase-submit-error",
+                      "component": "ui.alert",
+                      "when": {
+                        "kind": "expression",
+                        "language": "javascript",
+                        "source": "!!forms.purchase.submitError && !state.saveCommitted"
+                      },
+                      "props": {
+                        "title": {
+                          "kind": "literal",
+                          "value": "申请尚未保存"
+                        },
+                        "description": {
+                          "kind": "expression",
+                          "language": "javascript",
+                          "source": "forms.purchase.submitError || \"\""
+                        },
+                        "tone": {
+                          "kind": "literal",
+                          "value": "error"
+                        }
+                      }
+                    },
+                    {
+                      "id": "purchase-form-actions",
+                      "component": "ui.layout",
+                      "props": {
+                        "variant": {
+                          "kind": "literal",
+                          "value": "row"
+                        },
+                        "justify": {
+                          "kind": "literal",
+                          "value": "end"
+                        },
+                        "gap": {
+                          "kind": "literal",
+                          "value": 8
+                        }
+                      },
+                      "style": {
+                        "marginTop": {
+                          "kind": "literal",
+                          "value": 4
+                        }
+                      },
+                      "children": [
+                        {
+                          "id": "cancel-purchase",
+                          "component": "ui.button",
+                          "props": {
+                            "label": {
+                              "kind": "literal",
+                              "value": "取消"
+                            },
+                            "variant": {
+                              "kind": "literal",
+                              "value": "secondary"
+                            },
+                            "disabled": {
+                              "kind": "expression",
+                              "language": "javascript",
+                              "source": "forms.purchase.isSubmitting"
+                            }
+                          },
+                          "on": {
+                            "onClick": [
+                              {
+                                "id": "cancel-drawer",
+                                "action": "state.set",
+                                "input": {
+                                  "stateId": {
+                                    "kind": "literal",
+                                    "value": "drawerOpen"
+                                  },
+                                  "value": {
+                                    "kind": "literal",
+                                    "value": false
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "id": "submit-purchase",
+                          "component": "ui.button",
+                          "props": {
+                            "type": {
+                              "kind": "literal",
+                              "value": "submit"
+                            },
+                            "label": {
+                              "kind": "expression",
+                              "language": "javascript",
+                              "source": "forms.purchase.isSubmitting ? \"正在提交…\" : \"提交申请\""
+                            },
+                            "disabled": {
+                              "kind": "expression",
+                              "language": "javascript",
+                              "source": "forms.purchase.isSubmitting || state.saveCommitted"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

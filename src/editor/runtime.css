@@ -1,0 +1,44 @@
+@import '../materials/temporal.css';
+@import './styles/content-visibility.css';
+@import 'tailwindcss';
+@import '../ui/styles/base-tokens.css';
+@import '../ui/styles/base-controls.css';
+@import '../ui/styles/primitives.css';
+@import '../ui/styles/popup-positioner.css';
+@import '../ui/styles/runtime-errors.css';
+@import './styles/content-dropzones.css';
+@import './styles/content-markers.css';
+@import '../materials/styles/legacy.css';
+@import '../materials/styles/legacy-overrides.css';
+@import '../ui/styles/tooltip-positioner.css';
+@import '../ui/styles/tooltip.css';
+@import './styles/content-cursors.css';
+@import '../materials/materials.css';
+@source '..';
+
+html,
+body {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  background: white;
+}
+html {
+  height: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+body {
+  min-height: 100%;
+  height: auto;
+  overflow: visible;
+  padding: 24px;
+  font-size: 13px;
+}
+#canvas-content,
+#canvas-portals {
+  min-width: 0;
+}
+:root {
+  --dimlu-runtime-baseline: ready;
+}

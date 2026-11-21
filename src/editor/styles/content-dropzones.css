@@ -1,0 +1,29 @@
+.drop-zone {
+  border: 1px dashed #cdd7ef;
+  border-radius: 5px;
+  padding: 10px;
+  margin: 8px 0;
+  color: #90a0bb;
+  background: #f7f9ff;
+  font-size: 10px;
+  line-height: 1.6;
+  min-height: 34px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.drop-zone.drag-active {
+  border-color: #8ea2e9;
+  background: #f0f4ff;
+}
+.drop-zone.drop-valid {
+  border-color: #5471e9;
+  outline: 1px solid #5471e9;
+  color: #4c68d7;
+  background: #eaf0ff;
+}
+.drop-zone.drop-invalid {
+  border-color: #c95050;
+  outline: 1px solid #c95050;
+  color: #b14949;
+  background: #fff1f1;
+}

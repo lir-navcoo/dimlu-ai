@@ -1,0 +1,802 @@
+{"storageVersion":1,"savedAt":"2026-11-08T09:00:00.000Z","selection":{"pageId":"purchase","nodeId":"purchase-name"},"schema":{
+  "schemaVersion": "0.1.0",
+  "id": "dimlu.starter",
+  "title": "Dimlu 运行时示例",
+  "entryPageId": "purchase",
+  "dependencies": {
+    "components": {
+      "ui.layout": "1.0.0",
+      "ui.text": "1.0.0",
+      "ui.heading": "1.0.0",
+      "ui.input": "1.0.0",
+      "ui.number": "1.0.0",
+      "ui.button": "1.0.0",
+      "ui.form": "1.0.0",
+      "ui.formStatus": "1.0.0",
+      "react.purchaseItems": "1.0.0",
+      "ui.summary": "1.0.0",
+      "ui.badge": "1.0.0",
+      "ui.record": "1.0.0",
+      "ui.empty": "1.0.0",
+      "ui.recordCard": "1.0.0",
+      "react.counter": "1.0.0"
+    },
+    "actions": {
+      "state.set": "1.0.0",
+      "demo.submitPurchase": "1.0.0",
+      "demo.searchPeople": "1.0.0"
+    },
+    "computations": {
+      "purchase.total": "1.0.0"
+    }
+  },
+  "extensions": {
+    "dimlu:description": "React 页面内核的三个验证场景"
+  },
+  "pages": [
+    {
+      "id": "purchase",
+      "title": "采购申请",
+      "description": "动态明细 · 稳定行身份 · 汇总与整单校验",
+      "state": [
+        {
+          "id": "result",
+          "type": "string",
+          "initial": ""
+        }
+      ],
+      "forms": [
+        {
+          "id": "purchase",
+          "computed": [
+            {
+              "id": "total",
+              "compute": "purchase.total"
+            }
+          ],
+          "rules": [
+            {
+              "test": {
+                "kind": "expression",
+                "language": "javascript",
+                "source": "forms.purchase.computed.total <= 50000"
+              },
+              "message": "单笔采购金额不能超过 50,000 元"
+            }
+          ],
+          "fields": [
+            {
+              "id": "name",
+              "path": [
+                "name"
+              ],
+              "label": "申请名称",
+              "type": "string",
+              "initial": "",
+              "rules": [
+                {
+                  "kind": "required",
+                  "message": "请填写申请名称"
+                },
+                {
+                  "kind": "maxLength",
+                  "value": 80,
+                  "message": "名称最多 80 个字"
+                }
+              ]
+            },
+            {
+              "id": "approvalReason",
+              "path": [
+                "approvalReason"
+              ],
+              "label": "审批说明",
+              "type": "string",
+              "initial": "",
+              "when": {
+                "kind": "expression",
+                "language": "javascript",
+                "source": "forms.purchase.computed.total > 10000"
+              },
+              "disabled": {
+                "kind": "expression",
+                "language": "javascript",
+                "source": "forms.purchase.values.name === ''"
+              },
+              "rules": [
+                {
+                  "kind": "required",
+                  "message": "超过 10,000 元，请填写审批说明"
+                }
+              ]
+            }
+          ],
+          "arrays": [
+            {
+              "id": "items",
+              "path": [
+                "items"
+              ],
+              "label": "采购明细",
+              "minItems": 1,
+              "maxItems": 20,
+              "initial": [
+                {
+                  "name": "办公设备",
+                  "quantity": 2,
+                  "price": 399
+                }
+              ],
+              "fields": [
+                {
+                  "id": "itemName",
+                  "path": [
+                    "name"
+                  ],
+                  "label": "物品名称",
+                  "type": "string",
+                  "initial": "",
+                  "rules": [
+                    {
+                      "kind": "required",
+                      "message": "请填写物品名称"
+                    },
+                    {
+                      "kind": "maxLength",
+                      "value": 80,
+                      "message": "物品名称最多 80 个字"
+                    }
+                  ]
+                },
+                {
+                  "id": "quantity",
+                  "path": [
+                    "quantity"
+                  ],
+                  "label": "采购数量",
+                  "type": "number",
+                  "initial": 1,
+                  "rules": [
+                    {
+                      "kind": "required",
+                      "message": "请填写采购数量"
+                    },
+                    {
+                      "kind": "min",
+                      "value": 1,
+                      "message": "数量至少为 1"
+                    },
+                    {
+                      "kind": "max",
+                      "value": 999,
+                      "message": "数量最多为 999"
+                    },
+                    {
+                      "kind": "expression",
+                      "test": {
+                        "kind": "expression",
+                        "language": "javascript",
+                        "source": "scope.row.quantity === null || scope.row.quantity % 1 === 0"
+                      },
+                      "message": "数量必须为整数"
+                    }
+                  ]
+                },
+                {
+                  "id": "price",
+                  "path": [
+                    "price"
+                  ],
+                  "label": "预计单价 / 元",
+                  "type": "number",
+                  "initial": 399,
+                  "rules": [
+                    {
+                      "kind": "required",
+                      "message": "请填写预计单价"
+                    },
+                    {
+                      "kind": "min",
+                      "value": 0.01,
+                      "message": "单价至少为 0.01 元"
+                    },
+                    {
+                      "kind": "expression",
+                      "test": {
+                        "kind": "expression",
+                        "language": "javascript",
+                        "source": "scope.row.price === null || Math.abs(scope.row.price * 100 - Math.round(scope.row.price * 100)) < 0.000001"
+                      },
+                      "message": "单价最多保留两位小数"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "children": [
+        {
+          "id": "purchase-heading",
+          "component": "ui.heading",
+          "props": {
+            "title": {
+              "kind": "literal",
+              "value": "创建采购申请"
+            },
+            "description": {
+              "kind": "literal",
+              "value": "填写申请与采购明细，可新增、排序或删除；金额自动汇总。"
+            }
+          }
+        },
+        {
+          "id": "purchase-form",
+          "component": "ui.form",
+          "formId": "purchase",
+          "props": {},
+          "on": {
+            "onReset": [
+              {
+                "id": "reset-purchase-result",
+                "action": "state.set",
+                "input": {
+                  "stateId": {
+                    "kind": "literal",
+                    "value": "result"
+                  },
+                  "value": {
+                    "kind": "literal",
+                    "value": ""
+                  }
+                }
+              }
+            ],
+            "onSubmit": [
+              {
+                "id": "submit-purchase",
+                "action": "demo.submitPurchase",
+                "input": {
+                  "values": {
+                    "kind": "formValues",
+                    "formId": "purchase"
+                  }
+                },
+                "resultTo": "result"
+              }
+            ]
+          },
+          "children": [
+            {
+              "id": "purchase-name",
+              "component": "ui.input",
+              "field": {
+                "formId": "purchase",
+                "fieldId": "name"
+              },
+              "props": {
+                "placeholder": {
+                  "kind": "literal",
+                  "value": "例如：设计团队办公设备采购"
+                },
+                "hint": {
+                  "kind": "literal",
+                  "value": "简明描述用途；名称包含“失败”可测试服务端拒绝"
+                }
+              }
+            },
+            {
+              "id": "purchase-items",
+              "component": "react.purchaseItems",
+              "props": {
+                "formId": {
+                  "kind": "literal",
+                  "value": "purchase"
+                },
+                "arrayId": {
+                  "kind": "literal",
+                  "value": "items"
+                }
+              }
+            },
+            {
+              "id": "purchase-total",
+              "component": "ui.summary",
+              "props": {
+                "label": {
+                  "kind": "literal",
+                  "value": "预计总金额"
+                },
+                "value": {
+                  "kind": "expression",
+                  "language": "javascript",
+                  "source": "'¥ ' + forms.purchase.computed.total"
+                }
+              }
+            },
+            {
+              "id": "purchase-note",
+              "component": "ui.layout",
+              "props": {
+                "variant": {
+                  "kind": "literal",
+                  "value": "row"
+                }
+              },
+              "children": [
+                {
+                  "id": "purchase-badge",
+                  "component": "ui.badge",
+                  "props": {
+                    "value": {
+                      "kind": "expression",
+                      "language": "javascript",
+                      "source": "forms.purchase.computed.total > 10000 ? '需主管审批' : '常规采购'"
+                    },
+                    "tone": {
+                      "kind": "expression",
+                      "language": "javascript",
+                      "source": "forms.purchase.computed.total > 10000 ? 'amber' : 'green'"
+                    }
+                  }
+                },
+                {
+                  "id": "purchase-notice",
+                  "component": "ui.text",
+                  "props": {
+                    "value": {
+                      "kind": "literal",
+                      "value": "超过 ¥10,000 时切换为主管审批提示"
+                    },
+                    "tone": {
+                      "kind": "literal",
+                      "value": "muted"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": "purchase-reason",
+              "component": "ui.input",
+              "field": {
+                "formId": "purchase",
+                "fieldId": "approvalReason"
+              },
+              "props": {
+                "hint": {
+                  "kind": "literal",
+                  "value": "填写名称后可编辑；金额降到阈值以下时保留内容但不提交"
+                }
+              }
+            },
+            {
+              "id": "purchase-submit",
+              "component": "ui.button",
+              "props": {
+                "label": {
+                  "kind": "expression",
+                  "language": "javascript",
+                  "source": "forms.purchase.isSubmitting ? '正在提交…' : '提交申请'"
+                },
+                "type": {
+                  "kind": "literal",
+                  "value": "submit"
+                },
+                "disabled": {
+                  "kind": "expression",
+                  "language": "javascript",
+                  "source": "forms.purchase.isSubmitting"
+                }
+              }
+            },
+            {
+              "id": "purchase-reset",
+              "component": "ui.button",
+              "props": {
+                "label": {
+                  "kind": "literal",
+                  "value": "重置表单"
+                },
+                "type": {
+                  "kind": "literal",
+                  "value": "reset"
+                },
+                "variant": {
+                  "kind": "literal",
+                  "value": "secondary"
+                }
+              }
+            },
+            {
+              "id": "purchase-status",
+              "component": "ui.formStatus",
+              "props": {
+                "formId": {
+                  "kind": "literal",
+                  "value": "purchase"
+                }
+              }
+            },
+            {
+              "id": "purchase-result",
+              "component": "ui.text",
+              "props": {
+                "value": {
+                  "kind": "stateRef",
+                  "stateId": "result"
+                },
+                "tone": {
+                  "kind": "literal",
+                  "value": "success"
+                }
+              },
+              "when": {
+                "kind": "expression",
+                "language": "javascript",
+                "source": "state.result !== ''"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "people",
+      "title": "成员目录",
+      "description": "异步查询 · 循环 · 空状态",
+      "state": [
+        {
+          "id": "query",
+          "type": "string",
+          "initial": ""
+        },
+        {
+          "id": "people",
+          "type": "array",
+          "initial": []
+        },
+        {
+          "id": "selected",
+          "type": "string",
+          "initial": ""
+        }
+      ],
+      "onEnter": [
+        {
+          "id": "load-people",
+          "action": "demo.searchPeople",
+          "input": {
+            "query": {
+              "kind": "stateRef",
+              "stateId": "query"
+            }
+          },
+          "resultTo": "people"
+        }
+      ],
+      "children": [
+        {
+          "id": "people-heading",
+          "component": "ui.heading",
+          "props": {
+            "title": {
+              "kind": "literal",
+              "value": "找到你的协作伙伴"
+            },
+            "description": {
+              "kind": "literal",
+              "value": "按姓名或部门查询，数据由本地模拟服务异步返回。"
+            }
+          }
+        },
+        {
+          "id": "people-search",
+          "component": "ui.form",
+          "props": {},
+          "on": {
+            "onSubmit": [
+              {
+                "id": "search-people",
+                "action": "demo.searchPeople",
+                "input": {
+                  "query": {
+                    "kind": "stateRef",
+                    "stateId": "query"
+                  }
+                },
+                "resultTo": "people"
+              }
+            ]
+          },
+          "children": [
+            {
+              "id": "people-search-row",
+              "component": "ui.layout",
+              "props": {
+                "variant": {
+                  "kind": "literal",
+                  "value": "search"
+                }
+              },
+              "children": [
+                {
+                  "id": "people-query",
+                  "component": "ui.input",
+                  "props": {
+                    "label": {
+                      "kind": "literal",
+                      "value": "姓名或部门"
+                    },
+                    "value": {
+                      "kind": "stateRef",
+                      "stateId": "query"
+                    },
+                    "placeholder": {
+                      "kind": "literal",
+                      "value": "搜索：产品设计部"
+                    }
+                  },
+                  "on": {
+                    "onChange": [
+                      {
+                        "id": "change-query",
+                        "action": "state.set",
+                        "input": {
+                          "stateId": {
+                            "kind": "literal",
+                            "value": "query"
+                          },
+                          "value": {
+                            "kind": "expression",
+                            "language": "javascript",
+                            "source": "event.target.value"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "id": "people-query-button",
+                  "component": "ui.button",
+                  "props": {
+                    "label": {
+                      "kind": "literal",
+                      "value": "搜索成员"
+                    },
+                    "type": {
+                      "kind": "literal",
+                      "value": "submit"
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "people-count",
+          "component": "ui.text",
+          "props": {
+            "value": {
+              "kind": "expression",
+              "language": "javascript",
+              "source": "'共 ' + state.people.length + ' 位成员'"
+            },
+            "tone": {
+              "kind": "literal",
+              "value": "muted"
+            }
+          }
+        },
+        {
+          "id": "people-row",
+          "component": "ui.record",
+          "props": {
+            "record": {
+              "kind": "expression",
+              "language": "javascript",
+              "source": "scope.person"
+            }
+          },
+          "repeat": {
+            "items": {
+              "kind": "stateRef",
+              "stateId": "people"
+            },
+            "item": "person",
+            "index": "rowIndex",
+            "key": {
+              "kind": "expression",
+              "language": "javascript",
+              "source": "scope.person.id"
+            }
+          },
+          "on": {
+            "onClick": [
+              {
+                "id": "select-person",
+                "action": "state.set",
+                "input": {
+                  "stateId": {
+                    "kind": "literal",
+                    "value": "selected"
+                  },
+                  "value": {
+                    "kind": "expression",
+                    "language": "javascript",
+                    "source": "scope.person.name + ' · ' + scope.person.department"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "people-empty",
+          "component": "ui.empty",
+          "props": {
+            "title": {
+              "kind": "literal",
+              "value": "没有匹配的成员"
+            }
+          },
+          "when": {
+            "kind": "expression",
+            "language": "javascript",
+            "source": "state.people.length === 0"
+          }
+        },
+        {
+          "id": "people-selection",
+          "component": "ui.text",
+          "props": {
+            "value": {
+              "kind": "expression",
+              "language": "javascript",
+              "source": "'已选择：' + state.selected"
+            },
+            "tone": {
+              "kind": "literal",
+              "value": "success"
+            }
+          },
+          "when": {
+            "kind": "expression",
+            "language": "javascript",
+            "source": "state.selected !== ''"
+          }
+        }
+      ]
+    },
+    {
+      "id": "composition",
+      "title": "组件组合",
+      "description": "作用域插槽 · 原生 React 扩展",
+      "state": [
+        {
+          "id": "record",
+          "type": "object",
+          "initial": {
+            "name": "林知远",
+            "role": "前端工程师",
+            "department": "研发中心",
+            "email": "zhiyuan@example.com"
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "composition-heading",
+          "component": "ui.heading",
+          "props": {
+            "title": {
+              "kind": "literal",
+              "value": "组合能力，保持原生"
+            },
+            "description": {
+              "kind": "literal",
+              "value": "Schema 组织组件，自定义代码继续使用 React 的 JSX、Hooks 和事件。"
+            }
+          }
+        },
+        {
+          "id": "person-card",
+          "component": "ui.recordCard",
+          "props": {
+            "record": {
+              "kind": "stateRef",
+              "stateId": "record"
+            }
+          },
+          "slots": {
+            "header": {
+              "params": [
+                "record"
+              ],
+              "children": [
+                {
+                  "id": "card-heading",
+                  "component": "ui.heading",
+                  "props": {
+                    "title": {
+                      "kind": "expression",
+                      "language": "javascript",
+                      "source": "scope.record.name"
+                    },
+                    "description": {
+                      "kind": "expression",
+                      "language": "javascript",
+                      "source": "scope.record.department + ' / ' + scope.record.role"
+                    }
+                  }
+                }
+              ]
+            },
+            "body": {
+              "params": [
+                "record"
+              ],
+              "children": [
+                {
+                  "id": "card-email",
+                  "component": "ui.text",
+                  "props": {
+                    "value": {
+                      "kind": "expression",
+                      "language": "javascript",
+                      "source": "'联系邮箱：' + scope.record.email"
+                    }
+                  }
+                },
+                {
+                  "id": "card-description",
+                  "component": "ui.text",
+                  "props": {
+                    "value": {
+                      "kind": "literal",
+                      "value": "卡片内容通过作用域插槽接收 record，页面负责决定如何展示。"
+                    },
+                    "tone": {
+                      "kind": "literal",
+                      "value": "muted"
+                    }
+                  }
+                }
+              ]
+            },
+            "footer": {
+              "params": [
+                "record"
+              ],
+              "children": [
+                {
+                  "id": "card-status",
+                  "component": "ui.badge",
+                  "props": {
+                    "value": {
+                      "kind": "literal",
+                      "value": "协作中"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "id": "native-react",
+          "component": "react.counter",
+          "props": {
+            "label": {
+              "kind": "literal",
+              "value": "一个普通的 TSX 组件"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}}

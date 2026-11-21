@@ -1,0 +1,59 @@
+.material-button {
+  min-height: 32px;
+  height: 32px;
+  padding: 0 12px;
+  gap: 12px;
+  font-size: 12px;
+  border-radius: 4px;
+}
+.material-form > .material-button,
+.material-form > .editor-node > .material-button {
+  align-self: flex-start;
+  min-width: 130px;
+  margin-top: 0;
+}
+.material-layout.search > .editor-node > .material-field,
+.material-layout.search > .material-field {
+  flex: 1;
+}
+.material-summary {
+  padding: 12px;
+}
+.material-summary strong {
+  font-size: 22px;
+}
+.material-summary > span {
+  font-size: 12px;
+}
+.material-record {
+  padding: 12px 0;
+  gap: 12px;
+}
+.material-record strong {
+  font-size: 13px;
+}
+.native-counter {
+  margin-top: 16px;
+  padding: 12px;
+}
+.native-counter strong {
+  margin: 6px 0;
+  font-size: 13px;
+}
+.native-counter button {
+  height: 32px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+.purchase-item {
+  padding: 12px;
+  border-radius: 6px;
+}
+.item-footer {
+  margin-top: 10px;
+}
+.item-action {
+  height: 28px;
+  padding: 0 8px;
+  font-size: 12px;
+}

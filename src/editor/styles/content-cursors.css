@@ -1,0 +1,9 @@
+.editor-canvas.edit .editor-surface [data-editor-selected='true'],
+.editor-canvas.edit .editor-surface [data-editor-selected='true'] * {
+  cursor: grab;
+  touch-action: none;
+}
+.editor-canvas.edit.dragging .editor-surface,
+.editor-canvas.edit.dragging .editor-surface * {
+  cursor: grabbing;
+}

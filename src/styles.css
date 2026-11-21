@@ -1,0 +1,25 @@
+@import 'tailwindcss';
+
+@import './ui/styles/base-tokens.css';
+@import './editor/styles/shell-base.css';
+@import './ui/styles/base-controls.css';
+@import './ui/styles/primitives.css';
+@import './editor/styles/shell-frame.css';
+@import './ui/styles/popup-positioner.css';
+@import './editor/styles/shell-panels.css';
+@import './ui/styles/runtime-errors.css';
+@import './editor/styles/shell-tree.css';
+@import './editor/styles/content-dropzones.css';
+@import './editor/styles/shell-drag.css';
+@import './editor/styles/content-markers.css';
+@import './editor/styles/shell-selection.css';
+@import './materials/styles/legacy.css';
+@import './editor/styles/shell-options.css';
+@import './materials/styles/legacy-overrides.css';
+@import './editor/styles/shell-responsive.css';
+@import './ui/styles/tooltip-positioner.css';
+@import './editor/styles/shell-inspectors.css';
+@import './ui/styles/tooltip.css';
+@import './editor/styles/content-cursors.css';
+@import './editor/styles/project-storage.css';
+@import './editor/styles/workbench-navigation.css';

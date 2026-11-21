@@ -1,0 +1,353 @@
+.page-popup-footer {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+.page-popup-footer .ui-button {
+  min-width: 0;
+  justify-content: center;
+}
+.app-header-context {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+}
+.app-header {
+  min-height: 56px;
+  height: auto;
+  flex-basis: auto;
+  gap: 12px;
+  padding: 6px 12px;
+}
+@media (max-width: 759px) {
+  .app-header {
+    min-height: 48px;
+    flex-wrap: wrap;
+    gap: 5px 8px;
+    padding: 5px 8px;
+  }
+}
+.app-context-button {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1px 8px;
+  align-items: center;
+  text-align: left;
+}
+.app-context-button .app-context-caption {
+  grid-column: 1;
+  color: #64748b;
+  font-size: 9px;
+  line-height: 1.1;
+}
+.app-context-button strong {
+  grid-column: 1;
+  max-width: 160px;
+  overflow: hidden;
+  color: #1e293b;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.app-context-button svg {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  color: #64748b;
+}
+.app-header-divider {
+  width: 1px;
+  height: 28px;
+  flex: 0 0 auto;
+  background: #e2e8f0;
+}
+.app-header-primary,
+.app-header-actions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+.app-header-primary {
+  flex: 1;
+}
+.app-header-actions {
+  flex: 0 0 auto;
+}
+.app-header-section-label {
+  color: #64748b;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.app-header-nav-button {
+  gap: 6px;
+  white-space: nowrap;
+}
+@media (min-width: 760px) and (max-width: 1120px) {
+  .app-header {
+    gap: 8px;
+    padding: 5px 8px;
+  }
+  .app-context-button strong {
+    max-width: 110px;
+  }
+  .app-header-primary,
+  .app-header-actions {
+    gap: 3px;
+  }
+  .app-header-nav-button {
+    padding: 0 7px;
+  }
+}
+@media (max-width: 759px) {
+  .app-header {
+    min-height: 48px;
+    flex-wrap: wrap;
+    gap: 5px 8px;
+    padding: 5px 8px;
+  }
+  .app-header-context {
+    gap: 6px;
+    flex: 1 1 100%;
+  }
+  .app-context-button {
+    max-width: 118px;
+    padding: 0 5px;
+  }
+  .app-context-button strong {
+    max-width: 82px;
+  }
+  .app-header-divider,
+  .app-header-section-label {
+    display: none;
+  }
+  .app-header-primary {
+    flex: 1 1 auto;
+  }
+  .app-header-actions {
+    margin-left: auto;
+  }
+  .app-header-nav-button {
+    padding: 0 6px;
+    font-size: 0;
+  }
+  .app-header-nav-button svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.components-panel {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  height: 100%;
+}
+.data-panel-context {
+  display: grid;
+  gap: 2px;
+  margin: -4px 0 8px;
+  padding: 2px 0 8px;
+  border-bottom: 1px solid #e2e8f0;
+}
+.data-panel-context strong {
+  color: #1e293b;
+  font-size: 12px;
+}
+.data-panel-context span {
+  overflow: hidden;
+  color: #64748b;
+  font-size: 10px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.data-delete-dialog .project-confirmation-actions .ui-button-danger {
+  border-color: #dc2626;
+  background: #dc2626;
+  color: #fff;
+}
+.components-panel-heading {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.components-panel-heading strong {
+  font-size: 12px;
+}
+.components-panel-heading span {
+  color: #64748b;
+  font-size: 10px;
+  line-height: 1.4;
+}
+.components-tabs {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+.components-tabs-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 8px 10px 6px;
+  border-bottom: 1px solid var(--border);
+}
+.components-tabs-list > button {
+  min-width: 0;
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: #64748b;
+  font-size: 11px;
+}
+.components-tabs-list > button:hover {
+  background: #f8fafc;
+}
+.components-tabs-list > button[data-active] {
+  border-color: #c7d2fe;
+  background: #eef0ff;
+  color: #4338ca;
+  font-weight: 600;
+}
+.components-tabs-panel {
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+}
+.components-tabs-panel > .insert-panel,
+.components-tabs-panel > .component-tree {
+  min-height: 100%;
+}
+.model-field-search {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 8px;
+  align-items: center;
+  margin-top: 8px;
+  color: #475569;
+  font-size: 11px;
+}
+.model-field-search > span {
+  font-weight: 600;
+}
+.model-field-search > small {
+  color: #94a3b8;
+  font-size: 10px;
+}
+.model-field-search > em {
+  grid-column: 1 / -1;
+  color: #2563eb;
+  font-size: 10px;
+  font-style: normal;
+}
+.model-field-search > input {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+  height: 28px;
+}
+.model-field-empty {
+  padding: 8px;
+  color: #64748b;
+  font-size: 11px;
+  text-align: center;
+}
+.model-field-list li > button:first-child[aria-current='true'] {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+.model-field-list li {
+  min-width: 0;
+}
+.model-field-list li > button:first-child small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.page-search .page-search-clear {
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0;
+}
+.page-group-heading.page-group-search-heading,
+.page-group-heading.page-group-search-heading:hover {
+  background: transparent;
+  cursor: default;
+}
+.page-logic-methods-button {
+  justify-self: start;
+}
+.action-panel-footer {
+  flex-wrap: wrap;
+}
+.application-methods-setting.application-methods-only {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+.application-methods-only .application-methods-heading > button {
+  flex-shrink: 0;
+}
+.application-method-search {
+  margin-top: 12px;
+}
+.application-method-search input {
+  height: 30px;
+  font-size: 12px;
+}
+.application-method-list button,
+.application-method-summary {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.application-method-test > .editor-note {
+  margin: 0;
+}
+.application-method-test-status {
+  color: #475569;
+  font-size: 12px;
+}
+.application-method-test-status:empty {
+  position: absolute;
+}
+.action-method-description {
+  overflow-wrap: anywhere;
+}
+.application-method-summary summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: #334155;
+}
+.application-method-references {
+  max-height: 9rem;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  margin: 6px 0 0;
+  padding-inline-start: 1.25rem;
+  list-style: disc;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.application-method-references button {
+  padding: 3px 0;
+  color: #1d4ed8;
+  text-align: start;
+  overflow-wrap: anywhere;
+  text-decoration: underline;
+  cursor: pointer;
+}

@@ -1,0 +1,63 @@
+.project-storage.has-error > button {
+  color: #b45309;
+}
+.project-menu {
+  max-width: min(360px, calc(100vw - 24px));
+}
+.project-menu > p {
+  margin: 5px 8px;
+  white-space: normal;
+}
+.project-error {
+  color: #b45309;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.project-storage-notice {
+  flex: 0 0 auto;
+  max-height: 72px;
+  overflow: auto;
+  padding: 7px 12px;
+  background: #fffbeb;
+  border-bottom: 1px solid #fde68a;
+  color: #92400e;
+  font-size: 12px;
+}
+.material-modal.project-confirmation {
+  box-sizing: border-box;
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: 20px;
+}
+.material-modal.project-confirmation > .project-confirmation-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 22px;
+}
+.material-modal.project-confirmation > .project-confirmation-description {
+  margin: 8px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 20px;
+}
+.material-modal.project-confirmation .project-confirmation-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+.material-modal.project-confirmation .ui-button-danger {
+  border-color: #dc2626;
+  background: #dc2626;
+  color: #fff;
+}
+.material-modal.project-confirmation .ui-button-danger:hover:not(:disabled) {
+  border-color: #dc2626;
+  background: #dc2626;
+}
+@media (max-width: 759px) {
+  .project-storage > button > span {
+    display: none;
+  }
+}

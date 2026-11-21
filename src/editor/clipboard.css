@@ -1,0 +1,27 @@
+.clipboard-menu-group {
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+.clipboard-menu-label {
+  padding: 2px 10px 4px;
+  color: #64748b;
+  font-size: 11px;
+}
+.clipboard-menu-item {
+  gap: 7px;
+}
+.clipboard-menu-item svg {
+  flex: 0 0 14px;
+}
+.clipboard-menu-item[data-disabled] {
+  opacity: 0.45;
+}
+.clipboard-menu-help {
+  max-width: min(260px, calc(100vw - 48px));
+  margin: 5px 10px;
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}

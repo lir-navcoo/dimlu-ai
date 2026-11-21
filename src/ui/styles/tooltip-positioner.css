@@ -1,0 +1,4 @@
+.tooltip-positioner {
+  z-index: var(--layer-tooltip, 1600);
+  pointer-events: none;
+}

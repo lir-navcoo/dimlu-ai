@@ -1,0 +1,190 @@
+{
+  "schemaVersion": "0.1.0",
+  "id": "select-demo",
+  "title": "选择器示例",
+  "entryPageId": "select-demo",
+  "dependencies": {
+    "components": {
+      "ui.heading": "1.0.0",
+      "ui.form": "1.0.0",
+      "ui.select": "1.0.0",
+      "ui.button": "1.0.0",
+      "ui.formStatus": "1.0.0"
+    },
+    "actions": {}
+  },
+  "pages": [
+    {
+      "id": "select-demo",
+      "title": "选择器示例",
+      "state": [],
+      "forms": [
+        {
+          "id": "model",
+          "fields": [
+            {
+              "id": "category",
+              "path": [
+                "category"
+              ],
+              "label": "申请类别",
+              "type": "string",
+              "initial": "",
+              "rules": [
+                {
+                  "kind": "required",
+                  "message": "请选择申请类别"
+                }
+              ]
+            },
+            {
+              "id": "priority",
+              "path": [
+                "priority"
+              ],
+              "label": "优先级",
+              "type": "number",
+              "initial": null,
+              "rules": [
+                {
+                  "kind": "required",
+                  "message": "请选择优先级"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "children": [
+        {
+          "id": "heading",
+          "component": "ui.heading",
+          "props": {
+            "title": {
+              "kind": "literal",
+              "value": "选择器示例"
+            },
+            "description": {
+              "kind": "literal",
+              "value": "文本与数字值、禁用选项、必填校验与重置"
+            }
+          }
+        },
+        {
+          "id": "form",
+          "component": "ui.form",
+          "props": {},
+          "formId": "model",
+          "children": [
+            {
+              "id": "category",
+              "component": "ui.select",
+              "props": {
+                "options": {
+                  "kind": "literal",
+                  "value": [
+                    {
+                      "label": "办公用品",
+                      "value": "office"
+                    },
+                    {
+                      "label": "设备采购",
+                      "value": "equipment"
+                    },
+                    {
+                      "label": "其他",
+                      "value": "other"
+                    }
+                  ]
+                },
+                "hint": {
+                  "kind": "literal",
+                  "value": "显示名称与提交值分别配置"
+                }
+              },
+              "field": {
+                "formId": "model",
+                "fieldId": "category"
+              }
+            },
+            {
+              "id": "priority",
+              "component": "ui.select",
+              "props": {
+                "options": {
+                  "kind": "literal",
+                  "value": [
+                    {
+                      "label": "低（数字 0）",
+                      "value": 0
+                    },
+                    {
+                      "label": "普通",
+                      "value": 1
+                    },
+                    {
+                      "label": "紧急",
+                      "value": 2
+                    },
+                    {
+                      "label": "暂不可用",
+                      "value": 9,
+                      "disabled": true
+                    }
+                  ]
+                }
+              },
+              "field": {
+                "formId": "model",
+                "fieldId": "priority"
+              }
+            },
+            {
+              "id": "submit",
+              "component": "ui.button",
+              "props": {
+                "label": {
+                  "kind": "literal",
+                  "value": "校验并提交"
+                },
+                "type": {
+                  "kind": "literal",
+                  "value": "submit"
+                }
+              }
+            },
+            {
+              "id": "reset",
+              "component": "ui.button",
+              "props": {
+                "label": {
+                  "kind": "literal",
+                  "value": "重置表单"
+                },
+                "type": {
+                  "kind": "literal",
+                  "value": "reset"
+                },
+                "variant": {
+                  "kind": "literal",
+                  "value": "secondary"
+                }
+              }
+            },
+            {
+              "id": "status",
+              "component": "ui.formStatus",
+              "props": {
+                "formId": {
+                  "kind": "literal",
+                  "value": "model"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+

@@ -1,0 +1,52 @@
+.tree-row {
+  display: flex;
+  align-items: center;
+  position: relative;
+  gap: 2px;
+}
+.drag-handle {
+  touch-action: none;
+  cursor: grab;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #8d9ab2;
+  padding: 4px;
+  font-size: 15px;
+  line-height: 1;
+  flex: 0 0 21px;
+}
+.drag-handle:active {
+  cursor: grabbing;
+}
+.drag-handle:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.tree-row.drop-before::before,
+.tree-row.drop-after::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 2px solid #5471e9;
+  z-index: 3;
+  pointer-events: none;
+}
+.tree-row.drop-before::before {
+  top: 0;
+}
+.tree-row.drop-after::after {
+  bottom: 0;
+}
+.tree-row.drop-inside {
+  outline: 2px dashed #5471e9;
+  border-radius: 5px;
+}
+.tree-row.invalid {
+  outline-color: #c95050;
+}
+.tree-row.invalid::before,
+.tree-row.invalid::after {
+  border-color: #c95050;
+}

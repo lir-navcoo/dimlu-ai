@@ -1,0 +1,253 @@
+/* Full-height workbench. Only content panels and the code editor scroll. */
+.app-shell {
+  height: 100dvh;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.app-header {
+  height: 48px;
+  flex: 0 0 48px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border);
+  background: white;
+  min-width: 0;
+}
+.project-storage {
+  flex-shrink: 0;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+.brand-mark {
+  width: 25px;
+  height: 25px;
+  border-radius: 7px;
+  background: var(--blue);
+  color: white;
+  font:
+    bold 23px/25px Georgia,
+    serif;
+  text-align: center;
+}
+.brand strong {
+  font-size: 17px;
+  letter-spacing: -0.6px;
+}
+.page-switcher {
+  width: 180px;
+  justify-content: space-between;
+}
+.page-switcher > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.page-popup {
+  width: max(240px, var(--anchor-width));
+  max-width: calc(100vw - 16px);
+  padding: 8px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 30px #0f172a20;
+}
+.page-options {
+  max-height: min(320px, var(--available-height));
+  overflow: auto;
+  padding-top: 6px;
+}
+.page-options .ui-select-item {
+  justify-content: space-between;
+}
+.quick-page-label,
+.page-row-text {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+.quick-page-label > *,
+.page-row-text > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.quick-page-label small,
+.page-row-text small {
+  font-size: 10px;
+  color: #94a3b8;
+}
+.page-panel {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+  outline: none;
+}
+.page-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.page-panel-heading strong {
+  font-size: 12px;
+}
+.page-panel > .editor-note {
+  margin: 0;
+}
+.page-search {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 7px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: #fff;
+  color: #64748b;
+}
+.page-search:focus-within {
+  border-color: #a5b4fc;
+  box-shadow: 0 0 0 2px #c7d2fe80;
+}
+.page-search input {
+  min-width: 0;
+  flex: 1;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  box-shadow: none;
+  font-size: 11px;
+}
+.page-search-meta {
+  flex: 0 0 auto;
+  color: #94a3b8;
+  font-size: 10px;
+  line-height: 16px;
+}
+.page-section-heading {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.page-recent,
+.page-groups {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+.page-recent {
+  padding-bottom: 4px;
+  border-bottom: 1px solid #e2e8f0;
+}
+.page-group {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+.page-group-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 3px 4px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #475569;
+  cursor: pointer;
+  text-align: left;
+}
+.page-group-heading:hover {
+  background: #f8fafc;
+}
+.page-group-title {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 600;
+}
+.page-empty {
+  padding: 8px 4px;
+  text-align: center;
+}
+.page-list {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.page-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+}
+.page-row.selected {
+  border-color: #c7d2fe;
+  background: #eef2ff;
+}
+.page-row > .page-row-select {
+  flex: 1;
+  min-width: 0;
+  height: auto;
+  min-height: 38px;
+  padding: 4px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  box-shadow: none;
+}
+.page-row-select > svg {
+  flex-shrink: 0;
+}
+.page-row-text {
+  flex: 1;
+  font-size: 11px;
+}
+.page-entry-badge {
+  flex-shrink: 0;
+  color: #6366f1;
+  font-size: 10px;
+}
+.page-menu-trigger.ui-button {
+  width: 24px;
+  min-width: 24px;
+  padding: 0;
+}
+.page-dialog-form {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+  margin-top: 16px;
+}
+.page-dialog-form > label {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  font-size: 12px;
+}
+.page-dialog-form .field-error {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.page-dialog .project-confirmation-description {
+  overflow-wrap: anywhere;
+}

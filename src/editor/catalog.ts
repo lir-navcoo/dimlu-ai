@@ -1,0 +1,228 @@
+import { extendedCatalog } from './extended-catalog';
+import type { MaterialCatalog, PropertyMetadata, Setter } from '../../packages/editor/metadata';
+
+const prop = (
+  name: string,
+  label: string,
+  setter: Setter = { kind: 'text' },
+  group = '内容',
+): PropertyMetadata => ({ name, label, setter, group });
+const choice = (...values: string[]): Setter => ({
+  kind: 'select',
+  options: values.map((value) => ({ label: value, value })),
+});
+const record = {
+  name: '新成员',
+  department: '研发中心',
+  role: '工程师',
+  email: 'hello@example.com',
+};
+export const catalog: MaterialCatalog = {
+  'ui.layout': {
+    title: '布局容器',
+    icon: 'layout',
+    category: '布局',
+    properties: [prop('variant', '排列方式', choice('stack', 'row', 'grid2', 'search'), '外观')],
+    defaultProps: { variant: 'stack' },
+  },
+  'ui.heading': {
+    title: '标题',
+    icon: 'heading',
+    category: '基础',
+    properties: [prop('title', '标题'), prop('description', '说明')],
+    defaultProps: { title: '新的标题', description: '在右侧编辑内容' },
+  },
+  'ui.text': {
+    title: '文本',
+    icon: 'text',
+    category: '基础',
+    properties: [
+      prop('value', '文本内容', { kind: 'json' }),
+      prop('tone', '文字色调', choice('default', 'muted', 'success'), '外观'),
+    ],
+    defaultProps: { value: '新的文本' },
+  },
+  'ui.input': {
+    title: '文本输入',
+    icon: 'input',
+    category: '输入',
+    properties: [
+      prop('multiline', '输入模式', {
+        kind: 'select',
+        options: [
+          { label: '单行', value: false },
+          { label: '多行', value: true },
+        ],
+      }),
+      prop('label', '标签'),
+      prop('value', '输入值', { kind: 'text', multiline: true }),
+      prop('placeholder', '占位提示'),
+      prop('hint', '辅助说明'),
+      {
+        ...prop('rows', '显示行数', {
+          kind: 'select',
+          options: [2, 3, 4, 6, 8, 10].map((value) => ({ label: `${value} 行`, value })),
+        }),
+        visibleWhen: { prop: 'multiline', equals: true },
+      },
+      prop('required', '必填', { kind: 'boolean' }, '交互'),
+    ],
+    defaultProps: { label: '文本输入', value: '', multiline: false, rows: 4 },
+  },
+  'ui.select': {
+    title: '选择器',
+    icon: 'select',
+    category: '输入',
+    properties: [
+      prop('multiple', '选择模式', {
+        kind: 'select',
+        options: [
+          { label: '单选', value: false },
+          { label: '多选', value: true },
+        ],
+      }),
+      prop('label', '标签'),
+      prop('value', '选中值', { kind: 'json' }),
+      prop('options', '选项', { kind: 'options' }),
+      prop('placeholder', '占位提示'),
+      prop('hint', '辅助说明'),
+      prop('clearable', '允许清空', { kind: 'boolean' }, '交互'),
+      prop('disabled', '禁用', { kind: 'boolean' }, '交互'),
+      prop('required', '必填', { kind: 'boolean' }, '交互'),
+    ],
+    defaultProps: {
+      multiple: false,
+      label: '选择器',
+      value: null,
+      placeholder: '请选择',
+      clearable: true,
+      options: [
+        { label: '选项一', value: 'option1' },
+        { label: '选项二', value: 'option2' },
+      ],
+    },
+  },
+  'ui.number': {
+    title: '数字输入',
+    icon: 'number',
+    category: '输入',
+    properties: [
+      prop('label', '标签'),
+      prop('value', '输入值', { kind: 'number' }),
+      prop('min', '最小值', { kind: 'number' }, '交互'),
+      prop('max', '最大值', { kind: 'number' }, '交互'),
+    ],
+    defaultProps: { label: '数字输入', value: 0 },
+  },
+  'ui.checkbox': {
+    title: '勾选框',
+    icon: 'checkbox',
+    category: '输入',
+    properties: [
+      prop('label', '标签'),
+      prop('checked', '默认勾选', { kind: 'boolean' }),
+      prop('hint', '辅助说明'),
+      prop('disabled', '禁用', { kind: 'boolean' }, '交互'),
+      prop('required', '必须勾选', { kind: 'boolean' }, '交互'),
+    ],
+    defaultProps: { label: '勾选框', checked: false },
+  },
+  'ui.switch': {
+    title: '开关',
+    icon: 'switch',
+    category: '输入',
+    properties: [
+      prop('label', '标签'),
+      prop('checked', '默认开启', { kind: 'boolean' }),
+      prop('hint', '辅助说明'),
+      prop('disabled', '禁用', { kind: 'boolean' }, '交互'),
+      prop('required', '必须开启', { kind: 'boolean' }, '交互'),
+    ],
+    defaultProps: { label: '开关', checked: false },
+  },
+  'ui.button': {
+    title: '按钮',
+    icon: 'button',
+    category: '基础',
+    properties: [
+      prop('label', '按钮文字'),
+      prop('variant', '按钮样式', choice('primary', 'secondary'), '外观'),
+      prop('type', '按钮类型', choice('button', 'submit', 'reset'), '交互'),
+      prop('disabled', '禁用', { kind: 'boolean' }, '交互'),
+    ],
+    defaultProps: { label: '按钮', type: 'button' },
+  },
+  'ui.form': {
+    title: '表单容器',
+    icon: 'form',
+    category: '布局',
+    properties: [],
+    defaultProps: {},
+  },
+  'ui.formStatus': {
+    title: '表单状态',
+    icon: 'status',
+    category: '表单',
+    properties: [prop('formId', '表单 ID')],
+    defaultProps: {},
+    insertable: false,
+  },
+  'react.purchaseItems': {
+    title: '采购明细',
+    icon: 'items',
+    category: '表单',
+    properties: [prop('formId', '表单 ID'), prop('arrayId', '明细 ID')],
+    defaultProps: {},
+    insertable: false,
+  },
+  'ui.summary': {
+    palette: false,
+    title: '摘要',
+    icon: 'summary',
+    category: '展示',
+    properties: [prop('label', '摘要标签'), prop('value', '摘要内容')],
+    defaultProps: { label: '摘要', value: '内容' },
+  },
+  'ui.badge': {
+    title: '标签',
+    icon: 'badge',
+    category: '展示',
+    properties: [
+      prop('value', '标签内容'),
+      prop('tone', '标签色调', choice('green', 'amber'), '外观'),
+    ],
+    defaultProps: { value: '新标签', tone: 'green' },
+  },
+  'ui.record': {
+    palette: false,
+    title: '成员行',
+    icon: 'record',
+    category: '展示',
+    properties: [prop('record', '成员数据', { kind: 'json' })],
+    defaultProps: { record },
+  },
+  'ui.empty': {
+    title: '空状态',
+    icon: 'empty',
+    category: '展示',
+    properties: [prop('title', '提示文字')],
+    defaultProps: { title: '暂无内容' },
+  },
+  'ui.recordCard': {
+    palette: false,
+    title: '插槽卡片',
+    icon: 'card',
+    category: '布局',
+    properties: [prop('record', '成员数据', { kind: 'json' })],
+    defaultProps: { record },
+  },
+  'react.counter': {
+    palette: false,
+    title: 'React 计数器',
+    icon: 'counter',
+    category: '展示',
+    properties: [prop('label', '计数器标签')],
+    defaultProps: { label: '原生 React 组件' },
+  },
+  ...extendedCatalog,
+};

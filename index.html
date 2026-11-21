@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f5f6f8" />
+    <title>Dimlu · 低代码应用搭建</title>
+    <style>
+      #startup-status {
+        position: fixed;
+        inset: 0;
+        z-index: 2100;
+        display: grid;
+        place-items: center;
+        overflow: auto;
+        padding: 24px;
+        background: #f4f6fa;
+        color: #334155;
+        font:
+          14px/1.7 'Segoe UI',
+          'Microsoft YaHei',
+          sans-serif;
+      }
+      #startup-status[hidden] {
+        display: none;
+      }
+      #startup-status > div {
+        width: min(100%, 520px);
+      }
+      #startup-status h1 {
+        font-size: 20px;
+        margin: 0 0 12px;
+      }
+      #startup-status button {
+        border: 1px solid #4f5fdd;
+        border-radius: 6px;
+        padding: 7px 14px;
+        background: #4f5fdd;
+        color: white;
+        font: inherit;
+        cursor: pointer;
+      }
+      #startup-details {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        color: #64748b;
+        font:
+          12px/1.6 Consolas,
+          monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <section id="startup-status" role="status" aria-live="polite">
+      <div>
+        <h1 id="startup-title">正在启动 Dimlu</h1>
+        <p id="startup-message">正在加载应用，请稍候。</p>
+        <button id="startup-retry" type="button" hidden>刷新重试</button>
+        <pre id="startup-details" hidden></pre>
+      </div>
+    </section>
+    <noscript>请启用 JavaScript 后刷新页面。</noscript>
+    <script type="module" src="/src/bootstrap.ts"></script>
+  </body>
+</html>

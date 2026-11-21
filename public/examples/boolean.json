@@ -1,0 +1,173 @@
+{
+  "schemaVersion": "0.1.0",
+  "id": "boolean-demo",
+  "title": "布尔控件示例",
+  "entryPageId": "boolean-demo",
+  "dependencies": {
+    "components": {
+      "ui.heading": "1.0.0",
+      "ui.form": "1.0.0",
+      "ui.checkbox": "1.0.0",
+      "ui.switch": "1.0.0",
+      "ui.button": "1.0.0",
+      "ui.formStatus": "1.0.0"
+    },
+    "actions": {}
+  },
+  "pages": [
+    {
+      "id": "boolean-demo",
+      "title": "布尔控件示例",
+      "state": [],
+      "forms": [
+        {
+          "id": "preferences",
+          "fields": [
+            {
+              "id": "agree",
+              "path": [
+                "agree"
+              ],
+              "label": "我已确认申请信息",
+              "type": "boolean",
+              "initial": false,
+              "rules": [
+                {
+                  "kind": "mustBeTrue",
+                  "message": "请先确认申请信息"
+                }
+              ]
+            },
+            {
+              "id": "notify",
+              "path": [
+                "notify"
+              ],
+              "label": "接收进度通知",
+              "type": "boolean",
+              "initial": false,
+              "rules": [
+                {
+                  "kind": "required",
+                  "message": "通知设置不能为空"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "children": [
+        {
+          "id": "heading",
+          "component": "ui.heading",
+          "props": {
+            "title": {
+              "kind": "literal",
+              "value": "布尔控件示例"
+            },
+            "description": {
+              "kind": "literal",
+              "value": "复选框与开关 · 原生值回调 · 布尔校验与重置"
+            }
+          }
+        },
+        {
+          "id": "form",
+          "component": "ui.form",
+          "props": {},
+          "formId": "preferences",
+          "children": [
+            {
+              "id": "agree",
+              "component": "ui.checkbox",
+              "props": {
+                "hint": {
+                  "kind": "literal",
+                  "value": "必须勾选后才可提交"
+                }
+              },
+              "field": {
+                "formId": "preferences",
+                "fieldId": "agree"
+              }
+            },
+            {
+              "id": "notify",
+              "component": "ui.switch",
+              "props": {
+                "hint": {
+                  "kind": "literal",
+                  "value": "关闭也是有效值，提交结果保留 false"
+                }
+              },
+              "field": {
+                "formId": "preferences",
+                "fieldId": "notify"
+              }
+            },
+            {
+              "id": "submit",
+              "component": "ui.button",
+              "props": {
+                "label": {
+                  "kind": "literal",
+                  "value": "校验并提交"
+                },
+                "type": {
+                  "kind": "literal",
+                  "value": "submit"
+                }
+              }
+            },
+            {
+              "id": "reset",
+              "component": "ui.button",
+              "props": {
+                "label": {
+                  "kind": "literal",
+                  "value": "重置表单"
+                },
+                "type": {
+                  "kind": "literal",
+                  "value": "reset"
+                },
+                "variant": {
+                  "kind": "literal",
+                  "value": "secondary"
+                }
+              }
+            },
+            {
+              "id": "status",
+              "component": "ui.formStatus",
+              "props": {
+                "formId": {
+                  "kind": "literal",
+                  "value": "preferences"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "independent",
+          "component": "ui.switch",
+          "props": {
+            "label": {
+              "kind": "literal",
+              "value": "独立开关"
+            },
+            "checked": {
+              "kind": "literal",
+              "value": false
+            },
+            "hint": {
+              "kind": "literal",
+              "value": "未绑定字段，同样可以在预览中操作"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

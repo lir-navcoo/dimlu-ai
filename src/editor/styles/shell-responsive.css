@@ -1,0 +1,150 @@
+.drag-feedback .ui-select {
+  margin-top: 5px;
+}
+.drag-feedback small {
+  max-height: none;
+  overflow: visible;
+  font-size: 11px;
+}
+.drag-feedback button {
+  height: 28px;
+  font-size: 12px;
+  padding: 0 8px;
+}
+.drag-handle {
+  height: 24px;
+  min-width: 21px;
+}
+.tree-row > button:first-child {
+  font-size: 12px;
+}
+
+@media (max-width: 1100px) {
+  .canvas-scroll {
+    padding: 12px;
+  }
+  .preview-content {
+    padding: 18px;
+  }
+  .status-pill {
+    display: none;
+  }
+}
+@media (max-width: 759px) {
+  .activity-rail {
+    width: 40px;
+    flex-basis: 40px;
+  }
+  .activity-rail > button {
+    width: 34px;
+    height: 36px;
+  }
+  .side-drawer.left {
+    left: 40px;
+  }
+  .app-header {
+    gap: 6px;
+    padding: 0 8px;
+  }
+  .brand strong {
+    display: none;
+  }
+  .page-switcher {
+    width: 104px;
+  }
+  .editor-toolbar {
+    gap: 4px;
+  }
+  .editor-toolbar > div > button {
+    width: 28px;
+    padding: 0;
+    font-size: 0;
+  }
+  .editor-toolbar > div > button:first-child::before {
+    content: '↶';
+    font-size: 18px;
+  }
+  .editor-toolbar > div > button:last-child::before {
+    content: '↷';
+    font-size: 18px;
+  }
+  .editor-toolbar > button {
+    padding: 0 6px;
+    font-size: 11px;
+  }
+  .canvas-mode button {
+    padding: 0 6px;
+    font-size: 11px;
+  }
+  .canvas-toolbar {
+    gap: 2px;
+    padding: 0 4px;
+  }
+  .canvas-context {
+    gap: 4px;
+  }
+  .canvas-context code {
+    max-width: 100px;
+  }
+  .canvas-scroll {
+    padding: 8px;
+  }
+  .preview-content {
+    padding: 14px;
+  }
+  .material-layout.grid2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .native-counter,
+  .material-record {
+    flex-wrap: wrap;
+  }
+  .record-status {
+    display: none;
+  }
+  .debug-description {
+    display: none;
+  }
+  .debug-toolbar > .panel-tabs {
+    flex: 1;
+  }
+  .debug-dock.open {
+    position: fixed;
+    inset: 48px 0 0;
+    z-index: 70;
+    height: auto;
+  }
+  .debug-dock.open > .resize-handle {
+    display: none;
+  }
+  .state-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .schema-actions > label {
+    font-size: 11px;
+  }
+  .schema-panel {
+    padding: 8px;
+  }
+  .schema-panel .draft-notice {
+    flex-direction: column;
+    align-items: start;
+  }
+}
+@media (pointer: coarse) {
+  .side-drawer .ui-button,
+  .side-drawer .ui-input,
+  .side-drawer .ui-select,
+  .side-drawer .ui-select-item {
+    min-height: 40px;
+  }
+  .side-drawer .material-tile {
+    width: 32px;
+  }
+  .resize-handle.x {
+    width: 10px;
+  }
+  .resize-handle.y {
+    height: 10px;
+  }
+}

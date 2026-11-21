@@ -1,0 +1,20 @@
+@layer base {
+  html,
+  body,
+  #root {
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    overflow: hidden;
+  }
+  body {
+    position: relative;
+    overscroll-behavior: none;
+    font-size: 13px;
+  }
+  #root {
+    isolation: isolate;
+  }
+}

@@ -1,0 +1,69 @@
+.table-columns-editor {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+}
+.table-columns-formats,
+.table-column-heading,
+.table-column-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.table-columns-formats {
+  flex-wrap: wrap;
+}
+.table-column-card {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+  padding: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  background: #f8fafc;
+}
+.table-column-heading {
+  justify-content: space-between;
+}
+.table-column-heading strong {
+  font-size: 11px;
+  font-weight: 500;
+}
+.table-column-actions .ui-button {
+  width: 24px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0;
+}
+.table-column-actions .ui-button[aria-disabled='true'] {
+  opacity: 0.45;
+}
+.table-column-card label {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+.table-column-card label > span {
+  font-size: 11px;
+  color: #64748b;
+}
+.table-column-card .ui-input,
+.table-column-card .ui-select {
+  min-width: 0;
+  width: 100%;
+}
+.table-column-details {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1fr) minmax(0, 1.1fr);
+  min-width: 0;
+  gap: 5px;
+}
+.table-columns-footer {
+  display: grid;
+  justify-items: start;
+  min-width: 0;
+  gap: 6px;
+}
+.table-columns-footer small {
+  overflow-wrap: anywhere;
+}

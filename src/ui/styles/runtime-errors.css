@@ -1,0 +1,17 @@
+.action-notice,
+.runtime-error {
+  padding: 10px;
+  background: #fff1f1;
+  border: 1px solid #f5cdcd;
+  color: #b42318;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+  margin-bottom: 12px;
+}
+.runtime-error strong,
+.runtime-error span {
+  display: block;
+}
+.muted {
+  color: #64748b;
+}

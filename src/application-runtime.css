@@ -1,0 +1,70 @@
+.application-runtime {
+  min-height: 100vh;
+  background: #f8fafc;
+  color: #0f172a;
+}
+.application-runtime-header {
+  position: sticky;
+  z-index: 10;
+  top: 0;
+  display: flex;
+  min-height: 56px;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fff;
+}
+.application-runtime-header > strong {
+  margin-right: auto;
+  font-size: 14px;
+}
+.application-runtime-header select {
+  min-width: 160px;
+  height: 34px;
+  padding: 0 9px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: white;
+  color: #0f172a;
+  font: inherit;
+}
+.application-runtime-page {
+  min-height: calc(100vh - 57px);
+  padding: 24px;
+  background: #fff;
+}
+.application-runtime-error {
+  display: grid;
+  min-height: 100vh;
+  align-content: center;
+  justify-items: center;
+  gap: 12px;
+  padding: 24px;
+  color: #334155;
+  text-align: center;
+}
+.application-runtime-error h1 {
+  margin: 0;
+  font-size: 20px;
+}
+.application-runtime-error p {
+  margin: 0 0 8px;
+  color: #64748b;
+}
+@media (max-width: 560px) {
+  .application-runtime-header {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+  .application-runtime-header > strong {
+    width: 100%;
+  }
+  .application-runtime-header select {
+    min-width: 120px;
+  }
+  .application-runtime-page {
+    padding: 12px;
+  }
+}

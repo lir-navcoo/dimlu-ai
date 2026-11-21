@@ -1,0 +1,125 @@
+.component-tree .drop-zone {
+  font-size: 9px;
+  padding: 6px;
+  margin: 5px 0;
+}
+.canvas-drop-line {
+  position: absolute;
+  border-top: 3px solid #5471e9;
+  pointer-events: none;
+  box-shadow: 0 0 0 1px white;
+}
+.canvas-drop-inside {
+  position: absolute;
+  border: 2px dashed #5471e9;
+  background: #5471e90c;
+  pointer-events: none;
+  border-radius: 5px;
+}
+.canvas-drop-line.horizontal {
+  border-top: 0;
+  border-left: 3px solid #5471e9;
+}
+.canvas-drop-line.invalid,
+.canvas-drop-inside.invalid {
+  border-color: #c95050;
+  background: #c950500b;
+}
+.drag-feedback {
+  position: fixed;
+  z-index: 1000;
+  width: 280px;
+  max-width: calc(100vw - 16px);
+  background: #fff;
+  border: 1px solid #b7c6f2;
+  border-radius: 9px;
+  padding: 13px;
+  box-shadow: 0 8px 30px #26304020;
+  pointer-events: none;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  color: #607598;
+}
+.drag-feedback.keyboard {
+  right: 20px;
+  bottom: 20px;
+  pointer-events: auto;
+}
+.drag-feedback.invalid {
+  border-color: #dfadad;
+  color: #ad5555;
+}
+.drag-feedback strong {
+  display: block;
+  font-size: 11px;
+  margin-bottom: 7px;
+}
+.drag-feedback p {
+  line-height: 1.8;
+  margin: 5px 0;
+}
+.drag-feedback small {
+  display: block;
+  font-size: 10px;
+  line-height: 1.8;
+  margin-top: 5px;
+  max-height: 100px;
+  overflow: auto;
+}
+.drag-feedback label {
+  display: block;
+  font-size: 10px;
+  margin: 10px 0;
+}
+.drag-feedback button {
+  border: 1px solid #dce2ef;
+  border-radius: 4px;
+  background: #f1f4fc;
+  color: #607598;
+  padding: 6px 10px;
+  margin-right: 7px;
+  font-size: 10px;
+}
+.drag-feedback button:disabled {
+  opacity: 0.4;
+}
+.drag-notice {
+  position: fixed;
+  z-index: 999;
+  bottom: 18px;
+  right: 18px;
+  max-width: 350px;
+  max-height: 160px;
+  overflow: auto;
+  padding: 12px 35px 12px 14px;
+  border: 1px solid #d4e2dc;
+  border-radius: 7px;
+  background: #f2faf5;
+  color: #527961;
+  font-size: 11px;
+  line-height: 1.8;
+  box-shadow: 0 4px 20px #26304010;
+  overflow-wrap: anywhere;
+}
+.drag-notice.error {
+  color: #a94e4e;
+  border-color: #edcccc;
+  background: #fff4f4;
+}
+.drag-notice button {
+  position: absolute;
+  right: 8px;
+  top: 9px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+}
+.editor-canvas {
+  position: relative;
+  min-height: 120px;
+  outline: none;
+}
+.editor-canvas:focus-visible {
+  outline: 1px dashed #d6def3;
+  outline-offset: 8px;
+}

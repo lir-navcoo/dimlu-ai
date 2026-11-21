@@ -1,0 +1,104 @@
+.code-editor {
+  position: relative;
+  min-width: 0;
+  min-height: 80px;
+  overflow: hidden;
+  border: 1px solid var(--border, #dce1e9);
+  border-radius: 5px;
+  background: white;
+}
+.code-editor:focus-within {
+  border-color: #6975df;
+  box-shadow: 0 0 0 2px #6975df18;
+}
+.code-editor-fill {
+  flex: 1;
+  height: 100%;
+  min-height: 0;
+}
+.code-editor-monaco {
+  width: 100%;
+  height: 100%;
+}
+.code-editor-monaco[hidden] {
+  display: none;
+}
+.code-editor-fallback.ui-textarea {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  resize: none;
+  border: 0;
+  border-radius: 0;
+  font:
+    12px/19px Consolas,
+    monospace;
+  box-shadow: none;
+}
+.code-editor-status {
+  position: absolute;
+  bottom: 2px;
+  right: 6px;
+  max-width: 95%;
+  font-size: 10px;
+  color: #64748b;
+  background: #fffffff0;
+  pointer-events: none;
+}
+.code-editor .monaco-editor .inputarea {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  font: inherit;
+  box-shadow: none;
+}
+.schema-panel > .code-editor {
+  flex: 1;
+  min-height: 0;
+}
+.code-editor-expand.ui-button {
+  position: absolute;
+  top: 3px;
+  right: 10px;
+  z-index: 3;
+  width: 22px;
+  height: 22px;
+  min-height: 0;
+  padding: 0;
+  background: #ffffffe8;
+  border: 1px solid #e2e7ef;
+}
+.code-editor-dialog {
+  position: fixed;
+  inset: 6vh max(16px, 7vw);
+  z-index: var(--layer-modal, 1401);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 20px 60px #0f172a25;
+}
+.code-editor-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.code-editor-dialog-header h2 {
+  margin: 0;
+  font-size: 14px;
+}
+.code-editor-dialog > .editor-note {
+  margin: 0;
+}
+.code-editor-dialog > .code-editor {
+  flex: 1;
+  height: auto;
+}

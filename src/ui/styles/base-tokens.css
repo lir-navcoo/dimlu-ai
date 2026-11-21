@@ -1,0 +1,26 @@
+@layer base {
+  :root {
+    font-family: Inter, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    color: #334155;
+    background: #f4f6fa;
+    font-synthesis: none;
+    font-size: 16px;
+    --border: #e2e7ef;
+    --muted: #64748b;
+    --blue: #4f5fdd;
+    --mono: 'Cascadia Code', Consolas, monospace;
+    /* Body portals share a bounded layer scale: shells < modal < popup < hint < toast. */
+    --layer-panel-backdrop: 80;
+    --layer-panel: 90;
+    --layer-modal-backdrop: 1400;
+    --layer-modal: 1401;
+    --layer-popup: 1500;
+    --layer-tooltip: 1600;
+    --layer-toast: 2000;
+  }
+  * {
+    box-sizing: border-box;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+  }
+}

@@ -1,0 +1,172 @@
+.canvas-viewport.preview-content {
+  position: relative;
+  box-sizing: border-box;
+  max-width: none;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  margin-inline: auto;
+}
+.canvas-surface-space {
+  position: relative;
+  box-sizing: border-box;
+}
+.canvas-viewport .canvas-scaled-surface {
+  position: absolute;
+  inset: 0 auto auto 0;
+  box-sizing: border-box;
+  transform-origin: left top;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: white;
+  box-shadow: 0 2px 6px #0f172a04;
+}
+/* Shrinking transforms must not leave a full-size ghost overflow area. */
+.canvas-viewport[data-viewport-mode='edit'] .canvas-surface-space {
+  overflow: clip;
+}
+.canvas-scroll {
+  scrollbar-gutter: stable;
+  overflow-anchor: none;
+}
+.canvas-stage-frame {
+  position: relative;
+}
+.canvas-frame-surface {
+  transform-origin: left top;
+}
+.canvas-stage-editor-ui.editor-canvas {
+  position: absolute;
+  inset: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+}
+.canvas-stage-editor-ui.editor-canvas > .selection-controls {
+  margin-top: auto;
+}
+.canvas-stage-editor-ui > .selection-controls,
+.canvas-stage-editor-ui > .canvas-overlay-context {
+  pointer-events: auto;
+}
+.canvas-viewport .canvas-overlay-context {
+  margin-bottom: 8px;
+}
+@media (max-width: 1100px) {
+  .canvas-viewport .canvas-scaled-surface {
+    padding: 18px;
+  }
+}
+@media (max-width: 759px) {
+  .canvas-viewport .canvas-scaled-surface {
+    padding: 14px;
+  }
+}
+
+/* A separate compact row keeps viewport controls out of the breadcrumb's space. */
+.viewport-controls {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  min-height: 34px;
+  padding: 3px 10px;
+  border-bottom: 1px solid var(--border);
+  background: #fbfcfe;
+  color: #64748b;
+  font-size: 11px;
+}
+.viewport-device-group,
+.viewport-zoom-group {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.viewport-device-group {
+  flex-wrap: wrap;
+}
+.viewport-device-group > svg {
+  flex-shrink: 0;
+}
+.viewport-device-select {
+  display: inline-flex;
+  width: 126px;
+  min-width: 0;
+}
+.viewport-zoom-select {
+  display: inline-flex;
+  width: 111px;
+  min-width: 0;
+}
+.viewport-controls .ui-select,
+.viewport-controls .ui-input,
+.viewport-controls .ui-button {
+  height: 26px;
+  min-height: 26px;
+  font-size: 11px;
+}
+.viewport-controls .ui-select {
+  width: 100%;
+  padding-inline: 7px;
+  gap: 4px;
+}
+.viewport-controls .ui-button {
+  padding-inline: 5px;
+  gap: 4px;
+}
+.viewport-controls .ui-button[aria-pressed='true'] {
+  background: #edf0ff;
+  color: var(--blue);
+}
+.viewport-width {
+  min-width: 44px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: #7b879b;
+}
+.viewport-custom-width {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.viewport-custom-width .ui-input {
+  width: 64px;
+  padding-inline: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.viewport-custom-width .ui-input[aria-invalid='true'] {
+  border-color: #dc2626;
+}
+.viewport-feedback {
+  font-size: 10px;
+  color: #748094;
+  white-space: nowrap;
+}
+.viewport-info.ui-button {
+  margin-left: auto;
+  width: 24px;
+  flex-shrink: 0;
+}
+.viewport-width-error {
+  flex-basis: 100%;
+  color: #b42318;
+  font-size: 11px;
+}
+@media (max-width: 759px) {
+  .viewport-controls {
+    padding-inline: 7px;
+    column-gap: 7px;
+  }
+  .viewport-device-select {
+    width: 116px;
+  }
+  .viewport-width {
+    min-width: 40px;
+  }
+}
