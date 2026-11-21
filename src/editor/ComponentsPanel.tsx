@@ -18,10 +18,6 @@ export function ComponentsPanel({
   const { componentView: tab, setComponentView: setTab } = useEditorSession();
   return (
     <section className="components-panel" aria-label="组件工作区">
-      <div className="components-panel-heading">
-        <strong>组件</strong>
-        <span>添加组件、查看组件树并定位当前节点</span>
-      </div>
       <Tabs.Root
         className="components-tabs"
         value={tab}

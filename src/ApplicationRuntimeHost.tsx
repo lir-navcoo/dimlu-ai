@@ -35,7 +35,10 @@ function RuntimePage({
     void runtime.enter();
     return () => {
       unsubscribe();
-      runtime.dispose();
+      // Leave actions run before disposal so their lane stays alive; without
+      // leave actions disposal stays synchronous to preserve focus-gap semantics.
+      if (runtime.willRunLeaveActions()) void runtime.leave().finally(() => runtime.dispose());
+      else runtime.dispose();
     };
   }, [runtime, onNavigate]);
   const page = runtime.page.schema;

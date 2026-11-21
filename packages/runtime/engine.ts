@@ -21,13 +21,8 @@ export class SchemaError extends Error {
     super(issues.map((i) => `${i.path}: ${i.message}`).join('\n'));
   }
 }
-export function freeze<T>(value: T): T {
-  if (value && typeof value === 'object' && !Object.isFrozen(value)) {
-    Object.freeze(value);
-    Object.values(value).forEach(freeze);
-  }
-  return value;
-}
+export { deepFreeze as freeze } from '../schema/deep-freeze';
+import { deepFreeze as freeze } from '../schema/deep-freeze';
 export interface PlannedAction {
   schema: ActionCall;
   input: Record<string, CompiledValue>;
@@ -47,6 +42,7 @@ export interface PlannedPage {
   schema: PageSchema;
   children: PlannedNode[];
   onEnter: PlannedAction[];
+  onLeave: PlannedAction[];
 }
 export interface ApplicationPlan {
   schema: ApplicationSchema;
@@ -145,7 +141,12 @@ export function compileApplication(input: unknown, registry: Registry): Applicat
     pages: new Map(
       schema.pages.map((page) => [
         page.id,
-        { schema: page, children: planNodes(page.children), onEnter: planActions(page.onEnter) },
+        {
+          schema: page,
+          children: planNodes(page.children),
+          onEnter: planActions(page.onEnter),
+          onLeave: planActions(page.onLeave),
+        },
       ]),
     ),
   };
@@ -194,6 +195,7 @@ export class PageRuntime {
   private controllers = new Map<string, AbortController>();
   private resultRevisions = new Map<string, number>();
   private entered = false;
+  private left = false;
   private sequence = 0;
   private metaVersion = 0;
   private records: RuntimeRecord[] = [];
@@ -315,7 +317,8 @@ export class PageRuntime {
     if (!matchesType(value, definition.type)) throw new Error(`状态 ${id} 需要 ${definition.type}`);
     if (Object.is(this.state[id], value)) return;
     this.state = freeze({ ...this.state, [id]: structuredClone(value as Json) });
-    this.forms.forEach((form) => form.refresh());
+    // Precise invalidation: only forms whose compiled rules read this state key refresh.
+    for (const form of this.forms.values()) if (form.dependsOnState(id)) form.refresh();
     this.notifyKey(id);
   };
   context(scope: Readonly<Record<string, unknown>> = {}, event?: unknown): EvaluationContext {
@@ -333,6 +336,17 @@ export class PageRuntime {
     this.entered = true;
     this.report('lifecycle', `进入 ${this.page.schema.title}`);
     await this.run(this.page.onEnter, {}, undefined, 'page:enter');
+  }
+  /** Page-leave actions run once, only after a real (non-design) page entry. */
+  async leave() {
+    if (this.left || this.disposed || this.designMode || !this.entered) return;
+    this.left = true;
+    this.report('lifecycle', `离开 ${this.page.schema.title}`);
+    await this.run(this.page.onLeave, {}, undefined, 'page:leave');
+  }
+  /** Hosts dispose synchronously unless leave actions would actually run. */
+  willRunLeaveActions(): boolean {
+    return !this.designMode && !this.disposed && this.page.onLeave.length > 0;
   }
   /** Native and action-driven submissions share validation, cancellation and onSubmit execution. */
   async submitForm(formId: string, options: FormSubmitOptions = {}): Promise<void> {

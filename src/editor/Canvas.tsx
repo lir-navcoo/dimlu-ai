@@ -26,7 +26,7 @@ import { catalog } from './catalog';
 import { DropZone, useDragDrop } from './DragDrop';
 import { nodeFlow, nodeRect } from './geometry';
 import { CanvasSurface, useViewportMetrics } from './CanvasViewport';
-import { ArrowUp, Copy, Trash2, ListTree } from 'lucide-react';
+import { ArrowUp, Copy, Trash2, ListTree, PanelsTopLeft } from 'lucide-react';
 import { useEditorNavigation, useOptionalEditorSession } from './session';
 import {
   CanvasHost,
@@ -266,6 +266,7 @@ export function EditorCanvas({
     });
   }, [navigation, document, snapshot.plan, snapshot.selection, pageId, mode, drag?.isInteracting]);
   const page = snapshot.plan.pages.get(pageId)!.schema;
+  const emptyPage = (page.children?.length ?? 0) === 0;
   const focus =
     mode === 'edit' && focusState?.document === document && focusState.focus.pageId === pageId
       ? focusState.focus
@@ -822,7 +823,14 @@ export function EditorCanvas({
         </CanvasEditorLayer>
       )}
       <Surface>
-        <div className="editor-surface" ref={surface}>
+        <div
+          className={
+            mode === 'edit' && emptyPage && !page.code?.enabled
+              ? 'editor-surface editor-surface--empty'
+              : 'editor-surface'
+          }
+          ref={surface}
+        >
           <CanvasSelection value={mode === 'edit' ? selectedIds : new Set()}>
             <RuntimeRenderer
               runtime={runtime}
@@ -834,7 +842,20 @@ export function EditorCanvas({
               designPresentation={designPresentation}
             />
           </CanvasSelection>
-          {mode === 'edit' && <DropZone intent={{ kind: 'inside' }} label="页面末尾 · 拖入组件" />}
+          {mode === 'edit' && (
+            <DropZone
+              intent={{ kind: 'inside' }}
+              className={emptyPage ? 'canvas-empty-drop-zone' : undefined}
+              label={emptyPage ? '从组件库拖入组件，开始设计页面' : '页面末尾 · 拖入组件'}
+            >
+              {emptyPage ? (
+                <span className="canvas-empty-guide">
+                  <PanelsTopLeft size={26} aria-hidden="true" />
+                  <span>从组件库拖入组件，开始设计页面</span>
+                </span>
+              ) : undefined}
+            </DropZone>
+          )}
         </div>
       </Surface>
       {mode === 'edit' && (

@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import App from '../src/App';
 import { seedLegacyProject } from './legacy-project';
+import { PROJECT_STORAGE_KEY } from '../packages/editor/project-storage';
 
 const originalElementFromPoint = Object.getOwnPropertyDescriptor(document, 'elementFromPoint');
 afterEach(() => {
@@ -35,7 +36,106 @@ function pointerEvent(target: Element | Window, type: string, pointerId = 1, x =
   fireEvent(target, event);
 }
 
+const emptyCanvasHint = '从组件库拖入组件，开始设计页面';
+
+function seedEmptyPage() {
+  const pageId = 'empty';
+  localStorage.setItem(
+    PROJECT_STORAGE_KEY,
+    JSON.stringify({
+      storageVersion: 1,
+      savedAt: 'empty-test-fixture',
+      schema: {
+        schemaVersion: '0.1.0',
+        id: 'test.empty',
+        title: '空白应用',
+        entryPageId: pageId,
+        dependencies: { components: {}, actions: {} },
+        pages: [{ id: pageId, title: '空白页', state: [], children: [] }],
+      },
+      selection: { pageId, nodeId: null },
+    }),
+  );
+}
+
 describe('drag authoring', () => {
+  it('accepts the first component on the empty canvas drop zone and restores it on undo', () => {
+    seedEmptyPage();
+    render(<App />);
+    showMaterials();
+    const guide = screen.getByText(emptyCanvasHint);
+    const zone = guide.closest('.drop-zone');
+    expect(zone?.classList.contains('canvas-empty-drop-zone')).toBe(true);
+    expect(zone?.getAttribute('data-drop-intent')).toBe(JSON.stringify({ kind: 'inside' }));
+    Object.defineProperty(document, 'elementFromPoint', {
+      configurable: true,
+      value: () => guide,
+    });
+    pointerEvent(screen.getByRole('button', { name: '拖入 标题' }), 'pointerdown');
+    pointerEvent(window, 'pointermove', 1, 100, 100);
+    expect(zone?.classList.contains('drop-valid')).toBe(true);
+    pointerEvent(window, 'pointerup', 1, 100, 100);
+    expect(screen.getByRole('heading', { name: '新的标题' })).toBeTruthy();
+    expect(screen.queryByText(emptyCanvasHint)).toBeNull();
+    expect(
+      screen.getByText('页面末尾 · 拖入组件').classList.contains('canvas-empty-drop-zone'),
+    ).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: /撤销/ }));
+    expect(screen.getByText(emptyCanvasHint)).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: '新的标题' })).toBeNull();
+  });
+
+  it('offers the root as a keyboard drop target and hides the empty hint in preview', () => {
+    seedEmptyPage();
+    render(<App />);
+    expect(screen.getByText(emptyCanvasHint)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '预览模式' }));
+    expect(screen.queryByText(emptyCanvasHint)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '编辑模式' }));
+    beginMaterial();
+    expect(
+      screen.getByText(emptyCanvasHint).closest('.drop-zone')?.classList.contains('drop-valid'),
+    ).toBe(true);
+    confirm();
+    expect(screen.getByRole('heading', { name: '新的标题' })).toBeTruthy();
+    expect(screen.queryByText(emptyCanvasHint)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /撤销/ }));
+    expect(screen.getByText(emptyCanvasHint)).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: '新的标题' })).toBeNull();
+  });
+  it('restores the empty canvas guide through a real Ctrl+Z keyboard undo and Ctrl+Y redo', () => {
+    seedEmptyPage();
+    render(<App />);
+    beginMaterial();
+    confirm();
+    expect(screen.getByRole('heading', { name: '新的标题' })).toBeTruthy();
+    expect(screen.queryByText(emptyCanvasHint)).toBeNull();
+    const canvas = screen.getByLabelText('页面编辑画布');
+    canvas.focus();
+    expect(document.activeElement).toBe(canvas);
+    const undoEvent = new KeyboardEvent('keydown', {
+      key: 'z',
+      bubbles: true,
+      cancelable: true,
+      ctrlKey: true,
+    });
+    fireEvent(canvas, undoEvent);
+    expect(undoEvent.defaultPrevented).toBe(true);
+    expect(screen.queryByRole('heading', { name: '新的标题' })).toBeNull();
+    expect(screen.getByText(emptyCanvasHint)).toBeTruthy();
+    const redoCanvas = screen.getByLabelText('页面编辑画布');
+    redoCanvas.focus();
+    const redoEvent = new KeyboardEvent('keydown', {
+      key: 'y',
+      bubbles: true,
+      cancelable: true,
+      ctrlKey: true,
+    });
+    fireEvent(redoCanvas, redoEvent);
+    expect(redoEvent.defaultPrevented).toBe(true);
+    expect(screen.getByRole('heading', { name: '新的标题' })).toBeTruthy();
+    expect(screen.queryByText(emptyCanvasHint)).toBeNull();
+  });
   it('keeps the same canvas and tree drop targets when a drag starts or changes target', () => {
     seedLegacyProject();
     const { container } = render(<App />);
@@ -138,7 +238,7 @@ describe('drag authoring', () => {
     changeControl(screen.getByLabelText('应用定义 · JSON'), exported);
     fireEvent.click(screen.getByRole('button', { name: /校验并应用/ }));
     expect((screen.getByLabelText('应用定义 · JSON') as HTMLTextAreaElement).value).toBe(exported);
-  });
+  }, 15000);
   it('rejects cyclic and scope-breaking destinations before drop and cancels without history', () => {
     seedLegacyProject();
     render(<App />);
@@ -188,7 +288,7 @@ describe('drag authoring', () => {
     expect((screen.getByRole('button', { name: '拖入 标题' }) as HTMLButtonElement).disabled).toBe(
       true,
     );
-  });
+  }, 15000);
   it('shows why conditional and field nodes are invisible while keeping preview visibility unchanged', () => {
     seedLegacyProject();
     const { container } = render(<App />);

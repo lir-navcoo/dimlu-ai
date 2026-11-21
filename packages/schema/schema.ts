@@ -1,4 +1,5 @@
 import { styleProperties } from './style.ts';
+import { forbiddenObjectKeys } from './types.ts';
 import { NODE_NAME_EXTENSION, nodeNameJsonSchema } from './node-name.ts';
 // This schema is also exported as public/schema/application.v0.1.json during development.
 export const applicationJsonSchema = {
@@ -35,7 +36,7 @@ export const applicationJsonSchema = {
         { type: 'array', items: { $ref: '#/$defs/json' } },
         {
           type: 'object',
-          propertyNames: { not: { enum: ['__proto__', 'prototype', 'constructor'] } },
+          propertyNames: { not: { enum: [...forbiddenObjectKeys] } },
           additionalProperties: { $ref: '#/$defs/json' },
         },
       ],
@@ -58,7 +59,7 @@ export const applicationJsonSchema = {
     },
     values: {
       type: 'object',
-      propertyNames: { not: { enum: ['__proto__', 'prototype', 'constructor'] } },
+      propertyNames: { not: { enum: [...forbiddenObjectKeys] } },
       additionalProperties: { $ref: '#/$defs/value' },
     },
     value: {
@@ -72,7 +73,7 @@ export const applicationJsonSchema = {
             sourceId: { $ref: '#/$defs/id' },
             path: {
               type: 'array',
-              items: { type: 'string', not: { enum: ['__proto__', 'prototype', 'constructor'] } },
+              items: { type: 'string', not: { enum: [...forbiddenObjectKeys] } },
             },
           },
         },
@@ -107,7 +108,7 @@ export const applicationJsonSchema = {
             stateId: { $ref: '#/$defs/id' },
             path: {
               type: 'array',
-              items: { type: 'string', not: { enum: ['__proto__', 'prototype', 'constructor'] } },
+              items: { type: 'string', not: { enum: [...forbiddenObjectKeys] } },
             },
           },
         },
@@ -197,7 +198,7 @@ export const applicationJsonSchema = {
       items: {
         type: 'string',
         pattern: '^[a-zA-Z_][a-zA-Z0-9_]*$',
-        not: { enum: ['__proto__', 'prototype', 'constructor'] },
+        not: { enum: [...forbiddenObjectKeys] },
       },
     },
     field: {
@@ -369,6 +370,7 @@ export const applicationJsonSchema = {
         },
         children: { $ref: '#/$defs/nodes' },
         onEnter: { $ref: '#/$defs/actions' },
+        onLeave: { $ref: '#/$defs/actions' },
         extensions: { $ref: '#/$defs/extensions' },
       },
     },

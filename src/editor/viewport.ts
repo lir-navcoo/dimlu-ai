@@ -24,7 +24,7 @@ const clamp = (value: number, min: number, max: number) => Math.max(min, Math.mi
 export function resolveViewport(state: ViewportState, mode: 'edit' | 'preview'): ViewportMetrics {
   const width =
     state.preset === 'auto'
-      ? Math.max(240, Math.min(960, state.availableWidth))
+      ? Math.max(240, mode === 'edit' ? state.availableWidth : Math.min(960, state.availableWidth))
       : state.preset === 'desktop'
         ? 1440
         : state.preset === 'tablet'

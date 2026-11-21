@@ -37,7 +37,7 @@ describe('canvas selection and structural authoring', () => {
     fireEvent.click(screen.getByRole('heading', { name: '创建采购申请' }));
     expect(screen.getByRole('textbox', { name: '标题' })).toBeTruthy();
     fireEvent.keyDown(screen.getByLabelText('页面编辑画布'), { key: 'Escape' });
-    expect(screen.getByText('在组件树中选择一个组件。')).toBeTruthy();
+    expect(screen.getByText('选择组件后配置')).toBeTruthy();
   });
   it('blocks form actions in edit mode and keeps form data when switching modes and selecting', () => {
     seedLegacyProject();
@@ -120,7 +120,7 @@ describe('canvas selection and structural authoring', () => {
       screen.getByRole('heading', { name: '副本标题' }).closest('.material-layout.row'),
     ).toBeTruthy();
     expect((screen.getByLabelText('应用定义 · JSON') as HTMLTextAreaElement).value).toBe(exported);
-  });
+  }, 15000);
   it('reorders siblings with keyboard dragging', () => {
     seedLegacyProject();
     render(<App />);

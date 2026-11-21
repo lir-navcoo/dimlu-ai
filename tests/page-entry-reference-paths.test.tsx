@@ -283,7 +283,9 @@ function pointerDown(element: Element) {
   fireEvent(element, event);
 }
 function draftObjectReference() {
-  fireEvent.click(screen.getByRole('button', { name: '添加动作' }));
+  // PageLifecyclePanel hosts both enter and leave editors; the raw chain harness has one.
+  const enter = screen.queryByRole('region', { name: '页面进入动作' });
+  fireEvent.click((enter ? within(enter) : screen).getByRole('button', { name: '添加动作' }));
   changeControl(within(card()).getByRole('combobox', { name: 'stateId取值方式' }), 'literal');
   fireEvent.change(within(card()).getByRole('textbox', { name: 'stateId' }), {
     target: { value: 'result' },

@@ -59,6 +59,7 @@ export function PageLifecyclePanel({
       actual.selection === snapshot.selection &&
       live === page &&
       live.onEnter === page.onEnter &&
+      live.onLeave === page.onLeave &&
       JSON.stringify(live) === source
     );
   }, [document, snapshot.plan, snapshot.selection, page, source, authoringAllowed]);
@@ -108,38 +109,79 @@ export function PageLifecyclePanel({
       {!authoringAllowed && (
         <p className="editor-note">当前为预览模式，请切回编辑模式配置进入动作。</p>
       )}
-      <ActionChainEditor
-        key={page.id}
-        page={page}
-        existing={page.onEnter ?? []}
-        focusReference={focusReference}
-        onOpenMethods={
-          onOpenMethods && ((trigger, target) => canOpenMethods() && onOpenMethods(trigger, target))
-        }
-        draftKey={`page-enter:${page.id}`}
-        source={source}
-        pageScope
-        pageReference={{
-          document,
-          snapshot,
-          pageId: page.id,
-          savedActions: page.onEnter,
-          pageSource: source,
-          canReference,
-        }}
-        authoringAllowed={authoringAllowed}
-        canSave={preflight}
-        saveLabel="保存进入动作"
-        onSave={(calls) => {
-          if (!preflight()) return;
-          const target = current.current;
-          if (!target.authoringAllowed) throw new Error('请切回编辑模式保存进入动作');
-          const live = target.document.getSnapshot().plan.pages.get(target.pageId)?.schema;
-          if (!live || JSON.stringify(live) !== target.source)
-            throw new Error('页面定义已变化，请确认或放弃草稿后再保存');
-          return target.document.setPageEnterActions(target.pageId, calls);
-        }}
-      />
+      <section aria-label="页面进入动作">
+        <ActionChainEditor
+          key={`enter-${page.id}`}
+          page={page}
+          existing={page.onEnter ?? []}
+          focusReference={focusReference}
+          onOpenMethods={
+            onOpenMethods &&
+            ((trigger, target) => canOpenMethods() && onOpenMethods(trigger, target))
+          }
+          draftKey={`page-enter:${page.id}`}
+          source={source}
+          pageScope
+          pageReference={{
+            document,
+            snapshot,
+            pageId: page.id,
+            savedActions: page.onEnter,
+            pageSource: source,
+            canReference,
+          }}
+          authoringAllowed={authoringAllowed}
+          canSave={preflight}
+          saveLabel="保存进入动作"
+          onSave={(calls) => {
+            if (!preflight()) return;
+            const target = current.current;
+            if (!target.authoringAllowed) throw new Error('请切回编辑模式保存进入动作');
+            const live = target.document.getSnapshot().plan.pages.get(target.pageId)?.schema;
+            if (!live || JSON.stringify(live) !== target.source)
+              throw new Error('页面定义已变化，请确认或放弃草稿后再保存');
+            return target.document.setPageEnterActions(target.pageId, calls);
+          }}
+        />
+      </section>
+      <h3>页面离开时</h3>
+      <p className="editor-note">
+        对齐宜搭「页面关闭时」：预览中离开页面（切换页面或销毁页面实例）时执行一次；编辑时保存不执行。
+      </p>
+      <section aria-label="页面离开动作">
+        <ActionChainEditor
+          key={`leave-${page.id}`}
+          page={page}
+          existing={page.onLeave ?? []}
+          onOpenMethods={
+            onOpenMethods &&
+            ((trigger, target) => canOpenMethods() && onOpenMethods(trigger, target))
+          }
+          draftKey={`page-leave:${page.id}`}
+          source={source}
+          pageScope
+          pageReference={{
+            document,
+            snapshot,
+            pageId: page.id,
+            savedActions: page.onLeave,
+            pageSource: source,
+            canReference,
+          }}
+          authoringAllowed={authoringAllowed}
+          canSave={preflight}
+          saveLabel="保存离开动作"
+          onSave={(calls) => {
+            if (!preflight()) return;
+            const target = current.current;
+            if (!target.authoringAllowed) throw new Error('请切回编辑模式保存离开动作');
+            const live = target.document.getSnapshot().plan.pages.get(target.pageId)?.schema;
+            if (!live || JSON.stringify(live) !== target.source)
+              throw new Error('页面定义已变化，请确认或放弃草稿后再保存');
+            return target.document.setPageLeaveActions(target.pageId, calls);
+          }}
+        />
+      </section>
     </section>
   );
 }

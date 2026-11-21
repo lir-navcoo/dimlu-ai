@@ -908,10 +908,14 @@ export function DropZone({
   intent,
   label,
   visible = true,
+  className = '',
+  children,
 }: {
   intent: DropIntent;
   label: string;
   visible?: boolean;
+  className?: string;
+  children?: ReactNode;
 }) {
   const drag = useDragDrop();
   if (!drag?.enabled || !visible) return null;
@@ -919,10 +923,10 @@ export function DropZone({
     !!drag.session?.candidate && intentKey(drag.session.candidate.intent) === intentKey(intent);
   return (
     <div
-      className={`drop-zone ${drag.session ? 'drag-active' : ''} ${selected ? (drag.session!.candidate!.valid ? 'drop-valid' : 'drop-invalid') : ''}`}
+      className={`drop-zone ${className} ${drag.session ? 'drag-active' : ''} ${selected ? (drag.session!.candidate!.valid ? 'drop-valid' : 'drop-invalid') : ''}`}
       data-drop-intent={intentKey(intent)}
     >
-      {label}
+      {children ?? label}
     </div>
   );
 }

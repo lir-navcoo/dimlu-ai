@@ -192,6 +192,11 @@
 .status-pill.busy i {
   background: #d99a21;
 }
+.canvas-scroll[data-mode='edit'] {
+  padding: clamp(6px, 1vw, 14px);
+  scroll-padding: clamp(6px, 1vw, 14px);
+  background: #f1f3f8;
+}
 .canvas-scroll {
   flex: 1;
   min-height: 0;
@@ -348,6 +353,35 @@
 .insert-panel {
   container-type: inline-size;
 }
+.material-search {
+  align-items: center;
+}
+.material-search > svg {
+  position: absolute;
+  inset-inline-start: 9px;
+  color: #64748b;
+  pointer-events: none;
+}
+.material-search > input {
+  padding-inline-start: 30px;
+}
+.material-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-block: 0 8px;
+  border-bottom: 1px solid var(--border);
+}
+.material-group + .material-group {
+  margin-top: 12px;
+}
+.material-group > h3 {
+  margin: 8px 0 6px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
 .material-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -359,11 +393,11 @@
   justify-content: flex-start;
   min-width: 0;
   height: auto;
-  min-height: 36px;
-  gap: 6px;
-  padding: 6px;
-  background: white;
-  border: 1px solid var(--border);
+  min-height: 32px;
+  gap: 5px;
+  padding: 4px 6px;
+  background: #f7f8fc;
+  border: 1px solid #e9ecf5;
   border-radius: 5px;
   text-align: left;
   white-space: normal;
@@ -464,6 +498,21 @@
   overscroll-behavior: contain;
   padding: 12px;
 }
+.inspector-empty {
+  display: grid;
+  gap: 6px;
+  margin: 4px 0;
+  padding: 14px 12px;
+  border-radius: 6px;
+  background: #f6f7fb;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.inspector-empty strong {
+  color: #25324a;
+  font-weight: 600;
+}
 .selected-material {
   display: flex;
   align-items: center;
@@ -488,6 +537,15 @@
 .selected-material > div {
   flex: 1;
   min-width: 0;
+}
+.event-quick-button {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
 }
 .selected-material strong {
   font-size: 13px;

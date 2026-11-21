@@ -9,13 +9,7 @@ export interface DataSourceSnapshot {
   loading: boolean;
   error: null | { name: string; message: string };
 }
-function immutable<T>(value: T): T {
-  if (value && typeof value === 'object' && !Object.isFrozen(value)) {
-    Object.freeze(value);
-    Object.values(value).forEach(immutable);
-  }
-  return value;
-}
+import { deepFreeze as immutable } from '../schema/deep-freeze';
 export function checkTransportInput(
   contract: TransportContract,
   input: unknown,

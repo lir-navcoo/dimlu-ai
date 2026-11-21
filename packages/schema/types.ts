@@ -1,4 +1,6 @@
 export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
+export const forbiddenObjectKeys = ['__proto__', 'prototype', 'constructor'] as const;
+export const forbiddenObjectKeySet: ReadonlySet<string> = new Set(forbiddenObjectKeys);
 export type DataType = 'string' | 'number' | 'boolean' | 'array' | 'object' | 'null';
 export type ExtensionData = Record<string, Json>;
 
@@ -106,6 +108,7 @@ export interface PageSchema {
   dataSources?: DataSourceDefinition[];
   children: NodeSchema[];
   onEnter?: ActionCall[];
+  onLeave?: ActionCall[];
   extensions?: ExtensionData;
 }
 
@@ -149,7 +152,7 @@ export function isJson(value: unknown): value is Json {
     typeof value === 'object' &&
     Object.getPrototypeOf(value) === Object.prototype &&
     Object.entries(value).every(
-      ([key, item]) => !['__proto__', 'prototype', 'constructor'].includes(key) && isJson(item),
+      ([key, item]) => !forbiddenObjectKeySet.has(key) && isJson(item),
     )
   );
 }

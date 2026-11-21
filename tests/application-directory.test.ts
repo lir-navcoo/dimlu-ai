@@ -127,6 +127,31 @@ describe('application directory', () => {
     expect(directory.getApplications().map((item) => item.id)).toContain('renamed-purchase-app');
   });
 
+  it('keeps the legacy compatibility mirror pointed at the renamed application', () => {
+    const saved = JSON.stringify({
+      storageVersion: 1,
+      savedAt: 'old-save',
+      schema: purchaseManagementExample,
+      selection: { pageId: purchaseManagementExample.entryPageId, nodeId: null },
+    });
+    const { adapter, data } = memoryStorage({ [PROJECT_STORAGE_KEY]: saved });
+    const directory = new ApplicationDirectory(adapter, registry, purchaseManagementExample);
+    expect(directory.legacyCompatibilityAppId).toBe(purchaseManagementExample.id);
+
+    const newStorageId = directory.renameApplicationId(
+      purchaseManagementExample.id,
+      'renamed-purchase-app',
+    );
+    expect(directory.legacyCompatibilityAppId).toBe(newStorageId);
+
+    const renamedKey = applicationProjectStorageKey(newStorageId);
+    const renamedRaw = data.get(renamedKey)!;
+    const mirror = directory.storageAdapterFor(newStorageId);
+    mirror.setItem(renamedKey, 'updated');
+    expect(data.get(PROJECT_STORAGE_KEY)).toBe('updated');
+    expect(renamedRaw).not.toBe('updated');
+  });
+
   it('preserves an invalid directory instead of silently rebuilding it', () => {
     const corrupt = '{"directoryVersion":2,"activeAppId":"x","appIds":["x"]}';
     const { adapter, data } = memoryStorage({ [APPLICATION_DIRECTORY_KEY]: corrupt });

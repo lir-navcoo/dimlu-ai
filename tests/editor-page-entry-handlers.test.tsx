@@ -1,5 +1,5 @@
 import type { ComponentProps } from 'react';
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EditorDocument } from '../packages/editor/document';
 import type { ApplicationSchema } from '../packages/schema/types';
@@ -54,10 +54,11 @@ function setup() {
     </EditorSessionProvider>
   );
   const view = render(tree(true));
-  fireEvent.click(screen.getByRole('button', { name: '添加动作' }));
-  changeControl(screen.getByLabelText('动作 1 类型'), 'ui.notify');
-  changeControl(screen.getByLabelText('title取值方式'), 'literal');
-  changeControl(screen.getByRole('textbox', { name: 'title' }), '原页面草稿');
+  const enter = within(screen.getByRole('region', { name: '页面进入动作' }));
+  fireEvent.click(enter.getByRole('button', { name: '添加动作' }));
+  changeControl(enter.getByLabelText('动作 1 类型'), 'ui.notify');
+  changeControl(enter.getByLabelText('title取值方式'), 'literal');
+  changeControl(enter.getByRole('textbox', { name: 'title' }), '原页面草稿');
   const save = retained.save!;
   expect(save).toBeTypeOf('function');
   return { document, tree, view, save };

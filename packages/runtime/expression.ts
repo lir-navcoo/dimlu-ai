@@ -1,5 +1,5 @@
 import jsep from 'jsep';
-import type { Value } from '../schema/types';
+import { forbiddenObjectKeySet, type Value } from '../schema/types';
 
 export interface EvaluationContext {
   state: Readonly<Record<string, unknown>>;
@@ -83,7 +83,7 @@ export function assertValueScope(value: Value, available: ReadonlySet<string>) {
   };
   visit(jsep(value.source) as Ast);
 }
-const forbidden = new Set(['__proto__', 'prototype', 'constructor']);
+const forbidden = forbiddenObjectKeySet;
 const binaryOps = new Set([
   '+',
   '-',

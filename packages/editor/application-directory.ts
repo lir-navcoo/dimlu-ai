@@ -96,18 +96,10 @@ export class ApplicationDirectory {
         this.legacyAppIdValue = record.legacyAppId;
       const legacyRaw = this.adapter.getItem(PROJECT_STORAGE_KEY);
       if (legacyRaw !== null && !this.legacyAppIdValue) {
-        try {
-          JSON.parse(legacyRaw);
-          this.legacyAppIdValue =
-            record.appIds.find(
-              (id) => this.adapter.getItem(applicationProjectStorageKey(id)) === legacyRaw,
-            ) ?? null;
-        } catch {
-          this.legacyAppIdValue =
-            record.appIds.find(
-              (id) => this.adapter.getItem(applicationProjectStorageKey(id)) === legacyRaw,
-            ) ?? null;
-        }
+        this.legacyAppIdValue =
+          record.appIds.find(
+            (id) => this.adapter.getItem(applicationProjectStorageKey(id)) === legacyRaw,
+          ) ?? null;
       }
       return record;
     }
@@ -238,6 +230,7 @@ export class ApplicationDirectory {
       legacyAppId: this.record.legacyAppId === storageId ? nextStorageId : this.record.legacyAppId,
     };
     this.saveRecord(nextRecord);
+    if (this.legacyAppIdValue === storageId) this.legacyAppIdValue = nextStorageId;
     return nextStorageId;
   }
 

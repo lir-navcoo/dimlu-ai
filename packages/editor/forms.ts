@@ -98,6 +98,7 @@ export function formReferences(page: PageSchema, formId: string, fieldId?: strin
   };
   visit(page.children);
   inspect(page.onEnter, '页面进入事件');
+  inspect(page.onLeave, '页面离开事件');
   for (const source of page.dataSources ?? []) inspect(source.input, `数据源 ${source.id}/input`);
   for (const form of page.forms ?? []) {
     if (form.id === formId && !fieldId) continue; // The removed definition's own references disappear.

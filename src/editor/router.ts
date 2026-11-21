@@ -28,7 +28,7 @@ export function parseEditorLocation(location: Location): EditorRoute {
     : 'structure';
   return {
     pageId,
-    panel: editorPanelRoute(panel)?.id ?? 'structure',
+    panel: panel === 'materials' ? panel : (editorPanelRoute(panel)?.id ?? 'structure'),
   };
 }
 

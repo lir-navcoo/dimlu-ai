@@ -120,7 +120,8 @@ describe('visible viewport controls use real Base UI selection and accessible wi
       ['desktop', 1440],
       ['tablet', 768],
       ['phone', 390],
-      ['auto', 960],
+      // Edit-mode auto now spans the measured container instead of capping at 960.
+      ['auto', 1000],
     ] as const) {
       changeControl(device(), preset);
       expect(viewport.getSnapshot().preset).toBe(preset);

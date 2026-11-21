@@ -1,4 +1,4 @@
-import { matchesType, type Json } from '../schema/types';
+import { forbiddenObjectKeySet, matchesType, type Json } from '../schema/types';
 import type { Registry } from '../runtime/registry';
 
 /** Editor metadata only. Runtime Schema receives ordinary nodes and literal Values. */
@@ -26,7 +26,7 @@ export function cloneLiteralJson(input: unknown): Json {
       const entries: [string, Json][] = [];
       for (const key of Reflect.ownKeys(value)) {
         if (array && key === 'length') continue;
-        if (typeof key !== 'string' || ['__proto__', 'prototype', 'constructor'].includes(key))
+        if (typeof key !== 'string' || forbiddenObjectKeySet.has(key))
           throw new Error(path + ' 包含无效键');
         const descriptor = Object.getOwnPropertyDescriptor(value, key)!;
         if (!descriptor.enumerable || !Object.hasOwn(descriptor, 'value'))

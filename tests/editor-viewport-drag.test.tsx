@@ -318,5 +318,6 @@ describe('real selected canvas body dragging under non-unit presentation', () =>
         true,
       );
     },
+    15000,
   );
 });

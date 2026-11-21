@@ -240,17 +240,18 @@ function physicalViewport(logicalHeight = 1400) {
 }
 
 describe('viewport model separates logical device width from edit presentation', () => {
-  it('resolves auto against unscaled available space with the 240 floor and 960 ceiling', () => {
+  it('fills the available editing width while preserving the preview width cap and shared floor', () => {
     const viewport = new ViewportStore();
-    for (const [available, expected] of [
-      [100, 240],
-      [700, 700],
-      [1600, 960],
+    for (const [available, editWidth, previewWidth] of [
+      [100, 240, 240],
+      [700, 700, 700],
+      [1600, 1600, 960],
     ] as const) {
       viewport.measure(available, 600);
       for (const scale of [0.5, 1, 1.5]) {
         viewport.setScale(scale);
-        expect(resolveViewport(viewport.getSnapshot(), 'edit').width).toBe(expected);
+        expect(resolveViewport(viewport.getSnapshot(), 'edit').width).toBe(editWidth);
+        expect(resolveViewport(viewport.getSnapshot(), 'preview').width).toBe(previewWidth);
       }
     }
   });

@@ -1,3 +1,4 @@
+import { Search } from 'lucide-react';
 import { MaterialIcon } from '../ui/MaterialIcon';
 import { Button, Input } from '../ui/primitives';
 import { catalog } from './catalog';
@@ -33,7 +34,8 @@ export function InsertPanel({
   );
   return (
     <div className="insert-panel">
-      <div className="panel-search">
+      <div className="panel-search material-search">
+        <Search size={14} aria-hidden="true" />
         <Input
           aria-label="搜索物料"
           placeholder="搜索名称、分类或组件 ID"
@@ -41,7 +43,7 @@ export function InsertPanel({
           onChange={(e) => setQuery(e.target.value)}
         />
       </div>
-      <div role="group" aria-label="物料分类" className="mb-2 flex min-w-0 flex-wrap gap-1">
+      <div role="group" aria-label="物料分类" className="material-categories">
         <Button
           type="button"
           aria-label="查看全部物料"
@@ -72,21 +74,30 @@ export function InsertPanel({
           </Button>
         ))}
       </div>
-      <div className="material-grid">
-        {materials.map(([id, meta]) => (
-          <DragHandle
-            key={id}
-            source={{ kind: 'material', component: id }}
-            label={`拖入 ${meta.title}`}
-            className="material-tile"
-          >
-            <span className="material-icon" aria-hidden="true">
-              <MaterialIcon name={meta.icon} />
-            </span>
-            <span className="material-name">{meta.title}</span>
-          </DragHandle>
-        ))}
-      </div>
+      {categories.map((name) => {
+        const group = materials.filter(([, meta]) => meta.category === name);
+        if (!group.length) return null;
+        return (
+          <section className="material-group" key={name}>
+            <h3>{categoryName(name)}</h3>
+            <div className="material-grid">
+              {group.map(([id, meta]) => (
+                <DragHandle
+                  key={id}
+                  source={{ kind: 'material', component: id }}
+                  label={`拖入 ${meta.title}`}
+                  className="material-tile"
+                >
+                  <span className="material-icon" aria-hidden="true">
+                    <MaterialIcon name={meta.icon} />
+                  </span>
+                  <span className="material-name">{meta.title}</span>
+                </DragHandle>
+              ))}
+            </div>
+          </section>
+        );
+      })}
       {!materials.length && (
         <div>
           <p className="editor-note">

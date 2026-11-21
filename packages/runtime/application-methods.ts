@@ -1,19 +1,42 @@
 import { isJson, matchesType, type ApplicationMethod, type Json } from '../schema/types';
 import type { ActionContext, ActionContract, Registry } from './registry';
+import { assertMethodCapabilities, shadowedCapabilityNames } from './method-sandbox';
+import { isWorkerRealmSupported, methodWorkerHost } from './method-worker-host';
 
 export const applicationMethodActionId = (methodId: string) => `app.method.${methodId}`;
 
-export function compileApplicationMethod(method: ApplicationMethod): ActionContract {
-  const executeBody = new Function(
+/** Main-thread realm, used where Worker is unavailable (tests, SSR). Same gate, same shadow. */
+function executeOnMainThread(
+  source: string,
+  input: Record<string, Json>,
+  context: ActionContext,
+): unknown {
+  const shadow = shadowedCapabilityNames.map((name) => `const ${name} = undefined;`).join('\n');
+  const body = new Function(
     'input',
     'context',
-    `"use strict"; return (async () => {\n${method.source}\n})();`,
-  ) as ActionContract['execute'];
+    `"use strict";\n${shadow}\nreturn (async () => {\n${source}\n})();`,
+  ) as (input: Record<string, Json>, context: ActionContext) => Promise<unknown>;
+  return body(input, context);
+}
+
+export function compileApplicationMethod(method: ApplicationMethod): ActionContract {
+  assertMethodCapabilities(method.source);
   return {
     version: '1.0.0',
     input: { payload: { type: method.inputType ?? 'json', required: true } },
     output: method.outputType ?? 'json',
-    execute: executeBody,
+    execute: (input, context) => {
+      // Dedicated realm when available: the method body runs in a Worker that can only
+      // reach host capabilities through the message bridge. `input` is JSON already, so
+      // structured cloning matches the main-thread contract exactly.
+      if (isWorkerRealmSupported())
+        return methodWorkerHost.run(
+          { source: method.source, input, state: { ...context.getState() } },
+          { signal: context.signal, context },
+        );
+      return executeOnMainThread(method.source, input, context);
+    },
   };
 }
 

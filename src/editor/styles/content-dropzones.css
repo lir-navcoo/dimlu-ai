@@ -11,6 +11,40 @@
   text-align: center;
   overflow-wrap: anywhere;
 }
+.editor-surface--empty {
+  display: flex;
+  flex-direction: column;
+}
+.drop-zone.canvas-empty-drop-zone {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  min-block-size: 128px;
+  margin: 0;
+  padding: 16px;
+  border-color: transparent;
+  font-size: 14px;
+  font-weight: 600;
+  color: #536580;
+}
+.canvas-empty-drop-zone:not(.drag-active) {
+  background: transparent;
+}
+.drop-zone.canvas-empty-drop-zone.drag-active:not(.drop-valid):not(.drop-invalid) {
+  border-color: #8ea2e9;
+}
+.canvas-empty-guide {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+}
+.canvas-empty-guide svg {
+  box-sizing: content-box;
+  padding: 12px;
+  border-radius: 12px;
+  background: #eef0ff;
+  color: #5147cb;
+}
 .drop-zone.drag-active {
   border-color: #8ea2e9;
   background: #f0f4ff;

@@ -1,4 +1,5 @@
 import {
+  forbiddenObjectKeySet,
   isJson,
   matchesFieldValue,
   type FieldDefinition,
@@ -65,13 +66,7 @@ export class FormSubmissionError extends Error {
     super(message);
   }
 }
-function immutable<T>(value: T): T {
-  if (value && typeof value === 'object' && !Object.isFrozen(value)) {
-    Object.freeze(value);
-    Object.values(value).forEach(immutable);
-  }
-  return value;
-}
+import { deepFreeze as immutable } from '../schema/deep-freeze';
 type Submit = (
   values: Readonly<Record<string, Json>>,
   signal: AbortSignal,
@@ -98,6 +93,10 @@ export class FormRuntime {
   private status = this.defaultStatus();
   private snapshot!: FormSnapshot;
   private rules = new Map<string, ReturnType<typeof compileValue>>();
+  /** Identity-keyed rule index; avoids re-serializing the same Value on every refresh. */
+  private ruleLookup = new WeakMap<Value, ReturnType<typeof compileValue>>();
+  /** Page-state keys read by any compiled rule; '*' means a wildcard state/form read. */
+  private stateDependencies: ReadonlySet<string> = new Set();
   constructor(
     definition: FormDefinition,
     private pageContext: () => EvaluationContext = () => ({ state: {}, scope: {} }),
@@ -105,7 +104,11 @@ export class FormRuntime {
   ) {
     this.definition = immutable(structuredClone(definition));
     const register = (value?: Value) => {
-      if (value) this.rules.set(JSON.stringify(value), compileValue(value));
+      if (value) {
+        const compiled = compileValue(value);
+        this.rules.set(JSON.stringify(value), compiled);
+        this.ruleLookup.set(value, compiled);
+      }
     };
     for (const field of [
       ...definition.fields,
@@ -113,7 +116,7 @@ export class FormRuntime {
     ]) {
       if (
         !field.path.length ||
-        field.path.some((p) => ['__proto__', 'prototype', 'constructor'].includes(p))
+        field.path.some((p) => forbiddenObjectKeySet.has(p))
       )
         throw new Error('非法字段路径');
       register(field.when);
@@ -127,6 +130,11 @@ export class FormRuntime {
       register(a.disabled);
     });
     definition.rules?.forEach((r) => register(r.test));
+    this.stateDependencies = new Set(
+      [...this.rules.values()].flatMap((rule) =>
+        [...rule.dependencies].filter((dep) => dep === '*' || !dep.startsWith('@')),
+      ),
+    );
     this.restoreDefaults();
     this.refresh();
   }
@@ -144,6 +152,9 @@ export class FormRuntime {
     this.listeners.add(notify);
     return () => this.listeners.delete(notify);
   };
+  /** True when any compiled rule reads the given page state key; rules on form values never qualify. */
+  dependsOnState = (id: string): boolean =>
+    this.stateDependencies.has('*') || this.stateDependencies.has(id);
   getArrayDefinition(id: string): FieldArrayDefinition {
     const array = this.definition.arrays?.find((a) => a.id === id);
     if (!array) throw new Error('未知数组字段 ' + id);
@@ -244,7 +255,8 @@ export class FormRuntime {
       },
     };
     const bool = (v: Value, context = ctx) => {
-      const result = this.rules.get(JSON.stringify(v))!.evaluate(context);
+      const rule = this.ruleLookup.get(v) ?? this.rules.get(JSON.stringify(v))!;
+      const result = rule.evaluate(context);
       if (typeof result !== 'boolean') throw new Error('表单条件和校验表达式必须返回布尔值');
       return result;
     };

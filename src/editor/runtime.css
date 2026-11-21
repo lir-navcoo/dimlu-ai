@@ -32,8 +32,12 @@ body {
   min-height: 100%;
   height: auto;
   overflow: visible;
-  padding: 24px;
+  --canvas-document-padding: 24px;
+  padding: var(--canvas-document-padding);
   font-size: 13px;
+}
+#canvas-content .editor-surface--empty {
+  min-block-size: calc(100vh - 2 * var(--canvas-document-padding));
 }
 #canvas-content,
 #canvas-portals {

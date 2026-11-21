@@ -82,9 +82,11 @@ function PortalControls() {
       )
     : null;
 }
-function harness() {
-  const author = new EditorDocument(selectionApplication(), selectionRegistry());
-  author.select('a', 'alpha');
+function harness({ emptyPage = false } = {}) {
+  const schema = selectionApplication();
+  if (emptyPage) schema.pages[0].children = [];
+  const author = new EditorDocument(schema, selectionRegistry());
+  author.select('a', emptyPage ? null : 'alpha');
   const stage = new CanvasStage();
   let drag!: NonNullable<ReturnType<typeof useDragDrop>>;
   let session!: ReturnType<typeof useEditorSession>;
@@ -263,6 +265,33 @@ function harness() {
 }
 
 describe('canvas-stage original native input ownership', () => {
+  it('drops the first material onto the empty iframe canvas at 75% and restores the hint on undo', async () => {
+    const h = harness({ emptyPage: true });
+    act(() => h.session().viewport.setScale(0.75));
+    const hint = '从组件库拖入组件，开始设计页面';
+    const guide = h.query.getByText(hint);
+    const zone = guide.closest('.drop-zone');
+    expect(zone?.closest('#canvas-content')).toBe(h.content);
+    expect(zone?.getAttribute('data-drop-intent')).toBe(JSON.stringify({ kind: 'inside' }));
+    h.childHit.mockReturnValue(guide);
+    const before = h.author.getSnapshot();
+    const material = screen.getByRole('button', { name: 'Parent material source' });
+    pointer(material, 'pointerdown', 20, 20);
+    pointer(window, 'pointermove', 130, 110);
+    expect(zone?.classList.contains('drop-valid')).toBe(true);
+    pointer(window, 'pointerup', 160, 125);
+    expect(h.childHit).toHaveBeenLastCalledWith(80, 60);
+    expect(h.author.getSnapshot().revision).toBe(before.revision + 1);
+    expect(h.author.getSnapshot().plan.pages.get('a')!.schema.children).toMatchObject([
+      { component: 'ui.text' },
+    ]);
+    expect(await h.query.findByText('页面末尾 · 拖入组件')).toBeTruthy();
+    expect(h.query.queryByText(hint)).toBeNull();
+    act(() => h.author.undo());
+    expect(h.author.getSnapshot().plan).toBe(before.plan);
+    expect(await h.query.findByText(hint)).toBeTruthy();
+  });
+
   it('I1 shares the original drag and exact capture owner across documents with visual threshold fresh release and one Undo', () => {
     const h = harness();
     act(() => h.session().viewport.setScale(0.75));

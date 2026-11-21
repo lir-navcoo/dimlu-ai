@@ -36,6 +36,11 @@ describe('editor router', () => {
     expect(parseEditorLocation(window.location)).toEqual({ pageId: 'orders', panel: 'data' });
   });
 
+  it('retains a direct component library link', () => {
+    window.history.replaceState({}, '', editorRoutePath('orders', 'materials'));
+    expect(parseEditorLocation(window.location)).toEqual({ pageId: 'orders', panel: 'materials' });
+  });
+
   it('round trips the page logic panel', () => {
     const path = editorRoutePath('orders', 'logic');
     expect(path).toBe('/editor/page/orders?panel=logic');

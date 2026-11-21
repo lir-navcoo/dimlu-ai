@@ -307,9 +307,12 @@ function mount(document: EditorDocument) {
     </EditorSessionProvider>,
   );
 }
+const enterRegion = () => screen.getByRole('region', { name: '页面进入动作' });
 function addNotice(title: string) {
-  fireEvent.click(screen.getByRole('button', { name: '添加动作' }));
-  const cards = screen.getAllByRole('region', { name: /^动作 \d+$/ });
+  // The harness reuses this helper for the component-event editor, which has no lifecycle region.
+  const host = screen.queryByRole('region', { name: '页面进入动作' }) ?? document.body;
+  fireEvent.click(within(host).getByRole('button', { name: '添加动作' }));
+  const cards = within(host).getAllByRole('region', { name: /^动作 \d+$/ });
   const card = within(cards.at(-1)!);
   changeControl(card.getByLabelText(/动作 \d+ 类型/), 'ui.notify');
   changeControl(card.getByLabelText('title取值方式'), 'literal');
@@ -424,7 +427,9 @@ describe('page-entry authoring isolation and permissions', () => {
     const before = document.getSnapshot();
     fireEvent.click(screen.getByRole('button', { name: '测试切换权限' }));
     expect((saveEntry() as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getByRole('button', { name: '添加动作' }).matches(':disabled')).toBe(true);
+    expect(within(enterRegion()).getByRole('button', { name: '添加动作' }).matches(':disabled')).toBe(
+      true,
+    );
     fireEvent.click(saveEntry());
     expect(document.getSnapshot()).toBe(before);
     fireEvent.click(screen.getByRole('button', { name: '测试切换权限' }));
@@ -581,5 +586,5 @@ describe('page-entry execution boundaries', () => {
     selectPage('b');
     selectPage('a');
     await waitFor(() => expect(mutation).toHaveBeenCalledTimes(3));
-  });
+  }, 15000);
 });

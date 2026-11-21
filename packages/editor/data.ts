@@ -61,6 +61,7 @@ function pageReferences(
   };
   nodes(page.children);
   calls(page.onEnter ?? [], '页面进入事件');
+  calls(page.onLeave ?? [], '页面离开事件');
   for (const form of page.forms ?? []) {
     fields(form.fields, `表单 ${form.id}`);
     for (const array of form.arrays ?? []) {

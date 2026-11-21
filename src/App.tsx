@@ -372,7 +372,9 @@ function Sidebar({
   }, [session.leftTab]);
   return (
     <nav aria-label="页面设计" className="sidebar">
-      <div className="sidebar-heading">{editorPanelRoute(session.leftTab)?.title}</div>
+      {session.leftTab !== 'structure' && (
+        <div className="sidebar-heading">{editorPanelRoute(session.leftTab)?.title}</div>
+      )}
       {designPanels.map((panel) => (
         <Tabs.Panel key={panel.id} value={panel.id} className={panel.className} keepMounted>
           {(!panel.lazy || visited.has(panel.id) || session.leftTab === panel.id) &&
@@ -474,18 +476,28 @@ function Workbench({
       const nextPageId = routePageExists
         ? route.pageId!
         : current.document.getSnapshot().selection.pageId;
-      const nextPath = editorRoutePath(nextPageId, route.panel);
       const currentPath = `${window.location.pathname}${window.location.search}`;
 
       if (current.document.getSnapshot().selection.pageId !== nextPageId) {
         current.document.selectPage(nextPageId);
       }
 
-      current.session.setLeftTab(route.panel);
+      const emptyPage = current.plan.pages.get(nextPageId)?.schema;
+      const hasExplicitPanel = new URLSearchParams(window.location.search).has('panel');
+      const effectivePanel =
+        route.panel === 'structure' &&
+        !hasExplicitPanel &&
+        emptyPage &&
+        !emptyPage.code?.enabled &&
+        emptyPage.children.length === 0
+          ? 'materials'
+          : route.panel;
+      const effectivePath = editorRoutePath(nextPageId, effectivePanel);
+      current.session.setLeftTab(effectivePanel);
       writeEditorRoute(
         nextPageId,
-        route.panel,
-        !isEditorLocation(window.location) || !routePageExists || currentPath !== nextPath,
+        effectivePanel,
+        !isEditorLocation(window.location) || !routePageExists || currentPath !== effectivePath,
       );
     };
 
@@ -594,8 +606,16 @@ function Workbench({
     if (!current.plan.pages.has(nextPageId)) return;
 
     retireLogPresentation(true);
-    if (current.selection.pageId !== nextPageId) document.selectPage(nextPageId);
-    writeEditorRoute(nextPageId, session.leftTab);
+    let panel = session.leftTab;
+    if (current.selection.pageId !== nextPageId) {
+      document.selectPage(nextPageId);
+      const page = current.plan.pages.get(nextPageId)!.schema;
+      if (panel === 'structure' && !page.code?.enabled && page.children.length === 0) {
+        panel = 'materials';
+        session.setLeftTab(panel);
+      }
+    }
+    writeEditorRoute(nextPageId, panel);
   };
   const [locatedCall, setLocatedCall] = useState<MethodReferenceRequest | null>(null);
   const referenceTarget =
@@ -766,7 +786,12 @@ function Workbench({
     const next = new PageRuntime(plan, pageId, { designMode: mode === 'edit' });
     setRuntime(next);
     void next.enter();
-    return () => next.dispose();
+    // Leave actions run before disposal so their lane stays alive; without
+    // leave actions disposal stays synchronous to preserve focus-gap semantics.
+    return () => {
+      if (next.willRunLeaveActions()) void next.leave().finally(() => next.dispose());
+      else next.dispose();
+    };
   }, [plan, pageId, reset]);
   useEffect(() => {
     runtime?.setDesignMode(mode === 'edit');
@@ -1010,7 +1035,7 @@ function Workbench({
                       : '收起右侧面板'
                 }
                 variant="ghost"
-                onClick={toggleRight}
+                onClick={rightNarrow && mode === 'edit' && nodeId ? editProperties : toggleRight}
               >
                 <PanelRight size={15} />
               </Button>
@@ -1021,6 +1046,7 @@ function Workbench({
             <div
               ref={canvasScroll}
               className="canvas-scroll"
+              data-mode={mode}
               aria-label="页面画布"
               inert={debugOpen && (rightNarrow || debugMaximized)}
             >

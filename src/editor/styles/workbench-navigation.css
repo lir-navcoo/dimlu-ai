@@ -172,20 +172,6 @@
   background: #dc2626;
   color: #fff;
 }
-.components-panel-heading {
-  display: grid;
-  gap: 2px;
-  padding: 10px 12px 8px;
-  border-bottom: 1px solid var(--border);
-}
-.components-panel-heading strong {
-  font-size: 12px;
-}
-.components-panel-heading span {
-  color: #64748b;
-  font-size: 10px;
-  line-height: 1.4;
-}
 .components-tabs {
   display: flex;
   min-width: 0;

@@ -21,6 +21,7 @@ import { NodeLogicPanel } from './NodeLogicPanel';
 import { useDraft, useEditorSession } from './session';
 import { Menu } from '@base-ui/react/menu';
 import { Tabs } from '@base-ui/react/tabs';
+import { Zap } from 'lucide-react';
 import { ActionPanel, type OpenApplicationMethods } from './ActionPanel';
 import type { ApplicationMethodReference } from '../../packages/editor/data';
 import { ClipboardMenuGroup } from './ClipboardMenu';
@@ -499,6 +500,9 @@ export function PropertyPanel({
   const page = snapshot.plan.pages.get(pageId)!.schema;
   const node = nodeId ? findNode(page, nodeId)?.node : undefined;
   const meta = node && materialCatalog[node.component];
+  const savedEventCount = node
+    ? Object.values(node.on ?? {}).filter((calls) => calls.length > 0).length
+    : 0;
   const editable =
     meta?.properties.filter((p) => {
       if (
@@ -539,6 +543,26 @@ export function PropertyPanel({
               </Tip>
               <code>{node.id}</code>
             </div>
+            {meta && (registry.components[node.component].events ?? []).length > 0 && (
+              <Tip
+                content={
+                  savedEventCount
+                    ? `已配置 ${savedEventCount} 个事件，点击打开事件配置`
+                    : '打开组件事件配置'
+                }
+              >
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="event-quick-button"
+                  aria-label="打开组件事件配置"
+                  onClick={() => setTab('events')}
+                >
+                  <Zap size={13} aria-hidden="true" />
+                  事件{savedEventCount ? ` · ${savedEventCount}` : ''}
+                </Button>
+              </Tip>
+            )}
           </div>
           <NodeNameEditor
             document={document}
@@ -617,13 +641,16 @@ export function PropertyPanel({
           </Tabs.Root>
         </>
       ) : (
-        <>
-          <p className="editor-note">在组件树中选择一个组件。</p>
-        </>
+        <div className="inspector-empty">
+          <strong>选择组件后配置</strong>
+          <p>点击画布中的组件，或从组件树选择，即可编辑属性、样式和事件。</p>
+        </div>
       )}
-      <p className="editor-note">
-        有效修改会即时应用并重置预览数据。选择组件不会重置。无效内容仅保留为当前输入草稿。
-      </p>
+      {node && selectedNodeIds(snapshot.selection).length === 1 && (
+        <p className="editor-note">
+          有效修改会即时应用并重置预览数据。选择组件不会重置。无效内容仅保留为当前输入草稿。
+        </p>
+      )}
     </div>
   );
 }

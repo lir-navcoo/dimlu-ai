@@ -213,7 +213,9 @@ describe('page management authoring UI', () => {
       }
 
       await waitFor(() => expect(window.location.pathname).toBe('/editor/page/page-1'));
-      expect(window.location.search).toBe('');
+      // A created page is blank and parks on the materials panel; a duplicated page keeps content,
+      // so its URL carries no explicit panel parameter.
+      expect(window.location.search).toBe(operation === 'create' ? '?panel=materials' : '');
       fireEvent(window, new Event('pagehide'));
       expect(JSON.parse(localStorage.getItem(PROJECT_STORAGE_KEY)!).selection.pageId).toBe(
         'page-1',
@@ -1031,7 +1033,11 @@ describe('page management authoring UI', () => {
   it('keeps deleted-page lifecycle drafts available to Undo without giving them to a new page', async () => {
     const { document } = setup();
     fireEvent.click(screen.getByRole('button', { name: '测试切换面板' }));
-    fireEvent.click(screen.getByRole('button', { name: '添加动作' }));
+    fireEvent.click(
+      within(screen.getByRole('region', { name: '页面进入动作' })).getByRole('button', {
+        name: '添加动作',
+      }),
+    );
     changeControl(screen.getByLabelText('动作 1 类型'), 'ui.notify');
     changeControl(screen.getByLabelText('title取值方式'), 'literal');
     changeControl(screen.getByRole('textbox', { name: 'title' }), '首页的未保存草稿');

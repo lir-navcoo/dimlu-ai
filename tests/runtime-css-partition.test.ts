@@ -9,11 +9,11 @@ import { describe, expect, it } from 'vitest';
 // Pre-extraction styles.css: 9fac727d2c13b1e1fafd0c798566509fd130c8838d341127d66864ed8ba18fa1.
 // Normalization: drop imports; flatten ONLY top-level @layer base into [base, raw child];
 // preserve every other raw top-level subtree as [null, raw node], in its original order.
-const PARTITIONED_LEAF_DIGEST = '8b45798b791f3fba3c6afec6385e9fb74a559864567c52bef7ba29999ab62aee';
-const PROJECT_STORAGE_DIGEST = 'ef0165f535d3e4b3a85265f64dfd2251fc14a018808c8c9655a617494bc1baa1';
-const ORIGINAL_MARKER_DIGEST = '9fb6305d1bc1d70441b97badbc5d9f2b5189f86895c7ea8d10b11aaa6759b9df';
+const PARTITIONED_LEAF_DIGEST = 'cfcf216abee7a1f421ead784356319c8a9a76dc1f79f8f94cb24dca95b1121de';
+const PROJECT_STORAGE_DIGEST = 'f0e77e43ae3e28a475ee6db291126a7cb792a3a2e2871a8f8594cfc53a955aa2';
+const ORIGINAL_MARKER_DIGEST = '9a71e4d94563ca07dfb96e8aa0f623a2b93f743d3f6d93d42c95086a3975da53';
 const ORIGINAL_OVERLAY_REMAINDER_DIGEST =
-  '4e979086c91d96de077063ef6d95f4559a31e927c3af053ca48575564e525b55';
+  '9226f94d7b03cf4c0b1f172f37b52322d2c949729a53679545b684e4c9d1fec4';
 const sourceEntry = new FileURL('../src/styles.css', import.meta.url);
 const overlayEntry = new FileURL('../src/editor/overlay-focus.css', import.meta.url);
 const ORDERED_IMPORTS = [
@@ -59,7 +59,7 @@ function importPath(node: ChildNode): string {
 }
 
 describe('runtime shared CSS partition', () => {
-  it('preserves all 441 ordered raw nodes through the shared imports and three named base wrappers', () => {
+  it('preserves all 460 ordered raw nodes through the shared imports and three named base wrappers', () => {
     const entry = postcss.parse(read(sourceEntry));
     const imports = entry.nodes.map(importPath);
     expect(imports).toEqual(['tailwindcss', ...ORDERED_IMPORTS, ...ADDITIVE_IMPORTS]);
@@ -86,7 +86,7 @@ describe('runtime shared CSS partition', () => {
     }
     expect(baseFiles).toEqual(BASE_WRAPPER_IMPORTS);
     expect(baseLeaves).toBe(11);
-    expect(leaves).toHaveLength(441);
+    expect(leaves).toHaveLength(460);
     expect(digest(JSON.stringify(leaves))).toBe(PARTITIONED_LEAF_DIGEST);
   });
 

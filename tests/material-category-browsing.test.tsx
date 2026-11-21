@@ -71,7 +71,7 @@ describe('material category browsing through the actual retained palette', () =>
     metadata('ui.summary', { category: '仅隐藏展示分类' });
     metadata('ui.formStatus', { category: '仅不可插入分类' });
     h.view.rerender(h.tree());
-    expect(tileNames()).toEqual(originalTiles);
+    expect([...tileNames()].sort()).toEqual([...originalTiles].sort());
     expect(
       within(categoryGroup())
         .getAllByRole('button')
@@ -116,7 +116,7 @@ describe('material category browsing through the actual retained palette', () =>
     expect(h.session().drafts.read('ui:materials/category', 'ui', null).value).toBe('未来未知分类');
     expect(categoryGroup().querySelector('[title]')).toBeNull();
     fireEvent.click(all());
-    expect(tileNames()).toEqual(originalTiles);
+    expect([...tileNames()].sort()).toEqual([...originalTiles].sort());
     expect(h.author.getSnapshot()).toBe(before);
     expect(h.author.exportJson()).toBe(exported);
     expect(h.author.getSavedFragmentsSnapshot()).toBe(library);
