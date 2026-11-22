@@ -520,78 +520,97 @@ function StatesPanel({ document, snapshot, lock, authoringAllowed }: DefinitionP
     definition: state,
     entries: [choiceOwner, errorOwner],
   });
+  const [editorOpen, setEditorOpen] = useState(false);
+  const pickState = (id: string) => {
+    owner.run((operation) => {
+      if (operation.write('clear', errorOwner.key, () => setError('')))
+        operation.finish(() => {
+          setChosen(id);
+          setEditorOpen(true);
+        });
+    });
+  };
   return (
     <section className="data-model-panel" aria-label="页面状态管理">
       <div className="data-model-heading">
         <strong>本页状态 · {page.state.length}</strong>
         <Tip content="新建页面状态">
-          <Button
-            disabled={!owner.allowed}
-            aria-label="新建状态"
-            onClick={() => {
-              owner.run((operation) => {
-                if (operation.write('clear', errorOwner.key, () => setError('')))
-                  operation.finish(() => setChosen('@new'));
-              });
-            }}
-          >
+          <Button disabled={!owner.allowed} aria-label="新建状态" onClick={() => pickState('@new')}>
             <Plus size={13} />
           </Button>
         </Tip>
       </div>
-      {!!page.state.length && (
-        <div className="data-model-picker">
-          <Select
-            disabled={!owner.allowed}
-            aria-label="管理状态"
-            value={state?.id ?? '@new'}
-            onValueChange={(id) => {
-              owner.run((operation) => {
-                if (operation.write('clear', errorOwner.key, () => setError('')))
-                  operation.finish(() => setChosen(id));
-              });
-            }}
-          >
-            <option value="@new">新建状态</option>
-            {page.state.map((state) => (
-              <option key={state.id} value={state.id}>
-                {state.id} · {state.type}
-              </option>
-            ))}
-          </Select>
-          {state && (
-            <Tip content="删除页面状态">
-              <Button
-                disabled={!owner.allowed}
-                aria-label={`删除状态 ${state.id}`}
-                onClick={() => {
-                  owner.run((operation) =>
-                    operation.finish(() => setDeleteTarget({ id: state.id, plan: snapshot.plan })),
-                  );
-                }}
-              >
-                <Trash2 size={13} />
-              </Button>
-            </Tip>
-          )}
-        </div>
-      )}
       {error && (
         <p role="alert" className="field-error action-error">
           {error}
         </p>
       )}
-      <StateEditor
-        key={`${page.id}/${state?.id ?? '@new'}`}
-        document={document}
-        snapshot={snapshot}
-        state={state}
-        onSaved={setChosen}
-        chosen={chosen}
-        owners={[choiceOwner, errorOwner]}
-        lock={lock}
-        authoringAllowed={authoringAllowed}
-      />
+      {!!page.state.length && (
+        <ul className="data-source-list" aria-label="状态列表">
+          {page.state.map((item) => (
+            <li className="data-source-row" key={item.id}>
+              <button
+                type="button"
+                className="data-source-open"
+                disabled={!owner.allowed}
+                aria-label={`编辑状态 ${item.id}`}
+                onClick={() => pickState(item.id)}
+              >
+                <span className="data-source-name">{item.id}</span>
+                <span className="data-source-kind">{item.type}</span>
+              </button>
+              <Tip content="删除页面状态">
+                <Button
+                  variant="ghost"
+                  disabled={!owner.allowed}
+                  aria-label={`删除状态 ${item.id}`}
+                  onClick={() => {
+                    owner.run((operation) =>
+                      operation.finish(() =>
+                        setDeleteTarget({ id: item.id, plan: snapshot.plan }),
+                      ),
+                    );
+                  }}
+                >
+                  <Trash2 size={13} />
+                </Button>
+              </Tip>
+            </li>
+          ))}
+        </ul>
+      )}
+      {!page.state.length && (
+        <p className="editor-note">尚无状态。点右上角「+」创建。</p>
+      )}
+      <Dialog.Root open={editorOpen} onOpenChange={setEditorOpen}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="material-modal-backdrop" />
+          <Dialog.Popup className="material-modal data-source-dialog">
+            <div className="data-source-dialog-head">
+              <Dialog.Title className="project-confirmation-title">
+                {state ? `编辑状态 · ${state.id}` : '新建状态'}
+              </Dialog.Title>
+              <Dialog.Close className="ui-button ui-button-ghost" aria-label="关闭状态编辑">
+                <X size={14} />
+              </Dialog.Close>
+            </div>
+            <Dialog.Description className="editor-note">
+              初始值必须符合状态类型；修改会重置预览数据。
+            </Dialog.Description>
+            <StateEditor
+              key={`${page.id}/${state?.id ?? '@new'}`}
+              document={document}
+              snapshot={snapshot}
+              state={state}
+              onSaved={setChosen}
+              chosen={chosen}
+              owners={[choiceOwner, errorOwner]}
+              lock={lock}
+              authoringAllowed={authoringAllowed}
+            />
+          </Dialog.Popup>
+        </Dialog.Portal>
+      </Dialog.Root>
       <Dialog.Root
         open={deleteTarget !== null}
         onOpenChange={(open) => !open && setDeleteTarget(null)}

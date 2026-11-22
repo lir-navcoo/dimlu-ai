@@ -63,6 +63,7 @@ describe('data configuration panels', () => {
     changeControl(screen.getByRole('textbox', { name: '状态 ID' }), 'selected');
     changeControl(screen.getByRole('textbox', { name: '状态初始值' }), '"新状态"');
     fireEvent.click(screen.getByRole('button', { name: '创建状态' }));
+    fireEvent.click(screen.getByRole('button', { name: '关闭状态编辑' }));
     expect(
       doc
         .getSnapshot()

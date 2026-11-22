@@ -88,9 +88,14 @@
   white-space: nowrap;
 }
 
+/* 组件/大纲面板内容区留白：与面板边界保持呼吸感。 */
 .sidebar-content.components-workspace {
-  padding: 0;
+  padding: 12px;
   overflow: hidden;
+}
+.sidebar-content.components-workspace > .component-tree,
+.sidebar-content.components-workspace > .insert-panel {
+  min-width: 0;
 }
 .components-panel {
   display: flex;
@@ -485,6 +490,7 @@
 .data-source-dialog {
   /* material-modal 的宽度走 --modal-width 变量；加宽以容纳参数行。 */
   --modal-width: 560px;
+  padding: 16px;
   max-height: calc(100dvh - 96px);
   overflow-x: hidden;
   overflow-y: auto;
@@ -756,16 +762,27 @@
   display: flex;
   min-width: 0;
   flex: 1;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 2px;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
   padding: 0;
   border: 0;
   background: transparent;
   text-align: left;
   cursor: pointer;
 }
+.action-card-open > strong {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .action-card-summary {
+  min-width: 0;
+  flex: 1;
   overflow: hidden;
   color: #64748b;
   font-size: 11px;
