@@ -507,12 +507,19 @@
   padding-inline: 8px;
   border-bottom: 0;
 }
-/* 视口控件并入工具条：在面包屑与右侧按钮组之间弹性居中分布。 */
+/* 画布工具条两段式布局：左侧导航区弹性撑开，右侧状态区（视口+运行状态）固定靠右。 */
+.canvas-toolbar > .canvas-breadcrumb {
+  padding-inline-start: 10px;
+  border-inline-start: 1px solid var(--border);
+}
 .canvas-toolbar-viewport {
   display: flex;
   min-width: 0;
-  flex: 1 1 auto;
-  justify-content: center;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  padding-inline-start: 10px;
+  border-inline-start: 1px solid var(--border);
 }
 .canvas-toolbar > .ui-button,
 .canvas-toolbar-actions > .ui-button {

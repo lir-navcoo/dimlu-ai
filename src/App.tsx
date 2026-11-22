@@ -1049,7 +1049,6 @@ function Workbench({
                   onClick={() => navigatePanel(id)}
                 >
                   <Icon size={17} aria-hidden="true" />
-                  <span>{id === 'logic' ? '逻辑' : title}</span>
                 </Tabs.Tab>
               </Tip>
             ))}
