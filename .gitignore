@@ -5,3 +5,4 @@ coverage/
 dist-ui-check/
 dist-ui-check-final/
 .workbuddy/
+dist-release/
