@@ -63,6 +63,10 @@ const groups: { title: string; properties: StyleProperty[] }[] = [
     title: '文字与背景',
     properties: ['color', 'backgroundColor', 'fontSize', 'fontWeight', 'lineHeight', 'textAlign'],
   },
+  {
+    title: '边框与阴影',
+    properties: ['borderRadius', 'boxShadow'],
+  },
 ];
 const labels: Record<StyleProperty, string> = {
   width: '宽度',
@@ -96,6 +100,8 @@ const labels: Record<StyleProperty, string> = {
   fontWeight: '字重',
   lineHeight: '行高',
   textAlign: '文字对齐',
+  borderRadius: '圆角',
+  boxShadow: '阴影',
 };
 const field: ContractField = { type: 'json' };
 function naturalValue(source: string) {
@@ -373,6 +379,7 @@ function StyleSourceEditor({ document, snapshot, node }: Props) {
         label="组件 CSS 源码"
         language="css"
         height={230}
+        expandLabel="源码编辑"
         value={draft.text}
         onChange={(text) => {
           if (canAuthor()) setDraft({ text, error: '' });

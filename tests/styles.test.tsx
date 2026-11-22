@@ -277,6 +277,28 @@ describe('style runtime and real material targets', () => {
     });
     expect(node().styleCss).toContain('gap: 12px');
   });
+  it('syncs border radius and shadow between source and visual settings', () => {
+    const document = new EditorDocument(app(), boxRegistry());
+    const node = () => findNode(document.getSnapshot().plan.pages.get('page')!.schema, 'box')!.node;
+    document.setStyleSource(
+      'page',
+      'box',
+      ':root { border-radius: 12px; box-shadow: 0 2px 8px #94a3b8, inset 0 0 2px red; }',
+    );
+    expect(node().style).toMatchObject({
+      borderRadius: literal('12px'),
+      boxShadow: literal('0 2px 8px #94a3b8, inset 0 0 2px red'),
+    });
+    expect(() =>
+      document.setStyleSource('page', 'box', ':root { box-shadow: url(x.png); }'),
+    ).toThrow();
+    expect(() =>
+      document.setStyle('page', 'box', { boxShadow: literal('url(x.png)') }),
+    ).toThrow(/boxShadow/);
+    document.setStyle('page', 'box', { borderRadius: literal(4) });
+    expect(node().styleCss).toContain('border-radius: 4px');
+    expect(node().styleCss).toContain('box-shadow: 0 2px 8px #94a3b8');
+  });
   it.each([
     'body { color: red; }',
     ':root, body { color: red; }',

@@ -28,6 +28,8 @@ export const styleProperties = [
   'fontWeight',
   'lineHeight',
   'textAlign',
+  'borderRadius',
+  'boxShadow',
 ] as const;
 export type StyleProperty = (typeof styleProperties)[number];
 export type ResolvedStyle = Partial<Record<StyleProperty, string | number>>;
@@ -109,7 +111,9 @@ export function styleValueTypes(key: StyleProperty): readonly ('string' | 'numbe
     ? ['string']
     : key === 'flexGrow' || key === 'flexShrink'
       ? ['number']
-      : ['string', 'number'];
+      : key === 'boxShadow'
+        ? ['string']
+        : ['string', 'number'];
 }
 function length(value: unknown, negative: boolean) {
   if (typeof value === 'number') return Number.isFinite(value) && (negative || value >= 0);
@@ -119,6 +123,29 @@ function length(value: unknown, negative: boolean) {
     value === '0' ||
     (!!match && Number.isFinite(Number(match[1])) && (negative || Number(match[1]) >= 0))
   );
+}
+const shadowColorPattern = /^#(?:[\da-fA-F]{3}|[\da-fA-F]{4}|[\da-fA-F]{6}|[\da-fA-F]{8})$/;
+const shadowFunctionPattern = /^(?:rgba?|hsla?)\(\s*[\d.,%\s/]+\)$/i;
+const shadowTokenPattern = /^inset$|^-?(?:\d+(?:\.\d+)?|\.\d+)(?:px|%|rem|em|vw|vh)?$/;
+function shadow(value: string) {
+  return value
+    .trim()
+    .split(',')
+    .every((part) => {
+      const tokens = part.trim().split(/\s+/);
+      return (
+        tokens.length >= 2 &&
+        tokens.every(
+          (token) =>
+            token === 'inset' ||
+            token === 'none' ||
+            colors.has(token) ||
+            shadowColorPattern.test(token) ||
+            shadowFunctionPattern.test(token) ||
+            shadowTokenPattern.test(token),
+        )
+      );
+    });
 }
 /** Returns a user-facing domain error; never evaluates CSS or accesses the DOM. */
 export function styleValueError(key: StyleProperty, value: unknown): string | undefined {
@@ -144,6 +171,14 @@ export function styleValueError(key: StyleProperty, value: unknown): string | un
       ? undefined
       : 'fontWeight 需要 normal、bold 或 1–1000 的整数';
   if (key === 'lineHeight' && value === 'normal') return;
+  if (key === 'borderRadius')
+    return length(value, false) || value === '50%'
+      ? undefined
+      : 'borderRadius 需要非负数字或 px/%/rem/em/vw/vh 长度';
+  if (key === 'boxShadow')
+    return typeof value === 'string' && (value === 'none' || shadow(value))
+      ? undefined
+      : 'boxShadow 需要 none 或由长度、inset 与颜色组成的阴影值';
   const isMargin = (margin as readonly string[]).includes(key);
   const auto =
     isMargin ||

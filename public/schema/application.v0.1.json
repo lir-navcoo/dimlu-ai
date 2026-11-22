@@ -827,6 +827,12 @@
             },
             "textAlign": {
               "$ref": "#/$defs/value"
+            },
+            "borderRadius": {
+              "$ref": "#/$defs/value"
+            },
+            "boxShadow": {
+              "$ref": "#/$defs/value"
             }
           }
         },

@@ -16,6 +16,8 @@ export interface CodeEditorProps {
   readOnly?: boolean;
   placeholder?: string;
   expandable?: boolean;
+  /** 醒目的展开入口文案（如宜搭的「源码编辑」）；缺省仍是角落图标。 */
+  expandLabel?: string;
 }
 
 /** Controlled text is owned by the caller's draft, never by a shared Monaco model. */
@@ -159,17 +161,24 @@ export function CodeEditor(props: CodeEditorProps) {
         </span>
       )}
       {props.expandable !== false && (
-        <Tip content="展开代码编辑器">
+        <Tip content={props.expandLabel ?? '展开代码编辑器'}>
           <Button
-            className="code-editor-expand"
-            variant="ghost"
-            aria-label={`展开${props.label}`}
+            className={`code-editor-expand${props.expandLabel ? ' code-editor-expand-labeled' : ''}`}
+            variant={props.expandLabel ? 'primary' : 'ghost'}
+            aria-label={props.expandLabel ?? `展开${props.label}`}
             onClick={() => {
               setDialogVisited(true);
               setExpanded(true);
             }}
           >
-            <Maximize2 size={12} />
+            {props.expandLabel ? (
+              <>
+                {props.expandLabel}
+                <Maximize2 size={12} />
+              </>
+            ) : (
+              <Maximize2 size={12} />
+            )}
           </Button>
         </Tip>
       )}
