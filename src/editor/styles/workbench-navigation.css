@@ -483,9 +483,16 @@
   font-size: 10px;
 }
 .data-source-dialog {
-  width: min(460px, calc(100vw - 32px));
+  /* material-modal 的宽度走 --modal-width 变量；加宽以容纳参数行。 */
+  --modal-width: 560px;
   max-height: calc(100dvh - 96px);
+  overflow-x: hidden;
   overflow-y: auto;
+}
+/* 参数首行在窄弹窗内可收缩，避免取值方式下拉把标签挤出可视区。 */
+.data-source-dialog .action-parameter-label > .ui-select {
+  flex-shrink: 1;
+  min-width: 88px;
 }
 .data-source-dialog-head {
   display: flex;
