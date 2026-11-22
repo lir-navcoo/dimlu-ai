@@ -786,23 +786,25 @@ export function ActionChainEditor({
           </p>
         )}
         <div className="action-panel-footer">
-          <Button disabled={!authoringAllowed} onClick={add}>
-            <Plus size={13} />
-            添加动作
-          </Button>
-          {onOpenMethods && authoringAllowed && (
-            <Button
-              type="button"
-              variant="ghost"
-              disabled={!!drag?.isInteracting || drag?.enabled === false || status.stale}
-              onClick={(event) => {
-                if (canAuthor() && !latest.current.status.stale)
-                  onOpenMethods(event.currentTarget, { onCreated: appendMethod });
-              }}
-            >
-              新建并绑定 JS
+          <div className="action-panel-footer-group">
+            <Button disabled={!authoringAllowed} onClick={add}>
+              <Plus size={13} />
+              添加动作
             </Button>
-          )}
+            {onOpenMethods && authoringAllowed && (
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={!!drag?.isInteracting || drag?.enabled === false || status.stale}
+                onClick={(event) => {
+                  if (canAuthor() && !latest.current.status.stale)
+                    onOpenMethods(event.currentTarget, { onCreated: appendMethod });
+                }}
+              >
+                新建并绑定 JS
+              </Button>
+            )}
+          </div>
           <Button
             variant="primary"
             onClick={save}

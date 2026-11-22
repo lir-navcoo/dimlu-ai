@@ -697,6 +697,9 @@ function Workbench({
 
     retireLogPresentation(true);
     session.activatePanel(panel.id);
+    // 代码面板需要更宽的编辑区：过窄时自动放宽一次，保留用户手动调整过的宽度。
+    if (panel.id === 'code')
+      setLayout((current) => (current.leftWidth < 380 ? { ...current, leftWidth: 420 } : current));
     writeEditorRoute(pageId, panelId as EditorPanelId);
   };
   const navigatePage = (nextPageId: string) => {
@@ -1120,6 +1123,12 @@ function Workbench({
                   <PanelLeft size={15} aria-hidden="true" />
                 </Button>
                 <CanvasBreadcrumb document={document} snapshot={snapshot} />
+                <div
+                  className="canvas-toolbar-viewport"
+                  inert={debugOpen && (rightNarrow || debugMaximized)}
+                >
+                  <ViewportControls mode={mode} />
+                </div>
                 <div className="canvas-toolbar-actions">
                   {runtime && !runtime.disposed && <RuntimeStatus runtime={runtime} />}
                   <Tip content="重置当前页面的运行数据" side="bottom">
@@ -1146,9 +1155,6 @@ function Workbench({
                     <PanelRight size={15} aria-hidden="true" />
                   </Button>
                 </div>
-              </div>
-              <div className="canvas-viewport-band" inert={debugOpen && (rightNarrow || debugMaximized)}>
-                <ViewportControls mode={mode} />
               </div>
             </div>
             {runtime && !runtime.disposed && (
