@@ -788,8 +788,8 @@ function SourceEditor({
             )
           }
         >
-          <option value="query">query · 查询，最新请求生效</option>
-          <option value="mutation">mutation · 写入，忙时拒绝重复</option>
+          <option value="query">query · 查询</option>
+          <option value="mutation">mutation · 写入</option>
         </Select>
       </label>
       <label>
@@ -827,7 +827,7 @@ function SourceEditor({
           label="数据源初始值"
           language="json"
           readOnly={!owner.allowed}
-          height={132}
+          height={104}
           value={draft.initial}
           onChange={(initial) =>
             owner.change(() => setDraft((d) => ({ ...d, initial, error: '' })))
@@ -835,8 +835,7 @@ function SourceEditor({
         />
       </label>
       <p className="editor-note">
-        返回类型：{contract?.output ?? '未选择'}。参数仅使用页面作用域，不能读取 event /
-        scope；字段变化不会自动请求。
+        返回 {contract?.output ?? '未选择'}；参数取自页面状态，字段变化不会自动请求。
       </p>
       {Object.entries(contract?.input ?? {}).map(([name, field]) => (
         <ValueInput
@@ -870,9 +869,7 @@ function SourceEditor({
       >
         {source ? '保存数据源' : '创建数据源'}
       </Button>
-      <p className="editor-note">
-        配置保存不执行请求。预览中的 data.execute 动作可发起查询，结果直接绑定到组件。
-      </p>
+      <p className="editor-note">保存不执行请求；在预览中用 data.execute 动作发起查询并绑定结果。</p>
     </form>
   );
 }

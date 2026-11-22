@@ -165,7 +165,7 @@ export function NodeNameEditor({
           placeholder={fallback}
           onChange={(event) => edit(event.target.value)}
         />
-        <Tip content="应用编辑器名称">
+        <Tip content="应用编辑器名称，留空恢复默认名称">
           <Button
             aria-label="应用编辑器名称"
             disabled={!status.dirty || status.stale}
@@ -175,7 +175,6 @@ export function NodeNameEditor({
           </Button>
         </Tip>
       </div>
-      <small>用于编辑器内识别；留空可恢复默认名称。</small>
       {draft.error && (
         <p className="property-error" role="alert">
           {draft.error}

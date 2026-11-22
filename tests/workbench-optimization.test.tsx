@@ -201,7 +201,8 @@ describe('workbench organization and session state', () => {
     const counter = screen.getByRole('button', { name: /本地计数/ });
     fireEvent.click(counter);
     const handle = screen.getByRole('separator', { name: '调整左侧面板宽度' });
-    pointer(handle, 'pointerdown', 224);
+    expect(handle.getAttribute('aria-valuenow')).toBe('248');
+    pointer(handle, 'pointerdown', 248);
     pointer(handle, 'pointerdown', 400, 2);
     pointer(handle, 'pointercancel', 400, 2);
     pointer(handle, 'pointermove', 280);
@@ -220,6 +221,27 @@ describe('workbench organization and session state', () => {
     expect(
       screen.getByRole('separator', { name: '调整左侧面板宽度' }).getAttribute('aria-valuenow'),
     ).toBe(width);
+  });
+
+  it('keeps the outline docked when a saved inspector would otherwise consume the canvas', () => {
+    localStorage.setItem('dimlu.workbench.layout.v1', JSON.stringify({
+      leftWidth: 224,
+      rightWidth: 460,
+    }));
+    resize(1024);
+    seedLegacyProject();
+    render(<App />);
+    const left = screen.getByRole('separator', { name: '调整左侧面板宽度' });
+    const right = screen.getByRole('separator', { name: '调整右侧面板宽度' });
+    expect(left.getAttribute('aria-valuenow')).toBe('248');
+    expect(right.getAttribute('aria-valuenow')).toBe('290');
+    expect(right.getAttribute('aria-valuemax')).toBe('290');
+
+    fireEvent.keyDown(right, { key: 'End' });
+    expect(left.isConnected).toBe(true);
+    expect(right.getAttribute('aria-valuenow')).toBe('290');
+    resize(1440);
+    expect(right.getAttribute('aria-valuenow')).toBe('460');
   });
 
   it('fits a persisted wide inspector to narrow desktop widths and restores its preference', () => {

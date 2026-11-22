@@ -1,5 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { Link2, RotateCcw } from 'lucide-react';
+import { Code2, Link2, RotateCcw } from 'lucide-react';
+import { formatStyleSource } from '../../packages/schema/style-source';
+import { CodeEditor } from '../ui/CodeEditor';
 import { findNode, type EditorDocument, type EditorSnapshot } from '../../packages/editor/document';
 import type { ContractField } from '../../packages/runtime/registry';
 import {
@@ -139,16 +141,16 @@ export function StyleValueSetter(props: ReactSetterProps) {
   return (
     <div className={color ? 'style-color-control' : undefined}>
       {color && (
-        <span
-          className="style-color-swatch"
-          aria-hidden="true"
-          style={{
-            backgroundColor:
-              typeof props.value === 'string' && !styleValueError(property, props.value)
-                ? props.value
-                : 'transparent',
-          }}
-        />
+        <label className="style-color-swatch" aria-label={`${props.label} 颜色选取`}>
+          {/* The visible swatch doubles as the color-picker trigger; any CSS
+              color stays editable through the text input. */}
+          <input
+            type="color"
+            value={/^#[0-9a-fA-F]{6}$/.test(props.draft) ? props.draft : '#000000'}
+            onChange={(event) => change(event.target.value)}
+            tabIndex={-1}
+          />
+        </label>
       )}
       <Input
         id={props.id}
@@ -353,6 +355,54 @@ function StyleField({ document, snapshot, node, property }: Props & { property: 
     </div>
   );
 }
+function StyleSourceEditor({ document, snapshot, node }: Props) {
+  const canAuthor = useAuthorGuard(document, snapshot, node.id);
+  const { pageId } = snapshot.selection;
+  const source = formatStyleSource(node);
+  const [draft, setDraft, status] = useDraft(`${prefixFor(pageId, node.id)}source`, source, {
+    text: source,
+    error: '',
+  });
+  return (
+    <div className="style-source-editor">
+      <p className="editor-note">
+        <code>:root</code> 对应当前组件的样式节点。可使用 <code>:root:hover</code>、
+        <code>:root:focus</code> 等状态。设置器支持的固定值会同步到可视配置。
+      </p>
+      <CodeEditor
+        label="组件 CSS 源码"
+        language="css"
+        height={230}
+        value={draft.text}
+        onChange={(text) => {
+          if (canAuthor()) setDraft({ text, error: '' });
+        }}
+      />
+      <Button
+        disabled={!status.dirty || status.stale}
+        onClick={() => {
+          if (!canAuthor() || status.stale) return;
+          try {
+            document.endGroup();
+            document.setStyleSource(pageId, node.id, draft.text);
+            status.reset();
+          } catch (error) {
+            setDraft({ ...draft, error: errorText(error) });
+          }
+        }}
+      >
+        应用 CSS
+      </Button>
+      {draft.error && (
+        <small className="field-error" role="alert">
+          {draft.error}
+        </small>
+      )}
+      <DraftNotice {...status} />
+    </div>
+  );
+}
+
 export function StylePanel({ document, snapshot, node }: Props) {
   const canAuthor = useAuthorGuard(document, snapshot, node.id);
   const outer = useSetterRegistry();
@@ -363,6 +413,7 @@ export function StylePanel({ document, snapshot, node }: Props) {
   const { drafts } = useEditorSession();
   const capability = snapshot.plan.registry.components[node.component].style;
   const { pageId } = snapshot.selection;
+  const [sourceOpen, setSourceOpen] = useState(false);
   const reset = (properties: readonly StyleProperty[]) => {
     if (!canAuthor()) return;
     const current = document.getSnapshot().selection;
@@ -380,14 +431,28 @@ export function StylePanel({ document, snapshot, node }: Props) {
     <SetterRegistryProvider registry={setters}>
       <div className="style-panel">
         <div className="style-panel-header">
-          <span>仅保存显式覆盖</span>
+          {capability.source ? (
+            <Button
+              variant="ghost"
+              aria-pressed={sourceOpen}
+              onClick={() => setSourceOpen((open) => !open)}
+            >
+              <Code2 size={14} aria-hidden="true" />
+              {sourceOpen ? '可视设置' : 'CSS 源码'}
+            </Button>
+          ) : (
+            <span>仅保存显式覆盖</span>
+          )}
           <Tip content="恢复全部样式，同时清除未应用草稿">
             <Button
               variant="ghost"
               aria-label="恢复全部样式"
               onClick={() => {
                 if (!canAuthor()) return;
-                reset(capability.properties);
+                if (capability.source) {
+                  document.endGroup();
+                  document.setStyleSource(pageId, node.id, '', true);
+                } else reset(capability.properties);
                 drafts.clearPrefix(prefixFor(pageId, node.id));
               }}
             >
@@ -396,46 +461,59 @@ export function StylePanel({ document, snapshot, node }: Props) {
             </Button>
           </Tip>
         </div>
-        <p className="editor-note">
-          {capability.target === 'field'
-            ? '尺寸、间距和背景作用于整个字段；文字设置作用于标签与输入区域。'
-            : capability.target === 'popup'
-              ? '样式作用于打开的弹层面板。'
-              : '样式作用于组件主体。'}
-          恢复后沿用组件属性与默认样式。
-        </p>
-        {groups.map((group, index) => {
-          const properties = group.properties.filter((key) => capability.properties.includes(key));
-          return (
-            properties.length > 0 && (
-              <section className="style-section" key={group.title}>
-                <Disclosure title={group.title} defaultOpen={index === 0}>
-                  <div className="style-fields">
-                    {properties.map((property) => (
-                      <StyleField
-                        key={property}
-                        document={document}
-                        snapshot={snapshot}
-                        node={node}
-                        property={property}
-                      />
-                    ))}
-                  </div>
-                </Disclosure>
-                <Tip content={`恢复${group.title}分组，同时清除草稿`}>
-                  <Button
-                    className="style-group-reset"
-                    variant="ghost"
-                    aria-label={`恢复${group.title}分组`}
-                    onClick={() => reset(properties)}
-                  >
-                    <RotateCcw size={12} />
-                  </Button>
-                </Tip>
-              </section>
-            )
-          );
-        })}
+        {sourceOpen && capability.source ? (
+          <StyleSourceEditor
+            key={`${pageId}/${node.id}`}
+            document={document}
+            snapshot={snapshot}
+            node={node}
+          />
+        ) : (
+          <>
+            <p className="editor-note">
+              {capability.target === 'field'
+                ? '尺寸、间距和背景作用于整个字段；文字设置作用于标签与输入区域。'
+                : capability.target === 'popup'
+                  ? '样式作用于打开的弹层面板。'
+                  : '样式作用于组件主体。'}
+              恢复后沿用组件属性与默认样式。
+            </p>
+            {groups.map((group, index) => {
+              const properties = group.properties.filter((key) =>
+                capability.properties.includes(key),
+              );
+              return (
+                properties.length > 0 && (
+                  <section className="style-section" key={group.title}>
+                    <Disclosure title={group.title} defaultOpen={index === 0}>
+                      <div className="style-fields">
+                        {properties.map((property) => (
+                          <StyleField
+                            key={property}
+                            document={document}
+                            snapshot={snapshot}
+                            node={node}
+                            property={property}
+                          />
+                        ))}
+                      </div>
+                    </Disclosure>
+                    <Tip content={`恢复${group.title}分组，同时清除草稿`}>
+                      <Button
+                        className="style-group-reset"
+                        variant="ghost"
+                        aria-label={`恢复${group.title}分组`}
+                        onClick={() => reset(properties)}
+                      >
+                        <RotateCcw size={12} />
+                      </Button>
+                    </Tip>
+                  </section>
+                )
+              );
+            })}
+          </>
+        )}
       </div>
     </SetterRegistryProvider>
   );

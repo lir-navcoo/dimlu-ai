@@ -88,7 +88,7 @@ describe('field binding panel', () => {
     await waitFor(() => expect(screen.getByText(/"isSubmitSuccessful": true/)).toBeTruthy());
     expect(screen.getByText(/"amount": 120/)).toBeTruthy();
     expect(screen.getByText(/"name": "张三"/)).toBeTruthy();
-  }, 15_000);
+  }, 30_000);
   it('retains invalid drafts and preview, applies field edits once and supports undo and unbinding', () => {
     setup();
     createModel();

@@ -16,7 +16,7 @@ import { PageLifecyclePanel } from '../src/editor/PageLifecyclePanel';
 import { EditorSessionProvider } from '../src/editor/session';
 import { registry } from '../src/materials';
 import { TipProvider } from '../src/ui/primitives';
-import { changeControl } from './ui-helpers';
+import { changeControl, closeActionConfig, openActionConfig } from './ui-helpers';
 
 const application = (): ApplicationSchema => ({
   schemaVersion: '0.1.0',
@@ -574,11 +574,16 @@ describe('page management authoring UI', () => {
         window.history.replaceState({}, '', '/editor/page/a?panel=logic');
         render(<App saveDelayMs={1} />);
         if (width === 390) fireEvent.click(screen.getByRole('button', { name: '打开页面设计' }));
-        const lifecycle = within(await screen.findByRole('region', { name: '页面生命周期配置' }));
-        changeControl(lifecycle.getByRole('textbox', { name: 'payload' }), '"未保存内容"');
+        await screen.findByRole('region', { name: '页面生命周期配置' });
+        // Action parameters live in the config dialog.
+        openActionConfig(1);
+        changeControl(screen.getByRole('textbox', { name: 'payload' }), '"未保存内容"');
+        closeActionConfig();
 
-        const editMethod = async (panel: typeof lifecycle, title: string, nextTitle?: string) => {
-          const trigger = panel.getByRole('button', { name: '编辑 JS' });
+        const editMethod = async (title: string, nextTitle?: string) => {
+          // The 编辑 JS affordance lives inside the config dialog.
+          openActionConfig(1);
+          const trigger = screen.getByRole('button', { name: '编辑 JS' });
           trigger.focus();
           fireEvent.click(trigger);
           const modal = await screen.findByRole('dialog', { name: title });
@@ -593,7 +598,7 @@ describe('page management authoring UI', () => {
           }
           await waitFor(() => expect(window.document.activeElement).toBe(trigger));
         };
-        await editMethod(lifecycle, '格式化');
+        await editMethod('格式化');
         expect(window.location.pathname + window.location.search).toBe(
           '/editor/page/a?panel=logic',
         );
@@ -606,41 +611,43 @@ describe('page management authoring UI', () => {
           fireEvent.click(methods.getByRole('button', { name }));
           await waitFor(() => expect(dialog.isConnected).toBe(false));
         };
+        closeActionConfig();
         await followReference(
-          lifecycle.getByRole('button', { name: '应用自定义方法' }),
+          screen.getByRole('button', { name: '应用自定义方法' }),
           /format-dialog\/onConfirm/,
         );
-        const events = within(await screen.findByRole('region', { name: '事件配置' }));
+        // Reference location now surfaces the matching action config dialog; the
+        // rest of the panel is aria-hidden while it is open.
         expect(window.location.pathname + window.location.search).toBe('/editor/page/b');
+        await waitFor(() =>
+          expect(screen.queryByRole('dialog', { name: /动作配置 · 1/ })).toBeTruthy(),
+        );
+        closeActionConfig();
+        const events = within(await screen.findByRole('region', { name: '事件配置' }));
         expect(events.getByRole('combobox', { name: '组件事件' }).getAttribute('data-value')).toBe(
           'onConfirm',
         );
-        await waitFor(() =>
-          expect(window.document.activeElement).toBe(
-            events.getByRole('region', { name: '动作 1' }),
-          ),
-        );
 
-        await editMethod(events, '格式化', '格式化输入');
+        await editMethod('格式化', '格式化输入');
         expect(events.getByText('1. 格式化输入')).toBeTruthy();
         expect(window.location.pathname + window.location.search).toBe('/editor/page/b');
 
+        closeActionConfig();
         await followReference(
-          events.getByRole('button', { name: '应用自定义方法' }),
+          screen.getByRole('button', { name: '应用自定义方法' }),
           /页面进入事件/,
         );
-        const returned = within(await screen.findByRole('region', { name: '页面生命周期配置' }));
         expect(window.location.pathname + window.location.search).toBe(
           '/editor/page/a?panel=logic',
         );
         await waitFor(() =>
-          expect(window.document.activeElement).toBe(
-            returned.getByRole('region', { name: '动作 1' }),
-          ),
+          expect(screen.queryByRole('dialog', { name: /动作配置 · 1/ })).toBeTruthy(),
         );
-        expect((returned.getByRole('textbox', { name: 'payload' }) as HTMLInputElement).value).toBe(
+        expect((screen.getByRole('textbox', { name: 'payload' }) as HTMLInputElement).value).toBe(
           '"未保存内容"',
         );
+        closeActionConfig();
+        await screen.findByRole('region', { name: '页面生命周期配置' });
       } finally {
         vi.unstubAllGlobals();
       }
@@ -689,6 +696,9 @@ describe('page management authoring UI', () => {
     expect(list.getByRole('button', { name: /处理姓名/ })).toBeTruthy();
   });
 
+  // TODO(action-dialog): these cases assert panel-inline parameter editing and
+  // focus-restoration semantics that moved into the action config dialog;
+  // they need a dedicated adaptation pass.
   it('opens shared methods from a component event and preserves its unsaved action draft', async () => {
     const schema = application();
     schema.dependencies.components['ui.button'] = '1.0.0';
@@ -708,9 +718,11 @@ describe('page management authoring UI', () => {
     fireEvent.click(screen.getByRole('tab', { name: '事件' }));
     const events = within(screen.getByRole('region', { name: '事件配置' }));
     fireEvent.click(events.getByRole('button', { name: '添加动作' }));
-    changeControl(events.getByRole('combobox', { name: '动作 1 类型' }), 'ui.notify');
-    changeControl(events.getByLabelText('title取值方式'), 'literal');
-    changeControl(events.getByRole('textbox', { name: 'title' }), '未保存通知');
+    openActionConfig(1);
+    changeControl(screen.getByRole('combobox', { name: '动作 1 类型' }), 'ui.notify');
+    changeControl(screen.getByLabelText('title取值方式'), 'literal');
+    changeControl(screen.getByRole('textbox', { name: 'title' }), '未保存通知');
+    closeActionConfig();
 
     const trigger = events.getByRole('button', { name: '应用自定义方法' });
     trigger.focus();
@@ -723,15 +735,19 @@ describe('page management authoring UI', () => {
     await waitFor(() => expect(window.document.activeElement).toBe(trigger));
     expect(window.location.pathname + window.location.search).toBe('/editor/page/a');
     expect(screen.getByRole('tab', { name: '事件' }).getAttribute('aria-selected')).toBe('true');
-    expect((events.getByRole('textbox', { name: 'title' }) as HTMLInputElement).value).toBe(
+    openActionConfig(1);
+    expect((screen.getByRole('textbox', { name: 'title' }) as HTMLInputElement).value).toBe(
       '未保存通知',
     );
+    closeActionConfig();
 
     fireEvent.click(events.getByRole('button', { name: '添加动作' }));
-    changeControl(events.getByRole('combobox', { name: '动作 2 类型' }), 'app.method.method-1');
-    expect(events.getByRole('combobox', { name: '动作 2 类型' }).getAttribute('data-value')).toBe(
+    openActionConfig(2);
+    changeControl(screen.getByRole('combobox', { name: '动作 2 类型' }), 'app.method.method-1');
+    expect(screen.getByRole('combobox', { name: '动作 2 类型' }).getAttribute('data-value')).toBe(
       'app.method.method-1',
     );
+    closeActionConfig();
     const createAndBind = events.getByRole('button', { name: '新建并绑定 JS' });
     createAndBind.focus();
     fireEvent.click(createAndBind);
@@ -746,12 +762,17 @@ describe('page management authoring UI', () => {
     changeControl(direct.getByLabelText('方法名称'), '计算合计');
     fireEvent.click(direct.getByRole('button', { name: '保存方法' }));
     await waitFor(() => expect(window.document.activeElement).toBe(createAndBind));
-    expect(events.getByRole('combobox', { name: '动作 3 类型' }).getAttribute('data-value')).toBe(
+    openActionConfig(3);
+    expect(screen.getByRole('combobox', { name: '动作 3 类型' }).getAttribute('data-value')).toBe(
       'app.method.method-2',
     );
-    expect((events.getByRole('textbox', { name: 'title' }) as HTMLInputElement).value).toBe(
+    closeActionConfig();
+    // The unsaved draft lives on the first action (ui.notify title).
+    openActionConfig(1);
+    expect((screen.getByRole('textbox', { name: 'title' }) as HTMLInputElement).value).toBe(
       '未保存通知',
     );
+    closeActionConfig();
     await waitFor(() => {
       const saved: ApplicationSchema = JSON.parse(
         localStorage.getItem(PROJECT_STORAGE_KEY)!,
@@ -1038,22 +1059,27 @@ describe('page management authoring UI', () => {
         name: '添加动作',
       }),
     );
+    openActionConfig(1);
     changeControl(screen.getByLabelText('动作 1 类型'), 'ui.notify');
     changeControl(screen.getByLabelText('title取值方式'), 'literal');
     changeControl(screen.getByRole('textbox', { name: 'title' }), '首页的未保存草稿');
+    closeActionConfig();
     fireEvent.click(screen.getByRole('button', { name: '测试切换面板' }));
     act(() => document.removePage('a', 'b'));
     act(() => document.createPage('新身份'));
     fireEvent.click(screen.getByRole('button', { name: '测试切换面板' }));
+    expect(screen.queryByRole('dialog', { name: /动作配置/ })).toBeNull();
     expect(screen.queryByRole('textbox', { name: 'title' })).toBeNull();
     act(() => {
       document.undo();
       document.undo();
     });
     expect(document.getSnapshot().selection.pageId).toBe('a');
+    openActionConfig(1);
     expect((screen.getByRole('textbox', { name: 'title' }) as HTMLInputElement).value).toBe(
       '首页的未保存草稿',
     );
+    closeActionConfig();
   });
 });
 

@@ -1,7 +1,7 @@
 import type { ComponentProps } from 'react';
 import { act, cleanup, fireEvent, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { changeControl } from './ui-helpers';
+import { changeControl, closeActionConfig, openActionConfig } from './ui-helpers';
 import {
   eventHarness,
   eventSpecialPath,
@@ -46,16 +46,33 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 const card = (index = 1) => screen.getByRole('region', { name: `动作 ${index}` });
-const trigger = (index = 1, name = 'title') =>
-  within(card(index)).getByRole('button', { name: `${name}初始值路径` });
-const pathInput = (index = 1, name = 'title') =>
-  within(card(index)).getByRole('textbox', { name: `${name}数据路径` }) as HTMLInputElement;
+// Parameters live inside the action config dialog; only the row tools stay in the list.
+const dialog = () => screen.getByRole('dialog');
+// Open the dialog only when it is not already up: reopening would remount the
+// parameter owners that these ownership tests observe.
+const ensureDialog = (index = 1) => {
+  if (screen.queryByRole('dialog') === null) openActionConfig(index);
+};
+const trigger = (index = 1, name = 'title') => {
+  ensureDialog(index);
+  return within(dialog()).getByRole('button', { name: `${name}初始值路径` });
+};
+const pathInput = (index = 1, name = 'title') => {
+  ensureDialog(index);
+  return within(dialog()).getByRole('textbox', { name: `${name}数据路径` }) as HTMLInputElement;
+};
 const menu = () => screen.getByRole('menu');
 const option = (path = eventSpecialText) =>
   screen.getAllByRole('menuitem').find((item) => item.querySelector('code')?.textContent === path)!;
 const capture = (path = eventSpecialText) => held.options.get(option(path).dataset.eventHeld!)!;
-const save = () => fireEvent.click(screen.getByRole('button', { name: '保存事件' }));
-const open = (index = 1, name = 'title') => fireEvent.click(trigger(index, name));
+const save = () => {
+  closeActionConfig();
+  fireEvent.click(screen.getByRole('button', { name: '保存事件' }));
+};
+const open = (index = 1, name = 'title') => {
+  ensureDialog(index);
+  fireEvent.click(trigger(index, name));
+};
 
 describe('node-event saved initial path ownership and draft integration', () => {
   it('opens/cancels without writes and chooses only one parameter draft until original explicit Save and Undo/Redo', () => {
@@ -63,6 +80,8 @@ describe('node-event saved initial path ownership and draft integration', () => 
     const before = h.author.getSnapshot();
     const saved = savedEventCalls(h.author);
     const entry = h.entry();
+    // The dialog mount itself performs the initial draft reads; spy after it.
+    ensureDialog(1);
     const write = vi.spyOn(h.session().drafts, 'write');
     const read = vi.spyOn(h.session().drafts, 'read');
     open();
@@ -140,6 +159,7 @@ describe('node-event saved initial path ownership and draft integration', () => 
     open();
     const old = capture();
     const oldClose = held.roots.at(-1)!;
+    closeActionConfig();
     fireEvent.click(within(card(1)).getByRole('button', { name: '下移动作 1' }));
     fireEvent.click(within(card(2)).getByRole('button', { name: '上移动作 2' }));
     let entry = h.entry();
@@ -170,16 +190,16 @@ describe('node-event saved initial path ownership and draft integration', () => 
     const h = eventHarness();
     open();
     const old = capture();
-    changeControl(within(card()).getByRole('combobox', { name: '动作 1 类型' }), 'state.set');
+    changeControl(within(dialog()).getByRole('combobox', { name: '动作 1 类型' }), 'state.set');
     const id = h.entry().value.calls[0].id;
     const entry = h.entry();
     const write = vi.spyOn(h.session().drafts, 'write');
     act(() => old());
     expect(h.entry()).toBe(entry);
     expect(write).not.toHaveBeenCalled();
-    changeControl(within(card()).getByRole('combobox', { name: '动作 1 类型' }), 'ui.notify');
-    changeControl(within(card()).getByRole('combobox', { name: 'title取值方式' }), 'dataRef');
-    changeControl(within(card()).getByRole('combobox', { name: 'title数据源' }), 'records');
+    changeControl(within(dialog()).getByRole('combobox', { name: '动作 1 类型' }), 'ui.notify');
+    changeControl(within(dialog()).getByRole('combobox', { name: 'title取值方式' }), 'dataRef');
+    changeControl(within(dialog()).getByRole('combobox', { name: 'title数据源' }), 'records');
     expect(h.entry().value.calls[0].id).toBe(id);
     const fresh = h.entry();
     write.mockClear();
@@ -197,7 +217,7 @@ describe('node-event saved initial path ownership and draft integration', () => 
     const h = eventHarness();
     open();
     const old = capture();
-    changeControl(within(card()).getByRole('combobox', { name: 'title数据源' }), 'alternate');
+    changeControl(within(dialog()).getByRole('combobox', { name: 'title数据源' }), 'alternate');
     open();
     expect(option('["alternateOnly"]')).toBeTruthy();
     expect(screen.queryByText(eventSpecialText)).toBeNull();
@@ -257,6 +277,7 @@ describe('node-event saved initial path ownership and draft integration', () => 
     open();
     const pendingOld = capture();
     h.duringPending(() => pendingOld());
+    closeActionConfig();
     fireEvent.pointerDown(screen.getByRole('button', { name: 'Prepare event path pointer' }), {
       pointerId: 83,
       pointerType: 'mouse',
@@ -354,15 +375,17 @@ describe('node-event saved initial path ownership and draft integration', () => 
 
   it('PageLifecycle exposes page initial paths; standalone without owner and event stateRef remain manual', () => {
     const lifecycle = eventHarness({ lifecycle: true });
-    expect(within(card()).getByRole('button', { name: 'title初始值路径' })).toBeTruthy();
-    expect(within(card()).getByRole('textbox', { name: 'title数据路径' })).toBeTruthy();
+    openActionConfig(1);
+    expect(within(dialog()).getByRole('button', { name: 'title初始值路径' })).toBeTruthy();
+    expect(within(dialog()).getByRole('textbox', { name: 'title数据路径' })).toBeTruthy();
     expect(lifecycle.execute).not.toHaveBeenCalled();
     lifecycle.view.unmount();
     const standalone = eventHarness({ standalone: true });
     expect(screen.queryByRole('button', { name: /初始值路径/ })).toBeNull();
     standalone.view.unmount();
     eventHarness();
-    changeControl(within(card()).getByRole('combobox', { name: 'title取值方式' }), 'stateRef');
-    expect(within(card()).queryByRole('button', { name: /初始值路径/ })).toBeNull();
+    openActionConfig(1);
+    changeControl(within(dialog()).getByRole('combobox', { name: 'title取值方式' }), 'stateRef');
+    expect(within(dialog()).queryByRole('button', { name: /初始值路径/ })).toBeNull();
   });
 });

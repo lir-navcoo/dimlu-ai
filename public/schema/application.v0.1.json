@@ -727,6 +727,10 @@
         "props": {
           "$ref": "#/$defs/values"
         },
+        "styleCss": {
+          "type": "string",
+          "maxLength": 12000
+        },
         "style": {
           "type": "object",
           "additionalProperties": false,
@@ -850,6 +854,12 @@
         },
         "when": {
           "$ref": "#/$defs/value"
+        },
+        "lock": {
+          "type": "boolean"
+        },
+        "hidden": {
+          "type": "boolean"
         },
         "extensions": {
           "$ref": "#/$defs/nodeExtensions"

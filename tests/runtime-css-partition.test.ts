@@ -49,7 +49,9 @@ const ADDITIVE_IMPORTS = [
   './editor/styles/workbench-navigation.css',
 ];
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
-const read = (file: FileURL) => readFileSync(file, 'utf8');
+// The original reviewed digest was captured with CRLF. Keep the raw subtree
+// comparison stable across Git checkout settings without changing that baseline.
+const read = (file: FileURL) => readFileSync(file, 'utf8').replace(/\r?\n/g, '\r\n');
 function importPath(node: ChildNode): string {
   expect(node.type).toBe('atrule');
   if (node.type !== 'atrule') throw new Error('Expected a CSS import');

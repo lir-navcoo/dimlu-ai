@@ -18,7 +18,7 @@ import { ActionPanel } from '../src/editor/ActionPanel';
 import { bindingDraft, parseBinding } from '../src/editor/ValueEditor';
 import { EditorSessionProvider } from '../src/editor/session';
 import { TipProvider } from '../src/ui/primitives';
-import { changeControl } from './ui-helpers';
+import { changeControl, closeActionConfig, openActionConfig } from './ui-helpers';
 
 afterEach(cleanup);
 const literal = (value: Json): Value => ({ kind: 'literal', value });
@@ -570,8 +570,10 @@ describe('independent data editor acceptance', () => {
     const document = new EditorDocument(schema, registry);
     document.select('a', 'button');
     mount(document, 'actions');
+    openActionConfig(1);
     changeControl(screen.getByLabelText('tone取值方式'), 'literal');
     changeControl(screen.getByLabelText('tone'), 'success');
+    closeActionConfig();
     fireEvent.click(screen.getByRole('button', { name: '保存事件' }));
     expect(screen.queryByRole('alert')).toBeNull();
     expect(findNode(page(document), 'button')!.node.on!.onClick[0].input.title).toEqual(title);

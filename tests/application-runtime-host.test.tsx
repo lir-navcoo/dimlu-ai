@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ApplicationRuntimeHost } from '../src/ApplicationRuntimeHost';
 import { compileApplication } from '../packages/runtime/engine';
@@ -9,6 +9,7 @@ import { applicationRoutePath } from '../packages/runtime/router';
 const plan = compileApplication(exampleApplication, registry);
 
 afterEach(() => {
+  cleanup();
   window.history.replaceState({}, '', '/editor');
 });
 
@@ -26,6 +27,21 @@ describe('application runtime host', () => {
     expect(
       (screen.getByRole('combobox', { name: '切换应用页面' }) as HTMLSelectElement).value,
     ).toBe(nextPage.id);
+  });
+
+  it('navigates within a mobile preview while keeping its access fragment and hiding editor actions', () => {
+    const fragment = '#preview-test-token';
+    window.history.replaceState({}, '', `/mobile-preview${fragment}`);
+    const nextPage = plan.schema.pages.find((page) => page.id !== plan.schema.entryPageId)!;
+    render(<ApplicationRuntimeHost plan={plan} previewPageId={nextPage.id} />);
+    const selector = screen.getByRole<HTMLSelectElement>('combobox', { name: '切换应用页面' });
+    expect(selector.value).toBe(nextPage.id);
+    expect(screen.queryByRole('button', { name: '编辑应用' })).toBeNull();
+
+    fireEvent.change(selector, { target: { value: plan.schema.entryPageId } });
+    expect(window.location.pathname).toBe('/mobile-preview');
+    expect(new URLSearchParams(window.location.search).get('page')).toBe(plan.schema.entryPageId);
+    expect(window.location.hash).toBe(fragment);
   });
 
   it('shows a recoverable message when an application is not loaded', () => {

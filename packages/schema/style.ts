@@ -35,6 +35,8 @@ export interface StyleCapability {
   /** Human-readable semantic target; it is not a selector or executable adapter. */
   target: 'root' | 'field' | 'popup';
   properties: readonly StyleProperty[];
+  /** 物料已将组件 CSS 锚点绑定到实际样式目标。 */
+  source?: boolean;
 }
 const enums: Partial<Record<StyleProperty, readonly string[]>> = {
   display: [

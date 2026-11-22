@@ -23,7 +23,18 @@ export type { DocumentHost } from './document-context';
 interface Entry {
   plan: ApplicationPlan;
   selection: Readonly<Selection>;
+  /** Description of the operation that followed this state ("从该快照前进的操作"). */
+  change?: string;
 }
+
+export type HistoryEntry = { change: string };
+export type HistorySnapshot = {
+  /** Oldest first; each entry describes the operation that produced the next state. */
+  past: HistoryEntry[];
+  /** Description of the most recent operation on the current state. */
+  current: string;
+  future: HistoryEntry[];
+};
 
 /** Every UI surface edits this document. Failed validation never mutates history or preview. */
 export class EditorDocument {
@@ -70,8 +81,7 @@ export class EditorDocument {
       plan: () => this.snapshot.plan,
       selection: () => this.snapshot.selection,
       draft: (pageId) => this.draft(pageId),
-      commit: (input, change, selection, group) =>
-        this.commit(input, change, selection, group),
+      commit: (input, change, selection, group) => this.commit(input, change, selection, group),
       targetList: (page, target) => this.targetList(page, target),
       insertInto: (list, node, index) => this.insertInto(list, node, index),
       idSequence: () => this.idSequenceValue,
@@ -128,7 +138,11 @@ export class EditorDocument {
     const plan = compileApplication(input, this.registry);
     if (JSON.stringify(plan.schema) === JSON.stringify(this.snapshot.plan.schema)) return false;
     if (!group || group !== this.group || !this.past.length) {
-      this.past.push({ plan: this.snapshot.plan, selection: this.snapshot.selection });
+      this.past.push({
+        plan: this.snapshot.plan,
+        selection: this.snapshot.selection,
+        change,
+      });
       if (this.past.length > this.historyLimit) this.past.shift();
     }
     this.group = group;
@@ -266,8 +280,7 @@ export class EditorDocument {
       >
     >,
   ) => this.actions.updateApplicationMethod(methodId, patch);
-  removeApplicationMethod = (methodId: string) =>
-    this.actions.removeApplicationMethod(methodId);
+  removeApplicationMethod = (methodId: string) => this.actions.removeApplicationMethod(methodId);
   setPageEnterActions = (pageId: string, actions: import('../schema/types').ActionCall[]) =>
     this.actions.setPageEnterActions(pageId, actions);
   setPageLeaveActions = (pageId: string, actions: import('../schema/types').ActionCall[]) =>
@@ -294,6 +307,8 @@ export class EditorDocument {
   ) => this.nodeProps.setProps(pageId, nodeId, patch, group);
   setNodeName = (pageId: string, nodeId: string, input: string) =>
     this.nodeProps.setNodeName(pageId, nodeId, input);
+  setNodeFlags = (pageId: string, nodeId: string, patch: { lock?: boolean; hidden?: boolean }) =>
+    this.nodeProps.setNodeFlags(pageId, nodeId, patch);
   setNodeLogic = (
     pageId: string,
     nodeId: string,
@@ -305,9 +320,13 @@ export class EditorDocument {
   setStyle = (
     pageId: string,
     nodeId: string,
-    patch: Partial<Record<import('../schema/style').StyleProperty, import('../schema/types').Value | undefined>>,
+    patch: Partial<
+      Record<import('../schema/style').StyleProperty, import('../schema/types').Value | undefined>
+    >,
     group?: string,
   ) => this.nodeProps.setStyle(pageId, nodeId, patch, group);
+  setStyleSource = (pageId: string, nodeId: string, source: string, clearBindings = false) =>
+    this.nodeProps.setStyleSource(pageId, nodeId, source, clearBindings);
 
   createState = (pageId: string, input: import('../schema/types').StateDefinition) =>
     this.models.createState(pageId, input);
@@ -317,28 +336,20 @@ export class EditorDocument {
     input: Omit<import('../schema/types').StateDefinition, 'id'>,
   ) => this.models.updateState(pageId, id, input);
   removeState = (pageId: string, id: string) => this.models.removeState(pageId, id);
-  createDataSource = (
-    pageId: string,
-    input: import('../schema/types').DataSourceDefinition,
-  ) => this.models.createDataSource(pageId, input);
+  createDataSource = (pageId: string, input: import('../schema/types').DataSourceDefinition) =>
+    this.models.createDataSource(pageId, input);
   updateDataSource = (
     pageId: string,
     id: string,
     input: Omit<import('../schema/types').DataSourceDefinition, 'id'>,
   ) => this.models.updateDataSource(pageId, id, input);
   removeDataSource = (pageId: string, id: string) => this.models.removeDataSource(pageId, id);
-  createForm = (
-    pageId: string,
-    nodeId: string,
-    input: import('../schema/types').FormDefinition,
-  ) => this.models.createForm(pageId, nodeId, input);
+  createForm = (pageId: string, nodeId: string, input: import('../schema/types').FormDefinition) =>
+    this.models.createForm(pageId, nodeId, input);
   bindForm = (pageId: string, nodeId: string, formId?: string) =>
     this.models.bindForm(pageId, nodeId, formId);
-  bindField = (
-    pageId: string,
-    nodeId: string,
-    binding?: { formId: string; fieldId: string },
-  ) => this.models.bindField(pageId, nodeId, binding);
+  bindField = (pageId: string, nodeId: string, binding?: { formId: string; fieldId: string }) =>
+    this.models.bindField(pageId, nodeId, binding);
   createField = (
     pageId: string,
     formId: string,
@@ -376,6 +387,8 @@ export class EditorDocument {
     this.nodes.checkMove(pageId, nodeId, target);
   moveNode = (pageId: string, nodeId: string, target: InsertTarget = {}) =>
     this.nodes.moveNode(pageId, nodeId, target);
+  reorderNode = (pageId: string, nodeId: string, direction: 'up' | 'down' | 'top' | 'bottom') =>
+    this.nodes.reorderNode(pageId, nodeId, direction);
   duplicateNode = (pageId: string, nodeId: string, target?: InsertTarget) =>
     this.nodes.duplicateNode(pageId, nodeId, target);
   checkDuplicateNodes = (pageId: string, nodeIds: readonly string[]) =>
@@ -434,16 +447,39 @@ export class EditorDocument {
   undo = () => {
     const previous = this.past.pop();
     if (!previous) return;
-    this.future.push({ plan: this.snapshot.plan, selection: this.snapshot.selection });
+    this.future.push({
+      plan: this.snapshot.plan,
+      selection: this.snapshot.selection,
+      change: this.snapshot.change,
+    });
     this.endGroup();
     this.publish(previous, '撤销');
   };
   redo = () => {
     const next = this.future.pop();
     if (!next) return;
-    this.past.push({ plan: this.snapshot.plan, selection: this.snapshot.selection });
+    this.past.push({
+      plan: this.snapshot.plan,
+      selection: this.snapshot.selection,
+      change: this.snapshot.change,
+    });
     this.endGroup();
     this.publish(next, '重做');
+  };
+
+  /** Timeline for the history panel: oldest first, then the current change, then redoables. */
+  getHistory = (): HistorySnapshot => ({
+    past: this.past.map(({ change }) => ({ change: change ?? '' })),
+    current: this.snapshot.change,
+    future: this.future.map(({ change }) => ({ change: change ?? '' })),
+  });
+
+  /** Jump to a point in time: `steps` is the number of past entries to keep. */
+  jumpTo = (steps: number) => {
+    if (!Number.isInteger(steps) || steps < 0 || steps > this.past.length + this.future.length)
+      throw new Error('历史跳转位置超出范围');
+    while (this.past.length > steps) this.undo();
+    while (this.past.length < steps) this.redo();
   };
 }
 

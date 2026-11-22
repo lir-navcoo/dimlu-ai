@@ -49,7 +49,7 @@ export function InsertPanel({
           aria-label="查看全部物料"
           aria-pressed={activeCategory === null}
           variant={activeCategory === null ? 'primary' : 'ghost'}
-          className="h-auto min-h-6 min-w-0 max-w-full px-2 py-0.5 text-[11px] leading-4 whitespace-normal [overflow-wrap:anywhere]"
+          className="h-auto min-h-6 min-w-0 max-w-full px-2 py-0.5 text-[11px] leading-4 whitespace-nowrap"
           disabled={drag?.isInteracting}
           onClick={() => {
             if (!drag?.isInteracting) setCategory(null);
@@ -64,7 +64,7 @@ export function InsertPanel({
             aria-label={`筛选分类：${categoryName(name)}`}
             aria-pressed={activeCategory === name}
             variant={activeCategory === name ? 'primary' : 'ghost'}
-            className="h-auto min-h-6 min-w-0 max-w-full px-2 py-0.5 text-[11px] leading-4 whitespace-normal [overflow-wrap:anywhere]"
+            className="h-auto min-h-6 min-w-0 max-w-full px-2 py-0.5 text-[11px] leading-4 whitespace-nowrap"
             disabled={drag?.isInteracting}
             onClick={() => {
               if (!drag?.isInteracting) setCategory(name);

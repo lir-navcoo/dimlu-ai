@@ -15,6 +15,7 @@ import {
   useDesignMode,
   useHasSlot,
   useMaterialNode,
+  materialStyleTarget,
   type SlotRenderers,
 } from '../../packages/react-runtime/Renderer';
 import { Button } from '../ui/primitives';
@@ -69,7 +70,11 @@ export function LayoutMaterial({
     ...(scroll ? { overflow: 'auto', maxHeight: maxHeight ?? 320 } : {}),
   };
   return (
-    <div className={`material-layout ${variant}`} style={{ ...style, ...nodeStyle }}>
+    <div
+      className={`material-layout ${variant}`}
+      style={{ ...style, ...nodeStyle }}
+      {...materialStyleTarget(nodeStyle)}
+    >
       {children}
     </div>
   );
@@ -126,6 +131,7 @@ export function FormMaterial({
           ...props.style,
         } as CSSProperties
       }
+      {...materialStyleTarget(props.style)}
     >
       {showErrors && errors.length > 0 && !design && (
         <div className="material-error-summary" role="region" aria-label="表单错误汇总">
@@ -180,7 +186,11 @@ export function CardMaterial({
   const footer = useHasSlot('footer', slots),
     design = useDesignMode();
   return (
-    <section className="material-card material-generic-card" style={style}>
+    <section
+      className="material-card material-generic-card"
+      style={style}
+      {...materialStyleTarget(style)}
+    >
       {(title || description) && (
         <header>
           <strong>{title}</strong>
@@ -206,6 +216,7 @@ export function DividerMaterial({
     <div
       className={`material-divider ${orientation}`}
       style={style}
+      {...materialStyleTarget(style)}
       role="separator"
       aria-orientation={orientation}
     >
@@ -262,6 +273,7 @@ export function TabsMaterial({
     <TabContext.Provider value={context}>
       <Tabs.Root
         style={style}
+        {...materialStyleTarget(style)}
         value={active}
         onValueChange={(next) => change(next ?? '')}
         className={`material-tabs ${design ? 'design' : ''}`}
@@ -303,7 +315,7 @@ export function TabPanelMaterial({
   );
   if (!context)
     return (
-      <section className="material-tab-panel" style={style}>
+      <section className="material-tab-panel" style={style} {...materialStyleTarget(style)}>
         <strong>{label}</strong>
         <p className="material-placeholder">请放入标签页容器</p>
         {children}
@@ -315,6 +327,7 @@ export function TabPanelMaterial({
       keepMounted
       className="material-tab-panel"
       style={style}
+      {...materialStyleTarget(style)}
       {...(design ? { hidden: false } : {})}
     >
       {design && (

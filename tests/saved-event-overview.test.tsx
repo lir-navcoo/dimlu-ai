@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { findNode } from '../packages/editor/document';
 import { registry } from '../src/materials';
 import { purchaseManagementExample } from '../src/purchase-management-example';
-import { changeControl } from './ui-helpers';
+import { changeControl, closeActionConfig, openActionConfig } from './ui-helpers';
 import {
   emptyEventApplication,
   overviewHarness,
@@ -77,6 +77,7 @@ describe('saved component event overview independent integration', () => {
     const h = overviewHarness();
     const original = overviewNode(h.author).on!;
     fireEvent.click(screen.getByRole('button', { name: '添加动作' }));
+    closeActionConfig();
     expect(screen.getByRole('region', { name: '动作 1' })).toBeTruthy();
     expect(savedRow('onSelectionChange')).toBeUndefined();
     expect(selector().textContent).toContain('未配置');
@@ -106,6 +107,7 @@ describe('saved component event overview independent integration', () => {
     expect(screen.getAllByRole('region', { name: /^动作 \d+$/ })).toHaveLength(2);
     assertCount('onRetry', 3);
     selectEvent('onSelectionChange');
+    closeActionConfig();
     expect(screen.getByRole('region', { name: '动作 1' })).toBeTruthy();
     expect(savedRow('onSelectionChange')).toBeUndefined();
     expect(overviewNode(h.author).on!.onSelectionChange).toBeUndefined();

@@ -5,6 +5,11 @@ import { nodeFlow, nodeRect } from './geometry';
 import { canvasHitAtPoint } from './coordinates';
 
 type Point = { x: number; y: number };
+export type DropHit = {
+  intent: DropIntent;
+  surface: HTMLElement | null;
+  reference: HTMLElement;
+};
 function beside(marker: HTMLElement, point: Point): DropIntent | undefined {
   const tree = marker.dataset.editorTreeNode;
   const rect = tree ? marker.getBoundingClientRect() : nodeRect(marker);
@@ -19,7 +24,7 @@ function beside(marker: HTMLElement, point: Point): DropIntent | undefined {
     nodeId: tree ?? marker.dataset.editorNode!,
   };
 }
-function gap(host: Element, point: Point): DropIntent | undefined {
+function gap(host: Element, point: Point): HTMLElement | undefined {
   let nearest: HTMLElement | undefined,
     distance = Infinity;
   for (const marker of host.querySelectorAll<HTMLElement>('[data-editor-node]')) {
@@ -37,24 +42,28 @@ function gap(host: Element, point: Point): DropIntent | undefined {
       distance = next;
     }
   }
-  return nearest && beside(nearest, point);
+  return nearest;
 }
 
-export function hitTestDrop(
-  point: Point,
+/** 保留实际命中的 DOM，辅助线据此区分重复实例。 */
+export function locateDrop(
+  hit: ReturnType<typeof canvasHitAtPoint>,
   plan: ApplicationPlan,
   pageId: string,
-): DropIntent | undefined {
-  const hit = canvasHitAtPoint(point);
-  const element = hit.element;
-  point = hit.point;
+): DropHit | undefined {
+  const { element, point } = hit;
   if (!element) return;
+  const surface = element.closest<HTMLElement>('.editor-surface');
+  const result = (reference: HTMLElement, intent: DropIntent | undefined) =>
+    intent && { intent, surface, reference };
   const explicit = element.closest<HTMLElement>('[data-drop-intent]');
-  if (explicit) return JSON.parse(explicit.dataset.dropIntent!) as DropIntent;
+  if (explicit) return result(explicit, JSON.parse(explicit.dataset.dropIntent!) as DropIntent);
   const marker = element.closest<HTMLElement>('[data-editor-tree-node],[data-editor-node]');
   if (!marker) {
-    const surface = element.closest('.editor-surface');
-    return surface ? (gap(surface, point) ?? { kind: 'inside' }) : undefined;
+    if (!surface) return;
+    const nearest = gap(surface, point);
+    const intent = nearest && beside(nearest, point);
+    return nearest && intent ? result(nearest, intent) : result(surface, { kind: 'inside' });
   }
   const id = marker.dataset.editorTreeNode ?? marker.dataset.editorNode!;
   const node = findNode(plan.pages.get(pageId)!.schema, id)?.node;
@@ -63,9 +72,15 @@ export function hitTestDrop(
   if (!rect) return;
   const ratio = (point.y - rect.top) / Math.max(1, rect.height);
   if (plan.registry.components[node.component].children && ratio >= 0.25 && ratio <= 0.75) {
-    return (
-      (!marker.dataset.editorTreeNode && gap(marker, point)) || { kind: 'inside', parentId: id }
-    );
+    const nearest = !marker.dataset.editorTreeNode && gap(marker, point);
+    const intent = nearest && beside(nearest, point);
+    return nearest && intent
+      ? result(nearest, intent)
+      : result(marker, { kind: 'inside', parentId: id });
   }
-  return beside(marker, point);
+  return result(marker, beside(marker, point));
+}
+
+export function hitTestDrop(point: Point, plan: ApplicationPlan, pageId: string) {
+  return locateDrop(canvasHitAtPoint(point), plan, pageId)?.intent;
 }

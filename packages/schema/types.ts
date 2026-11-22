@@ -82,11 +82,17 @@ export interface NodeSchema {
   component: string;
   props: Record<string, Value>;
   style?: Partial<Record<import('./style').StyleProperty, Value>>;
+  /** 以 :root 为入口的物料样式源码。 */
+  styleCss?: string;
   formId?: string;
   field?: { formId: string; fieldId: string };
   children?: NodeSchema[];
   slots?: Record<string, SlotDefinition>;
   on?: Record<string, ActionCall[]>;
+  /** Author-mode lock: blocks deletion and structural moves while remaining selectable. */
+  lock?: boolean;
+  /** Author decision to hide the node from the rendered page (canvas shows a placeholder). */
+  hidden?: boolean;
   when?: Value;
   repeat?: { items: Value; item: string; index?: string; key: Value };
   extensions?: ExtensionData;
@@ -151,9 +157,7 @@ export function isJson(value: unknown): value is Json {
     !!value &&
     typeof value === 'object' &&
     Object.getPrototypeOf(value) === Object.prototype &&
-    Object.entries(value).every(
-      ([key, item]) => !forbiddenObjectKeySet.has(key) && isJson(item),
-    )
+    Object.entries(value).every(([key, item]) => !forbiddenObjectKeySet.has(key) && isJson(item))
   );
 }
 

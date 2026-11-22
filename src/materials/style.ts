@@ -67,6 +67,7 @@ export function withMaterialStyles(
             ...contract,
             style: {
               target: targets[id].target,
+              source: true,
               properties: [...(targets[id].text ? styleProperties : box)],
             },
           }

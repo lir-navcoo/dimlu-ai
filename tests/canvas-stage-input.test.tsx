@@ -43,7 +43,14 @@ function key(target: HTMLElement, value: string, init: KeyboardEventInit = {}) {
 }
 // Deliver one native event in its actual owning window. Capture methods below
 // are witnesses only; this does NOT simulate physical browser pointer capture.
-function pointer(target: HTMLElement | Window, type: string, x = 20, y = 30, pointerId = 1) {
+function pointer(
+  target: HTMLElement | Window,
+  type: string,
+  x = 20,
+  y = 30,
+  pointerId = 1,
+  init: MouseEventInit = {},
+) {
   const win = 'ownerDocument' in target ? target.ownerDocument.defaultView! : target;
   const event = new (win as Window & typeof globalThis).MouseEvent(type, {
     bubbles: true,
@@ -51,6 +58,7 @@ function pointer(target: HTMLElement | Window, type: string, x = 20, y = 30, poi
     button: 0,
     clientX: x,
     clientY: y,
+    ...init,
   });
   Object.defineProperty(event, 'pointerId', { value: pointerId });
   fireEvent(target, event);
@@ -250,6 +258,7 @@ function harness({ emptyPage = false } = {}) {
     query,
     content,
     portals,
+    boxes,
     canvas,
     focus,
     tree,
@@ -265,6 +274,40 @@ function harness({ emptyPage = false } = {}) {
 }
 
 describe('canvas-stage original native input ownership', () => {
+  it('box-selects through the iframe at 75%, adds with Ctrl and cancels with Escape', () => {
+    const h = harness();
+    act(() => h.session().viewport.setScale(0.75));
+    const alpha = h.query.getByText('Alpha text', { selector: 'p' });
+    const tail = h.query.getByText('Tail text', { selector: 'p' });
+    h.boxes.set(alpha, new DOMRect(40, 40, 80, 25));
+    h.boxes.set(tail, new DOMRect(190, 95, 70, 25));
+    const before = h.author.getSnapshot();
+    const blank = h.canvas().querySelector<HTMLElement>('.editor-surface')!;
+    const capture = h.capture(blank);
+    pointer(blank, 'pointerdown', 280, 140);
+    pointer(h.win, 'pointermove', 160, 80);
+    expect(document.querySelector('.canvas-marquee')).not.toBeNull();
+    pointer(h.win, 'pointerup', 160, 80);
+    expect(capture.set).toHaveBeenCalledWith(1);
+    expect(capture.release).toHaveBeenCalledWith(1);
+    expect(h.author.getSnapshot().selection.nodeId).toBe('tail');
+    expect(h.author.getSnapshot().plan).toBe(before.plan);
+    expect(document.querySelector('.canvas-marquee')).toBeNull();
+    pointer(blank, 'pointerdown', 32, 32, 1, { ctrlKey: true });
+    pointer(h.win, 'pointermove', 130, 75);
+    pointer(h.win, 'pointerup', 130, 75);
+    expect(h.author.getSnapshot().selection).toMatchObject({
+      nodeId: 'tail',
+      nodeIds: ['alpha', 'tail'],
+    });
+    pointer(alpha, 'pointerdown', 32, 32, 1, { shiftKey: true });
+    pointer(h.win, 'pointermove', 130, 75);
+    expect(document.querySelector('.canvas-marquee')).not.toBeNull();
+    expect(key(h.canvas(), 'Escape').defaultPrevented).toBe(true);
+    pointer(h.win, 'pointerup', 130, 75);
+    expect(document.querySelector('.canvas-marquee')).toBeNull();
+    expect(h.author.getSnapshot().selection.nodeIds).toEqual(['alpha', 'tail']);
+  });
   it('drops the first material onto the empty iframe canvas at 75% and restores the hint on undo', async () => {
     const h = harness({ emptyPage: true });
     act(() => h.session().viewport.setScale(0.75));

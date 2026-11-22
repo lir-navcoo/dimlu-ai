@@ -14,7 +14,7 @@ export const editorPanelRoutes = [
     title: '结构',
     icon: Boxes,
     minWidth: 192,
-    className: 'sidebar-content',
+    className: 'sidebar-content components-workspace',
     lazy: false,
   },
   {

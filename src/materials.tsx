@@ -17,6 +17,7 @@ import {
   useFieldArray,
   useRuntime,
   type ReactMaterials,
+  materialStyleTarget,
   type SlotRenderers,
 } from '../packages/react-runtime/Renderer';
 import { lineTotal, purchaseTotal } from './purchase';
@@ -34,7 +35,7 @@ function Text({
   style?: React.CSSProperties;
 }) {
   return (
-    <p className={`material-text ${tone}`} style={style}>
+    <p className={`material-text ${tone}`} style={style} {...materialStyleTarget(style)}>
       {typeof value === 'object' ? JSON.stringify(value) : String(value ?? '')}
     </p>
   );
@@ -49,7 +50,7 @@ function Heading({
   style?: React.CSSProperties;
 }) {
   return (
-    <div className="material-heading" style={style}>
+    <div className="material-heading" style={style} {...materialStyleTarget(style)}>
       <h2 style={textStyle(style)}>{title}</h2>
       {description && <p>{description}</p>}
     </div>
@@ -78,7 +79,7 @@ function Input({
   const id = useId();
   const lineCount = Number.isFinite(rows) ? Math.max(1, Math.min(20, Math.floor(rows))) : 4;
   return (
-    <div className="material-field" style={style}>
+    <div className="material-field" style={style} {...materialStyleTarget(style)}>
       <label htmlFor={id} style={textStyle(style)}>
         {label}
         {props.required && <b aria-hidden="true"> *</b>}
@@ -130,6 +131,7 @@ function MaterialButton({
       onClick={onClick}
       disabled={disabled}
       style={style}
+      {...materialStyleTarget(style)}
     >
       {label}
       <span aria-hidden="true">{variant === 'primary' ? '↗' : '→'}</span>
@@ -295,7 +297,7 @@ function Badge({
   style?: React.CSSProperties;
 }) {
   return (
-    <span className={`material-badge ${tone}`} style={style}>
+    <span className={`material-badge ${tone}`} style={style} {...materialStyleTarget(style)}>
       {value}
     </span>
   );
@@ -325,7 +327,7 @@ function RecordRow({
 }
 function Empty({ title, style }: { title: string; style?: React.CSSProperties }) {
   return (
-    <div className="material-empty" style={style}>
+    <div className="material-empty" style={style} {...materialStyleTarget(style)}>
       <span aria-hidden="true">⌕</span>
       <strong style={textStyle(style)}>{title}</strong>
       <p>试试其他姓名或部门关键词</p>

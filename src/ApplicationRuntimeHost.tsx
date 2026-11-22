@@ -13,7 +13,13 @@ import {
 } from '../packages/runtime/router';
 import './application-runtime.css';
 
-function readRoute(plan: ApplicationPlan): ApplicationRoute {
+function readRoute(plan: ApplicationPlan, previewPageId?: string): ApplicationRoute {
+  if (previewPageId !== undefined) {
+    const pageId = new URLSearchParams(window.location.search).get('page') || previewPageId;
+    return plan.pages.has(pageId)
+      ? { kind: 'page', appId: plan.schema.id, pageId }
+      : { kind: 'invalid', reason: 'unknown-page' };
+  }
   return resolveApplicationRoute(window.location, plan);
 }
 
@@ -54,24 +60,33 @@ function RuntimePage({
 export function ApplicationRuntimeHost({
   plan,
   onEditApplication,
+  previewPageId,
 }: {
   plan: ApplicationPlan;
   onEditApplication?: (appId: string, pageId: string) => void;
+  previewPageId?: string;
 }) {
-  const [route, setRoute] = useState(() => readRoute(plan));
+  const isMobilePreview = previewPageId !== undefined;
+  const [route, setRoute] = useState(() => readRoute(plan, previewPageId));
   useEffect(() => {
-    const update = () => setRoute(readRoute(plan));
+    const update = () => setRoute(readRoute(plan, previewPageId));
     window.addEventListener('popstate', update);
     return () => window.removeEventListener('popstate', update);
-  }, [plan]);
+  }, [plan, previewPageId]);
   const navigate = useCallback(
     (pageId: string, replace = false) => {
       if (!plan.pages.has(pageId)) return;
       const method = replace ? 'replaceState' : 'pushState';
-      window.history[method]({}, '', applicationRoutePath(plan.schema.id, pageId));
-      setRoute(readRoute(plan));
+      let path = applicationRoutePath(plan.schema.id, pageId);
+      if (isMobilePreview) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('page', pageId);
+        path = `${url.pathname}${url.search}${url.hash}`;
+      }
+      window.history[method]({}, '', path);
+      setRoute(readRoute(plan, previewPageId));
     },
-    [plan],
+    [plan, isMobilePreview, previewPageId],
   );
   if (route.kind !== 'page')
     return (
@@ -86,7 +101,11 @@ export function ApplicationRuntimeHost({
                 ? '页面不存在或已被删除。'
                 : '应用页面地址格式无效。'}
         </p>
-        <Button onClick={() => window.location.assign('/editor')}>返回搭建工作台</Button>
+        {isMobilePreview ? (
+          <Button onClick={() => navigate(previewPageId, true)}>返回预览起始页</Button>
+        ) : (
+          <Button onClick={() => window.location.assign('/editor')}>返回搭建工作台</Button>
+        )}
       </main>
     );
   const title = plan.schema.title;
@@ -105,17 +124,19 @@ export function ApplicationRuntimeHost({
             ))}
           </select>
         </label>
-        <Button
-          variant="ghost"
-          onClick={() =>
-            onEditApplication
-              ? onEditApplication(plan.schema.id, route.pageId)
-              : window.location.assign('/editor')
-          }
-        >
-          <ArrowLeft size={15} />
-          编辑应用
-        </Button>
+        {!isMobilePreview && (
+          <Button
+            variant="ghost"
+            onClick={() =>
+              onEditApplication
+                ? onEditApplication(plan.schema.id, route.pageId)
+                : window.location.assign('/editor')
+            }
+          >
+            <ArrowLeft size={15} />
+            编辑应用
+          </Button>
+        )}
       </header>
       <section className="application-runtime-page" key={`${route.appId}/${route.pageId}`}>
         <RuntimePage plan={plan} pageId={route.pageId} onNavigate={navigate} />

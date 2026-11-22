@@ -6,6 +6,7 @@ import { runtimePortalContainer, useRuntimeDomEnvironment } from '../ui/runtime-
 import {
   useDesignMode,
   useHasSlot,
+  materialStyleTarget,
   type SlotRenderers,
 } from '../../packages/react-runtime/Renderer';
 import {
@@ -52,6 +53,7 @@ export function LinkMaterial({
     <a
       className="material-link"
       style={style}
+      {...materialStyleTarget(style)}
       href={safeHref(href) ? href : undefined}
       target={newTab ? '_blank' : undefined}
       rel={newTab ? 'noopener noreferrer' : undefined}
@@ -90,7 +92,11 @@ export function ImageMaterial({
       <img src={src} alt={alt} onError={() => setFailed(src)} style={{ objectFit: fit }} />
     );
   return (
-    <div className="material-image" style={{ width, maxWidth: '100%', height, ...style }}>
+    <div
+      className="material-image"
+      style={{ width, maxWidth: '100%', height, ...style }}
+      {...materialStyleTarget(style)}
+    >
       {preview && src && failed !== src ? (
         <Dialog.Root>
           <Dialog.Trigger className="material-image-trigger" aria-label={`预览${alt}`}>
@@ -126,6 +132,7 @@ export function DescriptionsMaterial({
     <dl
       className={`material-descriptions ${bordered ? 'bordered' : ''}`}
       style={{ '--description-columns': columns, ...style } as React.CSSProperties}
+      {...materialStyleTarget(style)}
     >
       {items.map((item, index) => (
         <div key={index}>
@@ -188,7 +195,12 @@ export function ListMaterial({
   const hasItem = useHasSlot('item', slots),
     design = useDesignMode();
   return (
-    <div className="material-data-list" style={style} aria-busy={loading || undefined}>
+    <div
+      className="material-data-list"
+      style={style}
+      {...materialStyleTarget(style)}
+      aria-busy={loading || undefined}
+    >
       <DataStatus loading={loading} error={error} empty={!data.length} onRetry={onRetry}>
         <div
           className="material-list-grid"
@@ -259,7 +271,12 @@ export function PaginationMaterial({
   const start = Math.max(1, Math.min(active - 2, pages - 4)),
     numbers = Array.from({ length: Math.min(5, pages) }, (_, i) => start + i);
   return (
-    <nav className="material-pagination" style={style} aria-label="数据分页">
+    <nav
+      className="material-pagination"
+      style={style}
+      {...materialStyleTarget(style)}
+      aria-label="数据分页"
+    >
       <span>共 {total} 条</span>
       <Tip content="上一页">
         <Button
@@ -393,7 +410,12 @@ export function TableMaterial({
           : [...selected, key],
     );
   return (
-    <div className="material-table" style={style} aria-busy={loading || undefined}>
+    <div
+      className="material-table"
+      style={style}
+      {...materialStyleTarget(style)}
+      aria-busy={loading || undefined}
+    >
       <DataStatus loading={loading} error={error} empty={!data.length} onRetry={onRetry}>
         <div className="material-table-scroll">
           <table>

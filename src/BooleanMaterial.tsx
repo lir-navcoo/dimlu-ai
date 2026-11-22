@@ -3,6 +3,7 @@ import { Checkbox } from '@base-ui/react/checkbox';
 import { Switch } from '@base-ui/react/switch';
 import { Check } from 'lucide-react';
 import { textStyle } from './materials/style';
+import { materialStyleTarget } from '../packages/react-runtime/Renderer';
 
 export interface BooleanMaterialProps {
   style?: React.CSSProperties;
@@ -41,6 +42,7 @@ function BooleanMaterial({
     <div
       className="material-field material-boolean-field"
       style={style}
+      {...materialStyleTarget(style)}
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) onBlur?.(event);
       }}

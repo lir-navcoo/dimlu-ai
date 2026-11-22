@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react';
-import { Monitor, Scan, RotateCcw, Info } from 'lucide-react';
+import { Info, Monitor, RotateCcw, Scan, Smartphone, Tablet } from 'lucide-react';
 import { Button, Input, Select, Tip } from '../ui/primitives';
 import { useEditorViewport } from './session';
 import { useDragDrop } from './DragDrop';
@@ -36,10 +36,11 @@ export function ViewportControls({ mode }: { mode: 'edit' | 'preview' }) {
   const options = percentages.includes(manualPercent)
     ? percentages
     : [...percentages, manualPercent].sort((a, b) => a - b);
+  const DeviceIcon = state.preset === 'phone' ? Smartphone : state.preset === 'tablet' ? Tablet : Monitor;
   return (
     <div className="viewport-controls" role="group" aria-label="画布视口">
-      <div className="viewport-device-group">
-        <Monitor size={14} aria-hidden="true" />
+      <div className="viewport-device-group" role="group" aria-label="页面布局宽度">
+        <DeviceIcon size={14} aria-hidden="true" />
         <Tip content="页面布局宽度" side="bottom" disabled={dragging}>
           <span className="viewport-device-select">
             <Select

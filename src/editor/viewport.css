@@ -74,15 +74,18 @@
   }
 }
 
-/* A separate compact row keeps viewport controls out of the breadcrumb's space. */
+/* The viewport row is the second band of one toolbar block: it shares the
+   breadcrumb row's surface color and uses a subtle top seam so the two rows
+   read as one grouped tool strip rather than two detached bars. */
 .viewport-controls {
   display: flex;
   flex-shrink: 0;
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 12px;
-  min-height: 34px;
+  min-height: 32px;
   padding: 3px 10px;
+  border-top: 1px solid #eef0f5;
   border-bottom: 1px solid var(--border);
   background: #fbfcfe;
   color: #64748b;

@@ -7,7 +7,7 @@ import { EditorSessionProvider } from '../src/editor/session';
 import { TipProvider } from '../src/ui/primitives';
 import { registry } from '../src/materials';
 import { actionExample } from '../src/action-example';
-import { changeControl } from './ui-helpers';
+import { changeControl, closeActionConfig, openActionConfig } from './ui-helpers';
 afterEach(cleanup);
 function Harness({ document }: { document: EditorDocument }) {
   const snapshot = useSyncExternalStore(document.subscribe, document.getSnapshot);
@@ -36,6 +36,7 @@ describe('action authoring drafts', () => {
       </TipProvider>,
     );
     fireEvent.click(screen.getByRole('button', { name: '添加动作' }));
+    openActionConfig(1);
     fireEvent.click(screen.getByRole('combobox', { name: '动作 1 类型' }));
     const options = within(await screen.findByRole('listbox'));
     expect(options.getByText('常用动作')).toBeTruthy();
@@ -43,7 +44,7 @@ describe('action authoring drafts', () => {
     const method = options.getByRole('option', { name: /转成大写 · app\.method\.uppercase/ });
     fireEvent.pointerDown(method, { pointerType: 'mouse', button: 0 });
     fireEvent.click(method);
-    const action = within(screen.getByRole('region', { name: '动作 1' }));
+    const action = within(screen.getByRole('dialog'));
     expect(action.getByText('将输入文本转换为大写。')).toBeTruthy();
     changeControl(action.getByRole('combobox', { name: '动作 1 类型' }), 'ui.notify');
     expect(action.queryByText('将输入文本转换为大写。')).toBeNull();
@@ -64,18 +65,24 @@ describe('action authoring drafts', () => {
     const add = screen.getByRole('button', { name: '添加动作' });
     const save = screen.getByRole('button', { name: '保存事件' });
     fireEvent.click(add);
+    openActionConfig(1);
     changeControl(screen.getByRole('combobox', { name: '动作 1 类型' }), `app.method.${methodId}`);
+    closeActionConfig();
     fireEvent.click(add);
+    openActionConfig(2);
     changeControl(screen.getByRole('combobox', { name: '动作 2 类型' }), 'ui.notify');
-    const notice = within(screen.getByRole('region', { name: '动作 2' }));
+    const notice = within(screen.getByRole('dialog'));
     changeControl(notice.getByLabelText('title取值方式'), 'literal');
     changeControl(notice.getByRole('textbox', { name: 'title' }), '保留这条通知');
+    closeActionConfig();
 
     act(() => document.removeApplicationMethod(methodId));
-    const missingAction = within(screen.getByRole('region', { name: '动作 1' }));
+    openActionConfig(1);
+    const missingAction = within(screen.getByRole('dialog'));
     expect(missingAction.getByRole('status').textContent).toContain('此动作已不可用');
+    closeActionConfig();
     expect(save.matches(':disabled')).toBe(true);
-    fireEvent.click(missingAction.getByRole('button', { name: '删除动作 1' }));
+    fireEvent.click(screen.getByRole('button', { name: '删除动作 1' }));
     expect(save.matches(':disabled')).toBe(false);
     fireEvent.click(save);
     const page = document.getSnapshot().plan.pages.get('records')!.schema;
@@ -100,12 +107,14 @@ describe('action authoring drafts', () => {
       </TipProvider>,
     );
     fireEvent.click(screen.getByRole('button', { name: '添加动作' }));
+    openActionConfig(2);
     changeControl(screen.getByRole('combobox', { name: '动作 2 类型' }), 'app.navigate');
     const pagePicker = screen.getByRole('combobox', { name: '目标页面' });
     fireEvent.click(pagePicker);
     const targetOption = await screen.findByRole('option', { name: /记录详情/ });
     fireEvent.pointerDown(targetOption, { pointerType: 'mouse', button: 0 });
     fireEvent.click(targetOption);
+    closeActionConfig();
     fireEvent.click(screen.getByRole('button', { name: '保存事件' }));
     expect(
       findNode(doc.getSnapshot().plan.pages.get('records')!.schema, 'external-submit')!.node.on!
@@ -146,7 +155,9 @@ describe('action authoring drafts', () => {
           </EditorSessionProvider>
         </TipProvider>,
       );
+      openActionConfig(2);
       changeControl(screen.getByRole('textbox', { name: 'title' }), '新消息');
+      closeActionConfig();
       fireEvent.click(screen.getByRole('button', { name: '保存事件' }));
       expect(
         findNode(doc.getSnapshot().plan.pages.get('records')!.schema, 'external-submit')!.node.on!
@@ -164,21 +175,27 @@ describe('action authoring drafts', () => {
         </EditorSessionProvider>
       </TipProvider>,
     );
+    openActionConfig(1);
     changeControl(screen.getByLabelText('formId取值方式'), 'expression');
     changeControl(screen.getByRole('textbox', { name: 'formId' }), 'state.');
+    closeActionConfig();
     fireEvent.click(screen.getByRole('button', { name: '保存事件' }));
     expect(screen.getByRole('alert')).toBeTruthy();
     act(() => doc.select('records', 'edit-record'));
     act(() => doc.select('records', 'external-submit'));
+    openActionConfig(1);
     expect((screen.getByRole('textbox', { name: 'formId' }) as HTMLTextAreaElement).value).toBe(
       'state.',
     );
+    closeActionConfig();
     act(() => doc.setEventActions('records', 'external-submit', 'onClick', []));
     expect((screen.getByRole('button', { name: '保存事件' }) as HTMLButtonElement).disabled).toBe(
       true,
     );
     fireEvent.click(screen.getByRole('button', { name: '确认使用草稿' }));
+    openActionConfig(1);
     changeControl(screen.getByRole('textbox', { name: 'formId' }), '"edit"');
+    closeActionConfig();
     fireEvent.click(screen.getByRole('button', { name: '保存事件' }));
     expect(screen.queryByRole('alert')).toBeNull();
     expect(

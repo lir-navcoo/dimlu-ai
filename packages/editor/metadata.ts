@@ -8,7 +8,7 @@ import {
 
 export type Setter =
   | { kind: 'text'; multiline?: boolean }
-  | { kind: 'number' | 'boolean' | 'json' | 'options' | 'columns' }
+  | { kind: 'number' | 'boolean' | 'json' | 'options' | 'columns' | 'color' }
   | { kind: 'select'; options: { label: string; value: Json }[] }
   | { kind: 'custom'; id: string; options?: Record<string, Json> };
 export interface PropertyMetadata {

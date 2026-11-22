@@ -10,7 +10,8 @@
     "schema:export": "node --experimental-strip-types scripts/export-artifacts.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "preview": "vite preview --host 127.0.0.1"
+    "preview": "vite preview --host 127.0.0.1",
+    "preview:lan": "node scripts/preview-lan.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
@@ -19,6 +20,8 @@
     "jsep": "^1.6.0",
     "lucide-react": "^1.70.0",
     "monaco-editor": "0.57.0",
+    "postcss": "^8.5.32",
+    "qrcode": "^1.5.4",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "sucrase": "3.35.1",
@@ -28,6 +31,7 @@
     "@tailwindcss/vite": "^4.3.5",
     "@testing-library/react": "^16.3.0",
     "@types/node": "^24.0.0",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "latest",

@@ -7,6 +7,7 @@ import {
   useMemo,
   useEffect,
   useRef,
+  useId,
   useSyncExternalStore,
   type ComponentType,
   type ErrorInfo,
@@ -17,6 +18,41 @@ import {
 import { matchesType, type FieldTarget, type NodeSchema } from '../schema/types';
 import { PageRuntime, type PlannedNode } from '../runtime/engine';
 import { styleValueError, type StyleProperty } from '../schema/style';
+import { scopeStyleSource } from '../schema/style-source';
+
+const materialStyleTargets = new WeakMap<
+  CSSProperties,
+  { ref: (target: HTMLElement | SVGElement | null) => void; 'data-material-style': string }
+>();
+/** 绑定到 style 所对应的实际物料节点，弹层也使用同一入口。 */
+export function materialStyleTarget(style?: CSSProperties) {
+  return style && materialStyleTargets.get(style);
+}
+function useMaterialStyleTarget(source?: string) {
+  const id = useId().replace(/[^\w-]/g, (char) => `_${char.charCodeAt(0).toString(16)}_`);
+  const css = useMemo(
+    () => source && scopeStyleSource(source, `[data-material-style="${id}"]`),
+    [id, source],
+  );
+  return useMemo(() => {
+    if (!css) return;
+    let sheet: HTMLStyleElement | undefined;
+    return {
+      'data-material-style': id,
+      ref: (target: HTMLElement | SVGElement | null) => {
+        sheet?.remove();
+        sheet = undefined;
+        if (!target) return;
+        const root = target.getRootNode();
+        const document = target.ownerDocument;
+        sheet = document.createElement('style');
+        sheet.textContent = css;
+        if (root.nodeType === 11) root.appendChild(sheet);
+        else document.head.appendChild(sheet);
+      },
+    };
+  }, [css, id]);
+}
 
 export type SlotRenderers = Record<
   string,
@@ -40,7 +76,7 @@ export interface NodeRenderProps {
   node: NodeSchema;
   instanceKey: string;
   children: ReactNode;
-  inactiveReason?: 'condition' | 'field' | 'empty-repeat';
+  inactiveReason?: 'condition' | 'field' | 'empty-repeat' | 'author-hidden';
   presentation?: MaterialPresentation;
 }
 export type NodeDecorator = ComponentType<NodeRenderProps>;
@@ -255,6 +291,8 @@ function Instance({
     ? ctx.designPresentation?.(node.schema, instanceKey)
     : undefined;
   const style = useResolvedStyle(runtime, node, scope, instanceKey);
+  const styleTarget = useMaterialStyleTarget(node.schema.styleCss);
+  if (styleTarget) materialStyleTargets.set(style, styleTarget);
   // Hooks precede conditional rendering. Materials retain native event/value callbacks.
   const events = useMemo(
     () =>
@@ -322,6 +360,8 @@ function Instance({
       .visible
   )
     return <InactiveNode node={node.schema} instanceKey={instanceKey} reason="field" />;
+  if (node.schema.hidden)
+    return <InactiveNode node={node.schema} instanceKey={instanceKey} reason="author-hidden" />;
   if (node.when) {
     const visible = node.when.evaluate(context);
     if (typeof visible !== 'boolean') throw new Error('when 必须返回布尔值');
@@ -408,7 +448,7 @@ function Instance({
       ...events,
       ...bindingProps,
       ...(Object.keys(slots).length ? { slots } : {}),
-      ...(node.schema.style ? { style } : {}),
+      ...(node.schema.style || styleTarget ? { style } : {}),
     },
     ...(ChildrenDecorator
       ? [

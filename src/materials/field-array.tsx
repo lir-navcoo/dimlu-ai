@@ -1,6 +1,6 @@
 import { useMemo, useEffect, useRef, useSyncExternalStore } from 'react';
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
-import { useRuntime } from '../../packages/react-runtime/Renderer';
+import { materialStyleTarget, useRuntime } from '../../packages/react-runtime/Renderer';
 import { FormRuntime } from '../../packages/runtime/form';
 import { validateApplication } from '../../packages/schema/validate';
 import { createRegistry } from '../../packages/runtime/registry';
@@ -152,7 +152,12 @@ function ArrayView({
   };
   if (!array.visible) return null;
   return (
-    <section className="material-field-array" style={style} aria-label={definition.label}>
+    <section
+      className="material-field-array"
+      style={style}
+      {...materialStyleTarget(style)}
+      aria-label={definition.label}
+    >
       <header>
         <strong>{definition.label}</strong>
         <Button

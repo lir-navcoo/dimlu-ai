@@ -1,4 +1,4 @@
-import { StrictMode } from 'react';
+import { lazy, StrictMode, Suspense } from 'react';
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
@@ -39,10 +39,19 @@ class StartupBoundary extends Component<{ children: ReactNode }, { error: Error 
   }
 }
 
+const MobilePreview = lazy(() => import('./MobilePreview'));
+const isMobilePreview = /^\/mobile-preview\/?$/.test(window.location.pathname);
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <StartupBoundary>
-      <App />
+      {isMobilePreview ? (
+        <Suspense fallback={<p role="status">正在加载手机预览…</p>}>
+          <MobilePreview />
+        </Suspense>
+      ) : (
+        <App />
+      )}
     </StartupBoundary>
   </StrictMode>,
 );

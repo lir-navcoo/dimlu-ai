@@ -8,7 +8,7 @@ import { RuntimeRenderer } from '../packages/react-runtime/Renderer';
 import { registry, materials } from '../src/materials';
 import App from '../src/App';
 import { seedLegacyProject } from './legacy-project';
-import { changeControl } from './ui-helpers';
+import { changeControl, closeActionConfig, openActionConfig } from './ui-helpers';
 import { EditorDocument, findNode } from '../packages/editor/document';
 import { FormSubmissionError } from '../packages/runtime/form';
 import { ActionPanel } from '../src/editor/ActionPanel';
@@ -159,8 +159,10 @@ describe('independent event action acceptance', () => {
           </EditorSessionProvider>
         </TipProvider>,
       );
+      openActionConfig(1);
       changeControl(screen.getByLabelText('tone取值方式'), 'literal');
       changeControl(screen.getByLabelText('tone'), 'success');
+      closeActionConfig();
       fireEvent.click(screen.getByRole('button', { name: '保存事件' }));
       expect(screen.queryByRole('alert')).toBeNull();
       expect(
@@ -269,16 +271,20 @@ describe('independent event action acceptance', () => {
     );
     const addNotice = (title: string) => {
       fireEvent.click(screen.getByRole('button', { name: '添加动作' }));
+      openActionConfig(1);
       changeControl(screen.getByLabelText('动作 1 类型'), 'ui.notify');
       changeControl(screen.getByLabelText('title取值方式'), 'literal');
       changeControl(screen.getByLabelText('title'), title);
+      closeActionConfig();
     };
     addNotice('节点A');
     act(() => document.select('page', 'other'));
     addNotice('节点B');
     fireEvent.click(screen.getByRole('button', { name: '保存事件' }));
     act(() => document.select('page', 'button'));
+    openActionConfig(1);
     expect((screen.getByLabelText('title') as HTMLInputElement).value).toBe('节点A');
+    closeActionConfig();
     fireEvent.click(screen.getByRole('button', { name: '保存事件' }));
     expect(screen.queryByRole('alert')).toBeNull();
     const page = document.getSnapshot().plan.schema.pages[0];
@@ -304,15 +310,19 @@ describe('independent event action acceptance', () => {
       </TipProvider>,
     );
     const before = document.getSnapshot();
+    openActionConfig(1);
     changeControl(screen.getByLabelText('title取值方式'), 'expression');
     changeControl(screen.getByLabelText('title'), 'state.');
+    closeActionConfig();
     fireEvent.click(screen.getByRole('button', { name: '保存事件' }));
     expect(screen.getByRole('alert')).toBeTruthy();
     expect(document.getSnapshot()).toBe(before);
     act(() => document.select('page', 'other'));
     expect(screen.queryByLabelText('title')).toBeNull();
     act(() => document.select('page', 'button'));
+    openActionConfig(1);
     expect((screen.getByLabelText('title') as HTMLTextAreaElement).value).toBe('state.');
+    closeActionConfig();
     act(() =>
       document.setEventActions('page', 'button', 'onClick', [
         call('notice', 'ui.notify', { title: literal('外部新配置') }),
@@ -322,7 +332,9 @@ describe('independent event action acceptance', () => {
       true,
     );
     expect(screen.getByRole('button', { name: '确认使用草稿' })).toBeTruthy();
+    openActionConfig(1);
     changeControl(screen.getByLabelText('title'), '"草稿已确认"');
+    closeActionConfig();
     fireEvent.click(screen.getByRole('button', { name: '确认使用草稿' }));
     fireEvent.click(screen.getByRole('button', { name: '保存事件' }));
     expect(

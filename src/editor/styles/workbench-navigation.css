@@ -10,137 +10,74 @@
   min-width: 0;
   justify-content: center;
 }
+.app-header {
+  height: auto;
+  min-height: 52px;
+  flex: 0 0 auto;
+  gap: 16px;
+  padding: 6px 12px;
+}
 .app-header-context {
   display: flex;
   min-width: 0;
+  flex: 1;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
-.app-header {
-  min-height: 56px;
-  height: auto;
-  flex-basis: auto;
-  gap: 12px;
-  padding: 6px 12px;
-}
-@media (max-width: 759px) {
-  .app-header {
-    min-height: 48px;
-    flex-wrap: wrap;
-    gap: 5px 8px;
-    padding: 5px 8px;
-  }
+.app-header .brand strong {
+  letter-spacing: 0;
 }
 .app-context-button {
-  display: grid;
+  display: flex;
   min-width: 0;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 1px 8px;
-  align-items: center;
+  max-width: 208px;
+  gap: 6px;
   text-align: left;
 }
-.app-context-button .app-context-caption {
-  grid-column: 1;
-  color: #64748b;
-  font-size: 9px;
-  line-height: 1.1;
-}
-.app-context-button strong {
-  grid-column: 1;
-  max-width: 160px;
+.app-context-button strong,
+.app-header-primary .page-switcher > span {
+  min-width: 0;
   overflow: hidden;
-  color: #1e293b;
-  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.app-context-button strong {
+  color: #1e293b;
+  font-size: 12px;
+}
+.app-header svg {
+  flex-shrink: 0;
+}
 .app-context-button svg {
-  grid-column: 2;
-  grid-row: 1 / span 2;
   color: #64748b;
 }
-.app-header-divider {
-  width: 1px;
-  height: 28px;
-  flex: 0 0 auto;
-  background: #e2e8f0;
+.app-header-primary {
+  min-width: 0;
+  flex: 0 1 180px;
 }
-.app-header-primary,
+.app-header-primary .page-switcher {
+  width: 100%;
+  min-width: 0;
+  gap: 6px;
+}
 .app-header-actions {
   display: flex;
   min-width: 0;
-  align-items: center;
-  gap: 6px;
-}
-.app-header-primary {
-  flex: 1;
-}
-.app-header-actions {
   flex: 0 0 auto;
-}
-.app-header-section-label {
-  color: #64748b;
-  font-size: 10px;
-  white-space: nowrap;
+  align-items: center;
+  gap: 8px;
+  padding-inline-start: 12px;
+  border-inline-start: 1px solid var(--border);
 }
 .app-header-nav-button {
   gap: 6px;
   white-space: nowrap;
 }
-@media (min-width: 760px) and (max-width: 1120px) {
-  .app-header {
-    gap: 8px;
-    padding: 5px 8px;
-  }
-  .app-context-button strong {
-    max-width: 110px;
-  }
-  .app-header-primary,
-  .app-header-actions {
-    gap: 3px;
-  }
-  .app-header-nav-button {
-    padding: 0 7px;
-  }
-}
-@media (max-width: 759px) {
-  .app-header {
-    min-height: 48px;
-    flex-wrap: wrap;
-    gap: 5px 8px;
-    padding: 5px 8px;
-  }
-  .app-header-context {
-    gap: 6px;
-    flex: 1 1 100%;
-  }
-  .app-context-button {
-    max-width: 118px;
-    padding: 0 5px;
-  }
-  .app-context-button strong {
-    max-width: 82px;
-  }
-  .app-header-divider,
-  .app-header-section-label {
-    display: none;
-  }
-  .app-header-primary {
-    flex: 1 1 auto;
-  }
-  .app-header-actions {
-    margin-left: auto;
-  }
-  .app-header-nav-button {
-    padding: 0 6px;
-    font-size: 0;
-  }
-  .app-header-nav-button svg {
-    width: 16px;
-    height: 16px;
-  }
-}
 
+.sidebar-content.components-workspace {
+  padding: 0;
+  overflow: hidden;
+}
 .components-panel {
   display: flex;
   min-width: 0;
@@ -183,12 +120,21 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 4px;
-  padding: 8px 10px 6px;
+  /* Match the inspector title bar's 40px band and 12px gutter so both panels
+     start their content on the same horizontal and vertical line. */
+  height: 40px;
+  flex: 0 0 40px;
+  align-items: center;
+  padding: 0 12px;
   border-bottom: 1px solid var(--border);
 }
 .components-tabs-list > button {
+  display: flex;
   min-width: 0;
   height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   padding: 0 6px;
   border: 1px solid transparent;
   border-radius: 4px;
@@ -205,15 +151,12 @@
   color: #4338ca;
   font-weight: 600;
 }
-.components-tabs-panel {
-  min-width: 0;
-  min-height: 0;
-  flex: 1;
-  overflow: auto;
+.components-tabs-panel.sidebar-content {
+  padding: 12px;
 }
-.components-tabs-panel > .insert-panel,
-.components-tabs-panel > .component-tree {
-  min-height: 100%;
+.components-tabs-panel .panel-search {
+  top: 0;
+  padding-top: 0;
 }
 .model-field-search {
   display: grid;
@@ -336,4 +279,539 @@
   overflow-wrap: anywhere;
   text-decoration: underline;
   cursor: pointer;
+}
+
+/* Workbench-only overrides keep the shared runtime CSS partition unchanged. */
+.app-header .editor-toolbar {
+  flex: 0 0 auto;
+  gap: 8px;
+  margin-inline-start: 0;
+}
+.editor-toolbar > .editor-history-actions {
+  gap: 4px;
+  padding-inline-end: 8px;
+  border-inline-end: 1px solid var(--border);
+}
+.editor-history-actions > .ui-button {
+  width: 28px;
+  min-width: 28px;
+  padding: 0;
+}
+.editor-file-button,
+.project-storage > button,
+.canvas-mode button {
+  gap: 5px;
+}
+.canvas-mode {
+  margin-inline-start: 0;
+}
+.project-storage > button {
+  padding-inline: 8px;
+  font-size: 11px;
+}
+.sidebar-heading,
+.property-panel-title {
+  height: 40px;
+  gap: 8px;
+}
+.side-host[hidden] {
+  display: none;
+}
+.side-drawer.left {
+  max-width: calc(100vw - 56px);
+}
+.side-drawer.right {
+  max-width: calc(100vw - 20px);
+}
+.side-drawer.right .property-panel-title {
+  display: none;
+}
+.components-tabs-panel .material-grid {
+  gap: 8px;
+}
+.components-tabs-panel .material-tile {
+  width: auto;
+  min-height: 36px;
+  gap: 8px;
+  padding-inline: 8px;
+}
+.selected-material > span {
+  flex: 0 0 28px;
+}
+.selected-material .node-author-label {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.property-panel .property-label > label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.property-panel .property-label .ui-select {
+  flex: 0 0 100px;
+}
+.property-panel .property-draft,
+.property-panel .style-panel-header,
+.property-panel .style-field-label {
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+.property-panel .style-fields {
+  gap: 12px;
+}
+.style-source-editor {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  padding-block: 4px 12px;
+}
+.style-source-editor > .ui-button {
+  justify-self: end;
+}
+.style-source-editor .field-error {
+  overflow-wrap: anywhere;
+}
+.inspector-empty {
+  justify-items: center;
+  gap: 8px;
+  margin: 0;
+  padding-block: 32px;
+  background: transparent;
+  text-align: center;
+}
+.inspector-empty > svg {
+  color: #64748b;
+}
+/* 参数首行：名称居左、取值方式与类型靠右，避免三行堆叠；加载顺序在冻结分区之后。 */
+.action-parameter-label > label {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.action-parameter-label > .ui-select {
+  width: 108px;
+  min-width: 108px;
+  flex-shrink: 0;
+}
+.action-parameter > .action-parameter-label > .ui-select {
+  width: 108px;
+  min-width: 108px;
+  flex-shrink: 0;
+}
+.action-parameter > .action-parameter-label > .ui-select:only-child,
+.action-parameter-label > .ui-select:only-child {
+  width: 100%;
+  min-width: 0;
+  flex: 1;
+}
+.action-parameter-label > code {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: #94a3b8;
+}
+/* 物料分类条单行横向滚动，分类按钮不收缩折行；覆盖冻结分区里的换行布局。 */
+.material-categories {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+.material-categories > .ui-button {
+  flex-shrink: 0;
+}
+.canvas-tools {
+  flex: 0 0 auto;
+  background: #fbfcfe;
+}
+/* 画布上方的页面页签条：对标宜搭的页面导航位置。 */
+.page-tabs-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 34px;
+  padding-inline: 8px 4px;
+  border-bottom: 1px solid var(--border);
+}
+.page-tabs-scroll {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+.page-tabs-scroll > .page-tab {
+  flex-shrink: 0;
+  max-width: 168px;
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #475569;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.page-tabs-scroll > .page-tab:hover {
+  background: #eceff7;
+}
+.page-tabs-scroll > .page-tab.is-active {
+  background: #eef0ff;
+  color: #4338ca;
+  font-weight: 600;
+}
+.page-tabs-bar > .ui-button {
+  flex-shrink: 0;
+  width: 28px;
+  min-width: 28px;
+  padding: 0;
+}
+.canvas-toolbar {
+  height: 40px;
+  gap: 8px;
+  padding-inline: 8px;
+  border-bottom: 0;
+}
+.canvas-toolbar > .ui-button,
+.canvas-toolbar-actions > .ui-button {
+  width: 28px;
+  min-width: 28px;
+  padding: 0;
+}
+.canvas-toolbar-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+}
+.canvas-viewport-band {
+  min-width: 0;
+}
+.canvas-tools .viewport-feedback {
+  white-space: normal;
+}
+@media (max-width: 1120px) {
+  .app-header {
+    gap: 12px;
+  }
+  .app-header-context {
+    gap: 8px;
+  }
+  .app-context-button {
+    max-width: 144px;
+  }
+  .app-header-actions {
+    gap: 6px;
+    padding-inline-start: 8px;
+  }
+}
+@media (max-width: 759px) {
+  .debug-dock.open {
+    inset-block-start: var(--workspace-top, 52px);
+  }
+  .app-header .editor-toolbar > p {
+    top: var(--workspace-top, 52px);
+  }
+  .app-header {
+    flex-wrap: wrap;
+    gap: 6px 8px;
+    padding: 6px 8px;
+  }
+  .app-header-context {
+    flex: 1 1 100%;
+  }
+  .app-context-button {
+    max-width: 190px;
+  }
+  .app-header .editor-toolbar {
+    gap: 4px;
+  }
+  .editor-toolbar > .editor-history-actions {
+    gap: 2px;
+    padding-inline-end: 4px;
+  }
+  .editor-toolbar > .editor-history-actions > button::before {
+    content: none;
+  }
+  .app-header-actions {
+    margin-inline-start: auto;
+    gap: 4px;
+    padding-inline-start: 0;
+    border-inline-start: 0;
+  }
+  .app-header .editor-file-button,
+  .app-header-nav-button,
+  .app-header .project-storage > button {
+    width: 28px;
+    min-width: 28px;
+    justify-content: center;
+    padding: 0;
+    font-size: 0;
+  }
+  .editor-file-button svg:last-child,
+  .project-storage > button > svg:last-child {
+    display: none;
+  }
+  .project-storage > button > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .canvas-mode button {
+    padding-inline: 5px;
+    font-size: 11px;
+  }
+  .canvas-toolbar {
+    padding-inline: 4px;
+    gap: 4px;
+  }
+  .canvas-tools .viewport-controls {
+    gap: 4px 8px;
+  }
+  .canvas-tools .viewport-device-select {
+    width: 108px;
+  }
+  .canvas-tools .viewport-zoom-select {
+    width: 96px;
+  }
+}
+
+.canvas-marquee {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid #526ee7;
+  background: #526ee724;
+  pointer-events: none;
+}
+.canvas-outline {
+  border: 1px solid #93a6ef;
+  border-radius: 2px;
+}
+.canvas-outline.selected {
+  border: 1px solid #526ee7;
+}
+.canvas-alignment-guide {
+  position: fixed;
+  z-index: 998;
+  pointer-events: none;
+}
+.canvas-alignment-guide.vertical {
+  border-left: 1px dashed #9b338c;
+}
+.canvas-alignment-guide.horizontal {
+  border-top: 1px dashed #9b338c;
+}
+
+/* --- Action list: compact rows + config dialog (Yidao-style) ----------- */
+/* The list row shows order, name and a parameter summary; full parameter
+   editing happens in the action config dialog. */
+.action-card {
+  gap: 0;
+  padding: 0;
+}
+.action-card > header {
+  gap: 4px;
+  padding: 7px 8px 7px 10px;
+}
+.action-card > header strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  overflow-wrap: normal;
+}
+.action-card-badge {
+  flex-shrink: 0;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #fef2f2;
+  color: #b42318;
+  font-size: 10px;
+  font-weight: 500;
+}
+.action-card-open {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.action-card-summary {
+  overflow: hidden;
+  color: #64748b;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.action-config-dialog {
+  display: flex;
+  width: min(520px, calc(100vw - 32px));
+  max-height: min(680px, calc(100dvh - 48px));
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  overflow: auto;
+}
+.action-config-heading {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+}
+.action-config-body {
+  display: grid;
+  min-height: 0;
+  gap: 10px;
+  padding-right: 2px;
+}
+.action-config-footer {
+  display: flex;
+  flex-shrink: 0;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+/* --- Node context menu (canvas + outline right click) ------------------ */
+.node-context-menu {
+  position: fixed;
+  z-index: var(--layer-modal-backdrop, 1400);
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+}
+.node-context-menu .ui-menu-item {
+  gap: 8px;
+  cursor: pointer;
+}
+.node-context-menu .ui-menu-item:disabled {
+  opacity: 0.4;
+}
+
+/* --- Rich setters: color picker + numeric stepper ---------------------- */
+.style-color-swatch {
+  padding: 0;
+  overflow: hidden;
+  cursor: pointer;
+}
+.style-color-swatch input[type='color'] {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+  background: none;
+}
+.color-setter {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 5px;
+}
+.color-setter input[type='color'] {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  padding: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 3px;
+  cursor: pointer;
+  background: none;
+}
+.number-setter {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: stretch;
+  gap: 3px;
+}
+.number-setter .ui-input {
+  min-width: 0;
+  flex: 1;
+}
+.number-stepper {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  gap: 1px;
+}
+.number-stepper .icon-button {
+  width: 18px;
+  min-width: 18px;
+  height: 13px;
+  padding: 0;
+}
+.number-stepper .icon-button svg {
+  width: 10px;
+  height: 10px;
+}
+
+/* --- History timeline panel --------------------------------------------- */
+.history-timeline {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.history-timeline li {
+  min-width: 0;
+}
+.history-step {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #334155;
+  font-size: 12px;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.history-step:hover {
+  background: #f1f5f9;
+}
+.history-step.future {
+  color: #94a3b8;
+}
+li.history-current .history-step {
+  padding: 4px 8px;
+  background: #eef2ff;
+  color: #4338ca;
+  font-weight: 600;
+  cursor: default;
+}
+
+/* --- Tree lock/hidden badges --------------------------------------------- */
+.tree-flags {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  color: #64748b;
+}
+.tree-flags [data-flag='lock'] {
+  color: #b45309;
+}
+.tree-flags [data-flag='hidden'] {
+  color: #64748b;
 }

@@ -150,6 +150,7 @@ export function DebugDock({
               ['schema', 'Schema'],
               ['state', '页面状态'],
               ['logs', '执行记录'],
+              ['history', '操作历史'],
             ] as const
           ).map(([id, label]) => (
             <Tip key={id} content={id === 'schema' && draft.dirty ? 'Schema 有未保存草稿' : label}>
@@ -302,6 +303,44 @@ export function DebugDock({
             ) : (
               <p className="muted">暂时没有执行记录</p>
             )}
+          </div>
+        </Tabs.Panel>
+        <Tabs.Panel value="history" className="debug-panel" keepMounted>
+          <div className="inspector-body history-panel">
+            <ol className="history-timeline" aria-label="操作历史时间线">
+              {document.getHistory().past.map((entry, index) => (
+                <li key={`past-${index}`}>
+                  <button
+                    type="button"
+                    className="history-step"
+                    onClick={() => document.jumpTo(index)}
+                    title={entry.change}
+                  >
+                    {entry.change || '（无说明）'}
+                  </button>
+                </li>
+              ))}
+              <li className="history-current" aria-current="step">
+                <span className="history-step">
+                  {document.getHistory().current || '（无说明）'}
+                </span>
+              </li>
+              {[...document.getHistory().future].reverse().map((entry, reverseIndex) => {
+                const steps = document.getHistory().past.length + 1 + reverseIndex;
+                return (
+                  <li key={`future-${reverseIndex}`}>
+                    <button
+                      type="button"
+                      className="history-step future"
+                      onClick={() => document.jumpTo(steps)}
+                      title={entry.change}
+                    >
+                      {entry.change || '（无说明）'}
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
           </div>
         </Tabs.Panel>
       </div>

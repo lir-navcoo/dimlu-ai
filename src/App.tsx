@@ -10,7 +10,20 @@ import {
 import { Tabs } from '@base-ui/react/tabs';
 import { Dialog } from '@base-ui/react/dialog';
 import { Combobox } from '@base-ui/react/combobox';
-import { ChevronDown, Check, PanelLeft, PanelRight, Play, Settings2, X } from 'lucide-react';
+import {
+  ChevronDown,
+  Check,
+  Eye,
+  FileText,
+  Files,
+  PanelLeft,
+  PanelRight,
+  Pencil,
+  Play,
+  RotateCcw,
+  Settings2,
+  X,
+} from 'lucide-react';
 import { Button, Tip, TipProvider } from './ui/primitives';
 import { ResizeHandle } from './ui/ResizeHandle';
 import { PageRuntime } from '../packages/runtime/engine';
@@ -44,6 +57,7 @@ import {
   type ProjectStorageSnapshot,
 } from '../packages/editor/project-storage';
 import { ProjectMenu } from './editor/ProjectMenu';
+import { MobilePreviewDialog } from './editor/MobilePreviewDialog';
 import {
   ApplicationDirectory,
   type ApplicationDirectory as ApplicationDirectoryType,
@@ -105,9 +119,14 @@ type Layout = {
   leftCollapsed: boolean;
   rightCollapsed: boolean;
 };
+const inspectorMin = 280;
+const inspectorMax = 480;
+const sidebarMax = 440;
+const minCanvasWidth = 430;
+const splitterWidth = 6;
 const defaultLayout: Layout = {
-  leftWidth: 224,
-  rightWidth: 304,
+  leftWidth: 248,
+  rightWidth: 352,
   debugHeight: 240,
   leftCollapsed: false,
   rightCollapsed: false,
@@ -124,17 +143,22 @@ type LogHostAttempt = {
 function useLayout() {
   const [layout, setLayout] = useState<Layout>(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem('dimlu.workbench.layout.v1') ?? '{}');
+      const current = localStorage.getItem('dimlu.workbench.layout.v2');
+      const saved = JSON.parse(current ?? localStorage.getItem('dimlu.workbench.layout.v1') ?? '{}');
+      if (!current && saved) {
+        if (saved.leftWidth === 224) saved.leftWidth = defaultLayout.leftWidth;
+        if (saved.rightWidth === 304) saved.rightWidth = defaultLayout.rightWidth;
+      }
       return {
         leftWidth: Number.isFinite(saved.leftWidth)
-          ? Math.max(192, Math.min(420, saved.leftWidth))
-          : 224,
+          ? Math.max(192, Math.min(sidebarMax, saved.leftWidth))
+          : defaultLayout.leftWidth,
         rightWidth: Number.isFinite(saved.rightWidth)
-          ? Math.max(280, Math.min(460, saved.rightWidth))
-          : 304,
+          ? Math.max(inspectorMin, Math.min(inspectorMax, saved.rightWidth))
+          : defaultLayout.rightWidth,
         debugHeight: Number.isFinite(saved.debugHeight)
           ? Math.max(140, Math.min(600, saved.debugHeight))
-          : 240,
+          : defaultLayout.debugHeight,
         leftCollapsed: saved.leftCollapsed === true,
         rightCollapsed: saved.rightCollapsed === true,
       };
@@ -144,7 +168,7 @@ function useLayout() {
   });
   useEffect(() => {
     try {
-      localStorage.setItem('dimlu.workbench.layout.v1', JSON.stringify(layout));
+      localStorage.setItem('dimlu.workbench.layout.v2', JSON.stringify(layout));
     } catch {
       /* Storage may be unavailable. */
     }
@@ -164,6 +188,7 @@ function ResponsiveSide({
   restoreFocus = true,
   hostRef,
   onHostOpenComplete,
+  top,
   children,
 }: {
   narrow: boolean;
@@ -178,6 +203,7 @@ function ResponsiveSide({
   restoreFocus?: boolean;
   hostRef?: React.RefObject<HTMLDivElement | null>;
   onHostOpenComplete?: (open: boolean) => void;
+  top?: number;
   children: ReactNode;
 }) {
   const drag = useDragDrop();
@@ -220,6 +246,7 @@ function ResponsiveSide({
           ref={hostRef}
           id={`${side}-panel`}
           className={`side-drawer ${side} ${drag?.session?.method === 'pointer' ? 'dragging' : ''}`}
+          style={side === 'left' ? { top, width } : { width }}
           finalFocus={restoreFocus ? triggerRef : false}
           initialFocus={suppressInitialFocus ? false : undefined}
         >
@@ -309,8 +336,9 @@ function PageSwitcher({
         data-value={value.value}
         disabled={!!drag?.isInteracting}
       >
+        <FileText size={14} aria-hidden="true" />
         <span>{value.title}</span>
-        <ChevronDown size={13} />
+        <ChevronDown size={12} aria-hidden="true" />
       </Combobox.Trigger>
       <Combobox.Portal>
         <Combobox.Positioner sideOffset={5} className="menu-positioner">
@@ -344,6 +372,49 @@ function PageSwitcher({
         </Combobox.Positioner>
       </Combobox.Portal>
     </Combobox.Root>
+  );
+}
+function PageTabs({
+  snapshot,
+  onPageChange,
+  onOpenPagePanel,
+}: {
+  snapshot: EditorSnapshot;
+  onPageChange: (pageId: string) => void;
+  onOpenPagePanel: (panel: string) => void;
+}) {
+  const drag = useDragDrop();
+  const current = snapshot.selection.pageId;
+  return (
+    <nav className="page-tabs-bar" aria-label="页面页签">
+      <div className="page-tabs-scroll">
+        {snapshot.plan.schema.pages.map((page) => (
+          <button
+            key={page.id}
+            type="button"
+            className={`page-tab${page.id === current ? ' is-active' : ''}`}
+            aria-current={page.id === current ? 'page' : undefined}
+            aria-label={`切换到页面 ${page.title}`}
+            disabled={!!drag?.isInteracting}
+            onClick={() => {
+              if (page.id !== current) onPageChange(page.id);
+            }}
+          >
+            {page.title}
+          </button>
+        ))}
+      </div>
+      <Tip content="管理页面：新增、重命名、分组与入口" side="bottom">
+        <Button
+          variant="ghost"
+          aria-label="管理页面"
+          disabled={!!drag?.isInteracting}
+          onClick={() => onOpenPagePanel('pages')}
+        >
+          <Files size={14} aria-hidden="true" />
+        </Button>
+      </Tip>
+    </nav>
   );
 }
 function Sidebar({
@@ -522,14 +593,41 @@ function Workbench({
     [debugOpen, setDebugOpen] = useSessionState('debug/open', false);
   const [propertyRequest, setPropertyRequest] = useState(0);
   const [debugMaximized] = useSessionState('debug/maximized', false);
-  const railWidth = size.width < 760 ? 40 : 44;
-  const rightWidth = Math.min(layout.rightWidth, Math.max(280, size.width - railWidth - 492));
-  const panelMinWidth = editorPanelRoute(session.leftTab)!.minWidth;
-  const leftWidth = Math.max(panelMinWidth, layout.leftWidth);
   const rightNarrow = size.width < 760;
+  const railWidth = rightNarrow ? 40 : 44;
+  const panelBudget = size.width - railWidth - minCanvasWidth;
+  const panelMinWidth = editorPanelRoute(session.leftTab)!.minWidth;
+  const rightDocked = !rightNarrow && !layout.rightCollapsed;
+  const rightMinimum = rightDocked ? inspectorMin + splitterWidth : 0;
   const leftNarrow =
-    size.width < 1000 ||
-    size.width - railWidth - (layout.rightCollapsed ? 0 : rightWidth) - leftWidth < 480;
+    size.width < 1000 || panelBudget < panelMinWidth + splitterWidth + rightMinimum;
+  const leftDocked = !leftNarrow && !layout.leftCollapsed;
+  const leftPreference = Math.max(panelMinWidth, layout.leftWidth);
+  const leftWidth = leftDocked
+    ? Math.min(leftPreference, panelBudget - rightMinimum - splitterWidth)
+    : leftPreference;
+  const rightLimit = Math.min(
+    inspectorMax,
+    panelBudget - (leftDocked ? leftWidth + splitterWidth : 0) - splitterWidth,
+  );
+  const rightWidth = rightDocked ? Math.min(layout.rightWidth, rightLimit) : layout.rightWidth;
+  const leftLimit = Math.min(
+    sidebarMax,
+    panelBudget - (rightDocked ? rightWidth + splitterWidth : 0) - splitterWidth,
+  );
+  const shell = useRef<HTMLDivElement>(null);
+  const [workspaceTop, setWorkspaceTop] = useState(52);
+  useLayoutEffect(() => {
+    const root = shell.current;
+    const workspace = root?.querySelector('.workspace');
+    if (!root || !workspace) return;
+    const update = () => setWorkspaceTop(workspace.getBoundingClientRect().top);
+    update();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(update);
+    for (const child of root.children) observer.observe(child);
+    return () => observer.disconnect();
+  }, [size.width, projectSnapshot.error]);
   const [logPresentation, setLogPresentation] = useState<LogPresentation | null>(null);
   const logOwner = useRef<LogPresentation | null>(null);
   const leftLogHost = useRef<HTMLDivElement>(null);
@@ -833,18 +931,20 @@ function Workbench({
       onCommit={() => session.setLeftOpen(false)}
     >
       <NavigationEnvironment document={document} snapshot={snapshot} mode={mode} />
-      <div className="app-shell">
+      <div className="app-shell" ref={shell} style={{ '--workspace-top': `${workspaceTop}px` } as React.CSSProperties}>
         <header className="app-header">
           <div className="app-header-context">
             <div className="brand">
-              <span className="brand-mark">d</span>
+              <span className="brand-mark" aria-hidden="true">d</span>
               <strong>dimlu</strong>
             </div>
             <Menu.Root>
-              <Menu.Trigger className="app-context-button ui-button" aria-label="当前应用菜单">
-                <span className="app-context-caption">当前应用</span>
+              <Menu.Trigger
+                className="app-context-button ui-button ui-button-ghost"
+                aria-label="当前应用菜单"
+              >
                 <strong>{plan.schema.title}</strong>
-                <ChevronDown size={12} />
+                <ChevronDown size={12} aria-hidden="true" />
               </Menu.Trigger>
               <Menu.Portal>
                 <Menu.Positioner sideOffset={6} className="menu-positioner">
@@ -864,56 +964,59 @@ function Workbench({
                 </Menu.Positioner>
               </Menu.Portal>
             </Menu.Root>
+            <nav className="app-header-primary" aria-label="页面搭建导航">
+              <PageSwitcher
+                document={document}
+                snapshot={snapshot}
+                onNavigatePage={navigatePage}
+                onOpenPagePanel={navigatePanel}
+              />
+            </nav>
           </div>
-          <div className="app-header-divider" />
-          <nav className="app-header-primary" aria-label="页面搭建导航">
-            <span className="app-header-section-label">搭建</span>
-            <PageSwitcher
-              document={document}
-              snapshot={snapshot}
-              onNavigatePage={navigatePage}
-              onOpenPagePanel={navigatePanel}
-            />
-          </nav>
-          <nav className="app-header-actions" aria-label="应用操作">
-            <Button
-              variant="primary"
-              className="app-header-nav-button"
-              aria-label="运行应用"
-              onClick={onRunApplication}
-            >
-              <Play size={14} />
-              运行
-            </Button>
-          </nav>
           <EditorToolbar
             document={document}
             snapshot={snapshot}
             authoringAllowed={mode === 'edit'}
           />
-          <ProjectMenu project={project} snapshot={projectSnapshot} />
-          <div className="canvas-mode" role="group" aria-label="画布模式">
-            <Button
-              aria-label="编辑模式"
-              aria-pressed={mode === 'edit'}
-              onClick={() => {
-                retireLogPresentation();
-                setMode('edit');
-              }}
-            >
-              编辑
-            </Button>
-            <Button
-              aria-label="预览模式"
-              aria-pressed={mode === 'preview'}
-              onClick={() => {
-                retireLogPresentation();
-                setMode('preview');
-              }}
-            >
-              预览
-            </Button>
-          </div>
+          <nav className="app-header-actions" aria-label="应用操作">
+            <MobilePreviewDialog application={plan.schema} pageId={pageId} />
+            <ProjectMenu project={project} snapshot={projectSnapshot} />
+            <div className="canvas-mode" role="group" aria-label="画布模式">
+              <Button
+                aria-label="编辑模式"
+                aria-pressed={mode === 'edit'}
+                onClick={() => {
+                  retireLogPresentation();
+                  setMode('edit');
+                }}
+              >
+                <Pencil size={13} aria-hidden="true" />
+                <span>编辑</span>
+              </Button>
+              <Button
+                aria-label="预览模式"
+                aria-pressed={mode === 'preview'}
+                onClick={() => {
+                  retireLogPresentation();
+                  setMode('preview');
+                }}
+              >
+                <Eye size={14} aria-hidden="true" />
+                <span>预览</span>
+              </Button>
+            </div>
+            <Tip content="在当前浏览器运行应用" side="bottom">
+              <Button
+                variant="primary"
+                className="app-header-nav-button"
+                aria-label="运行应用"
+                onClick={onRunApplication}
+              >
+                <Play size={13} aria-hidden="true" />
+                <span>运行</span>
+              </Button>
+            </Tip>
+          </nav>
         </header>
         {projectSnapshot.error && (
           <div className="project-storage-notice" role="alert">
@@ -942,7 +1045,8 @@ function Workbench({
                   aria-label={id === 'structure' ? '结构' : title}
                   onClick={() => navigatePanel(id)}
                 >
-                  <Icon size={18} />
+                  <Icon size={17} aria-hidden="true" />
+                  <span>{id === 'logic' ? '逻辑' : title}</span>
                 </Tabs.Tab>
               </Tip>
             ))}
@@ -966,6 +1070,7 @@ function Workbench({
             onHostOpenComplete={completeLogHostOpening}
             restoreFocus={!(rightNarrow && rightOpen)}
             title="页面设计"
+            top={workspaceTop}
             side="left"
             triggerRef={leftTrigger}
           >
@@ -984,65 +1089,75 @@ function Workbench({
               label="调整左侧面板宽度"
               value={leftWidth}
               min={panelMinWidth}
-              max={Math.max(
-                leftWidth,
-                Math.min(
-                  420,
-                  size.width - railWidth - (layout.rightCollapsed ? 0 : rightWidth) - 492,
-                ),
-              )}
+              max={leftLimit}
               onChange={(leftWidth) => setLayout((current) => ({ ...current, leftWidth }))}
               controls="left-panel"
             />
           )}
           <main className="main-area">
-            <div className="canvas-toolbar" inert={rightNarrow && debugOpen}>
-              <Button
-                ref={leftTrigger}
-                aria-label={
-                  leftNarrow
-                    ? '打开页面设计'
-                    : layout.leftCollapsed
-                      ? '展开左侧面板'
-                      : '收起左侧面板'
-                }
-                variant="ghost"
-                onClick={toggleLeft}
-              >
-                <PanelLeft size={15} />
-              </Button>
-              <CanvasBreadcrumb document={document} snapshot={snapshot} />
-              {runtime && !runtime.disposed && (
-                <>
-                  <RuntimeStatus runtime={runtime} />
-                  <MaterialEffects
-                    key={runtime.instanceId}
-                    runtime={runtime}
-                    environment={staged ? canvasStage.runtimeEnvironment() : undefined}
-                  />
-                </>
-              )}
-              <Button variant="ghost" onClick={() => setReset((n) => n + 1)} aria-label="重置页面">
-                ↻ 重置
-              </Button>
-              <Button
-                ref={rightTrigger}
-                aria-label={
-                  rightNarrow
-                    ? '打开属性检查器'
-                    : layout.rightCollapsed
-                      ? '展开右侧面板'
-                      : '收起右侧面板'
-                }
-                variant="ghost"
-                onClick={rightNarrow && mode === 'edit' && nodeId ? editProperties : toggleRight}
-              >
-                <PanelRight size={15} />
-              </Button>
+            <div className="canvas-tools" role="group" aria-label="画布工具">
+              <PageTabs
+                snapshot={snapshot}
+                onPageChange={(nextPageId) => {
+                  retireLogPresentation();
+                  navigatePage(nextPageId);
+                }}
+                onOpenPagePanel={navigatePanel}
+              />
+              <div className="canvas-toolbar" inert={rightNarrow && debugOpen}>
+                <Button
+                  ref={leftTrigger}
+                  aria-label={
+                    leftNarrow
+                      ? '打开页面设计'
+                      : layout.leftCollapsed
+                        ? '展开左侧面板'
+                        : '收起左侧面板'
+                  }
+                  variant="ghost"
+                  onClick={toggleLeft}
+                >
+                  <PanelLeft size={15} aria-hidden="true" />
+                </Button>
+                <CanvasBreadcrumb document={document} snapshot={snapshot} />
+                <div className="canvas-toolbar-actions">
+                  {runtime && !runtime.disposed && <RuntimeStatus runtime={runtime} />}
+                  <Tip content="重置当前页面的运行数据" side="bottom">
+                    <Button
+                      variant="ghost"
+                      onClick={() => setReset((n) => n + 1)}
+                      aria-label="重置页面"
+                    >
+                      <RotateCcw size={14} aria-hidden="true" />
+                    </Button>
+                  </Tip>
+                  <Button
+                    ref={rightTrigger}
+                    aria-label={
+                      rightNarrow
+                        ? '打开属性检查器'
+                        : layout.rightCollapsed
+                          ? '展开右侧面板'
+                          : '收起右侧面板'
+                    }
+                    variant="ghost"
+                    onClick={rightNarrow && mode === 'edit' && nodeId ? editProperties : toggleRight}
+                  >
+                    <PanelRight size={15} aria-hidden="true" />
+                  </Button>
+                </div>
+              </div>
+              <div className="canvas-viewport-band" inert={debugOpen && (rightNarrow || debugMaximized)}>
+                <ViewportControls mode={mode} />
+              </div>
             </div>
-            <div inert={debugOpen && (rightNarrow || debugMaximized)}>
-              <ViewportControls mode={mode} />
-            </div>
+            {runtime && !runtime.disposed && (
+              <MaterialEffects
+                key={runtime.instanceId}
+                runtime={runtime}
+                environment={staged ? canvasStage.runtimeEnvironment() : undefined}
+              />
+            )}
             <div
               ref={canvasScroll}
               className="canvas-scroll"
@@ -1108,18 +1223,11 @@ function Workbench({
               label="调整右侧面板宽度"
               reverse
               value={rightWidth}
-              min={280}
-              max={Math.max(
-                rightWidth,
-                Math.min(
-                  460,
-                  size.width -
-                    railWidth -
-                    (!leftNarrow && !layout.leftCollapsed ? leftWidth : 0) -
-                    492,
-                ),
-              )}
-              onChange={(rightWidth) => setLayout((current) => ({ ...current, rightWidth }))}
+              min={inspectorMin}
+              max={rightLimit}
+              onChange={(width) => {
+                if (width !== rightWidth) setLayout((current) => ({ ...current, rightWidth: width }));
+              }}
               controls="right-panel"
             />
           )}
@@ -1138,7 +1246,10 @@ function Workbench({
             suppressInitialFocus={!!eventTarget}
           >
             <aside className="inspector">
-              <div className="property-panel-title">组件设置</div>
+              <div className="property-panel-title">
+                <Settings2 size={14} aria-hidden="true" />
+                <span>组件设置</span>
+              </div>
               <PropertyPanel
                 key={`${pageId}/${nodeId}`}
                 document={document}

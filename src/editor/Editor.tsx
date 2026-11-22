@@ -21,7 +21,7 @@ import { NodeLogicPanel } from './NodeLogicPanel';
 import { useDraft, useEditorSession } from './session';
 import { Menu } from '@base-ui/react/menu';
 import { Tabs } from '@base-ui/react/tabs';
-import { Zap } from 'lucide-react';
+import { ChevronDown, FileJson, MousePointer2, Redo2, Undo2, Zap } from 'lucide-react';
 import { ActionPanel, type OpenApplicationMethods } from './ActionPanel';
 import type { ApplicationMethodReference } from '../../packages/editor/data';
 import { ClipboardMenuGroup } from './ClipboardMenu';
@@ -355,9 +355,7 @@ function PropertyInput({
           {mode === 'reference' && <option value="reference">引用（保留）</option>}
         </Select>
       </div>
-      {mode === 'unset' ? (
-        <small>使用组件默认行为</small>
-      ) : mode === 'dataRef' ? (
+      {mode === 'unset' ? null : mode === 'dataRef' ? (
         <ValueInput
           label={meta.label}
           field={contract}
@@ -642,14 +640,9 @@ export function PropertyPanel({
         </>
       ) : (
         <div className="inspector-empty">
+          <MousePointer2 size={18} aria-hidden="true" />
           <strong>选择组件后配置</strong>
-          <p>点击画布中的组件，或从组件树选择，即可编辑属性、样式和事件。</p>
         </div>
-      )}
-      {node && selectedNodeIds(snapshot.selection).length === 1 && (
-        <p className="editor-note">
-          有效修改会即时应用并重置预览数据。选择组件不会重置。无效内容仅保留为当前输入草稿。
-        </p>
       )}
     </div>
   );
@@ -663,18 +656,34 @@ export function EditorToolbar({
   const [messageError, setMessageError] = useState(false);
   const file = useRef<HTMLInputElement>(null);
   return (
-    <div className="editor-toolbar" aria-label="文档操作">
-      <div>
-        <Button disabled={!snapshot.canUndo} onClick={document.undo}>
-          ↶ 撤销
-        </Button>
-        <Button disabled={!snapshot.canRedo} onClick={document.redo}>
-          ↷ 重做
-        </Button>
+    <div className="editor-toolbar" role="group" aria-label="文档操作">
+      <div className="editor-history-actions" role="group" aria-label="编辑历史">
+        <Tip content="撤销" side="bottom">
+          <Button
+            variant="ghost"
+            aria-label="↶ 撤销"
+            disabled={!snapshot.canUndo}
+            onClick={document.undo}
+          >
+            <Undo2 size={15} aria-hidden="true" />
+          </Button>
+        </Tip>
+        <Tip content="重做" side="bottom">
+          <Button
+            variant="ghost"
+            aria-label="↷ 重做"
+            disabled={!snapshot.canRedo}
+            onClick={document.redo}
+          >
+            <Redo2 size={15} aria-hidden="true" />
+          </Button>
+        </Tip>
       </div>
       <Menu.Root>
-        <Menu.Trigger className="ui-button" aria-label="文件菜单">
-          文件 ▾
+        <Menu.Trigger className="ui-button ui-button-ghost editor-file-button" aria-label="文件菜单">
+          <FileJson size={14} aria-hidden="true" />
+          <span>文件</span>
+          <ChevronDown size={11} aria-hidden="true" />
         </Menu.Trigger>
         <Menu.Portal>
           <Menu.Positioner sideOffset={4} className="menu-positioner">

@@ -205,6 +205,91 @@ describe('pointer feedback keeps client coordinates and excludes itself as a dro
     },
   );
 
+  it('shows a clipped passive guide only near a valid canvas candidate and commits only the insertion', async () => {
+    const { author, root, api } = layerHarness({
+      children: (
+        <>
+          <div className="canvas-scroll">
+            <div className="editor-surface">
+              <div data-editor-node="tail">
+                <p>Tail canvas marker</p>
+              </div>
+              <div data-editor-node="shared">
+                <p>Shared canvas marker</p>
+              </div>
+            </div>
+          </div>
+          <div data-editor-tree-node="tail">Tail tree marker</div>
+          <div
+            data-drop-intent={JSON.stringify({ kind: 'inside', parentId: 'tail' })}
+            className="editor-surface"
+          >
+            Invalid canvas drop zone
+          </div>
+        </>
+      ),
+    });
+    const guide = () => document.querySelector<HTMLElement>('.canvas-alignment-guide');
+    const tail = screen.getByText('Tail canvas marker');
+    const tree = screen.getByText('Tail tree marker');
+    const invalid = screen.getByText('Invalid canvas drop zone');
+    const shared = screen.getByText('Shared canvas marker');
+    const canvasScroll = tail.closest('.canvas-scroll')!;
+    const boxes = new Map<Element, DOMRect>([
+      [tail, new DOMRect(65, 70, 110, 70)],
+      [shared, new DOMRect(82, 150, 110, 40)],
+      [canvasScroll, new DOMRect(40, 50, 220, 80)],
+    ]);
+    vi.mocked(Element.prototype.getBoundingClientRect).mockImplementation(function (this: Element) {
+      return boxes.get(this) ?? new DOMRect(0, 0, 240, 40);
+    });
+    let hit = tail;
+    Object.defineProperty(document, 'elementFromPoint', { configurable: true, value: () => hit });
+    const css = readFileSync(resolve('src/editor/styles/workbench-navigation.css'), 'utf8');
+    policyStyle.textContent += `\n${css.match(/\.canvas-alignment-guide\s*\{[^}]*\}/)![0]}`;
+    const before = author.getSnapshot();
+    layerPointer(
+      'pointerdown',
+      screen.getByRole('button', { name: 'Start material pointer' }),
+      5,
+      45,
+    );
+    layerPointer('pointermove', window, 68, 82);
+    await waitFor(() => expect(guide()?.style.left).toBe('65px'));
+    expect(guide()?.style.top).toBe('66px');
+    expect(guide()?.style.height).toBe('64px');
+    expect(guide()?.getAttribute('aria-hidden')).toBe('true');
+    expect(root.contains(guide())).toBe(false);
+    expect(getComputedStyle(guide()!).pointerEvents).toBe('none');
+    expect(author.getSnapshot()).toBe(before);
+
+    layerPointer('pointermove', window, 82, 82);
+    await waitFor(() => expect(guide()).toBeNull());
+    layerPointer('pointermove', window, 120, 82);
+    await waitFor(() => expect(guide()?.style.left).toBe('120px'));
+    hit = tree;
+    layerPointer('pointermove', window, 68, 82);
+    expect(api().session?.candidate?.valid).toBe(true);
+    expect(guide()).toBeNull();
+    hit = invalid;
+    layerPointer('pointermove', window, 68, 82);
+    expect(api().session?.candidate?.valid).toBe(false);
+    expect(guide()).toBeNull();
+
+    hit = tail;
+    layerPointer('pointermove', window, 68, 82);
+    await waitFor(() => expect(guide()).toBeTruthy());
+    layerPointer('pointerup', window, 68, 82);
+    expect(guide()).toBeNull();
+    const roots = author.getSnapshot().plan.pages.get('a')!.schema.children;
+    expect(roots.map((node) => node.id)).toEqual(['root', roots[1].id, 'tail', 'shared']);
+    expect(roots[1].component).toBe('ui.text');
+    expect(roots[1].style).toBeUndefined();
+    expect(author.getSnapshot().canUndo).toBe(true);
+    act(() => author.undo());
+    expect(author.getSnapshot().plan).toBe(before.plan);
+  });
+
   it('pointer feedback clamps in physical viewport bounds and keeps cancellation cleanup', () => {
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 390 });
     Object.defineProperty(window, 'innerHeight', { configurable: true, value: 844 });

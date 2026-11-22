@@ -7,7 +7,7 @@ import { PageLifecyclePanel } from '../src/editor/PageLifecyclePanel';
 import { EditorSessionProvider } from '../src/editor/session';
 import { registry } from '../src/materials';
 import { TipProvider } from '../src/ui/primitives';
-import { changeControl } from './ui-helpers';
+import { changeControl, closeActionConfig, openActionConfig } from './ui-helpers';
 
 const retained = vi.hoisted(() => ({ save: undefined as undefined | ((event: unknown) => void) }));
 vi.mock('../src/ui/primitives', async (importOriginal) => {
@@ -56,9 +56,11 @@ function setup() {
   const view = render(tree(true));
   const enter = within(screen.getByRole('region', { name: '页面进入动作' }));
   fireEvent.click(enter.getByRole('button', { name: '添加动作' }));
-  changeControl(enter.getByLabelText('动作 1 类型'), 'ui.notify');
-  changeControl(enter.getByLabelText('title取值方式'), 'literal');
-  changeControl(enter.getByRole('textbox', { name: 'title' }), '原页面草稿');
+  openActionConfig(1);
+  changeControl(screen.getByLabelText('动作 1 类型'), 'ui.notify');
+  changeControl(screen.getByLabelText('title取值方式'), 'literal');
+  changeControl(screen.getByRole('textbox', { name: 'title' }), '原页面草稿');
+  closeActionConfig();
   const save = retained.save!;
   expect(save).toBeTypeOf('function');
   return { document, tree, view, save };

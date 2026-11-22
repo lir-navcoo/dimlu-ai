@@ -1,0 +1,61 @@
+.canvas-outline > .canvas-resize {
+  /* 将局部坐标原点对齐到选中描边的外边缘。 */
+  position: absolute;
+  inset: -1px;
+  pointer-events: none;
+}
+.canvas-resize-handle {
+  position: absolute;
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+}
+.canvas-resize-handle::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: 1px solid #5471e9;
+  border-radius: 2px;
+  background: white;
+  box-shadow: 0 0 0 1px #fff8;
+}
+.canvas-resize-handle:hover::before,
+.canvas-resize-handle[data-resize-held]::before {
+  background: #5471e9;
+}
+.canvas-resize-handle:is([data-resize-handle='n'], [data-resize-handle='s']) {
+  cursor: ns-resize;
+}
+.canvas-resize-handle:is([data-resize-handle='e'], [data-resize-handle='w']) {
+  cursor: ew-resize;
+}
+.canvas-resize-handle:is([data-resize-handle='nw'], [data-resize-handle='se']) {
+  cursor: nwse-resize;
+}
+.canvas-resize-handle:is([data-resize-handle='ne'], [data-resize-handle='sw']) {
+  cursor: nesw-resize;
+}
+.canvas-resize[data-resizing] > .canvas-resize-handle:not([data-resize-held]) {
+  pointer-events: none;
+}
+.canvas-resize-preview {
+  position: absolute;
+  z-index: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 4px;
+  padding: 4px 7px;
+  background: #354fb7;
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+  white-space: nowrap;
+  pointer-events: none;
+}

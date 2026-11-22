@@ -7,7 +7,7 @@ import { PageLifecyclePanel } from '../src/editor/PageLifecyclePanel';
 import { EditorSessionProvider } from '../src/editor/session';
 import { registry } from '../src/materials';
 import { TipProvider } from '../src/ui/primitives';
-import { changeControl } from './ui-helpers';
+import { changeControl, closeActionConfig, openActionConfig } from './ui-helpers';
 
 const literal = (value: Json): Value => ({ kind: 'literal', value });
 const expression = (source: string): Value => ({
@@ -122,10 +122,11 @@ describe('page-leave panel authoring', () => {
     mount(document);
     const leave = within(screen.getByRole('region', { name: '页面离开动作' }));
     fireEvent.click(leave.getByRole('button', { name: '添加动作' }));
-    const card = within(leave.getByRole('region', { name: '动作 1' }));
-    changeControl(card.getByLabelText(/动作 \d+ 类型/), 'ui.notify');
-    changeControl(card.getByLabelText('title取值方式'), 'literal');
-    changeControl(card.getByLabelText('title'), '离开提醒');
+    openActionConfig(1);
+    changeControl(screen.getByLabelText('动作 1 类型'), 'ui.notify');
+    changeControl(screen.getByLabelText('title取值方式'), 'literal');
+    changeControl(screen.getByLabelText('title'), '离开提醒');
+    closeActionConfig();
     fireEvent.click(leave.getByRole('button', { name: '保存离开动作' }));
     expect(savedLeave(document)?.[0].input.title).toEqual(literal('离开提醒'));
     expect(page(document).onEnter).toBeUndefined();

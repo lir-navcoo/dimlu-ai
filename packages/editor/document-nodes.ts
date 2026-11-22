@@ -74,6 +74,7 @@ export class DocumentNodes {
     const { schema, page } = this.host.draft(pageId);
     const source = findNode(page, nodeId);
     if (!source) throw new Error('移动目标节点不存在');
+    if (source.node.lock) throw new Error('组件已锁定，不能移动');
     if (target.parentId && containsNode(source.node, target.parentId))
       throw new Error('不能移动到自身或自己的子树');
     this.host.targetList(page, target);
@@ -91,6 +92,40 @@ export class DocumentNodes {
   moveNode = (pageId: string, nodeId: string, target: InsertTarget = {}): boolean => {
     const schema = this.prepareMove(pageId, nodeId, target);
     return this.host.commit(schema, '移动组件 ' + nodeId, { pageId, nodeId });
+  };
+
+  /** Sibling-list reorder: 上移/下移一层、置顶/置底. Returns false when the node
+   * has no siblings to swap with or the target position equals the current one. */
+  reorderNode = (
+    pageId: string,
+    nodeId: string,
+    direction: 'up' | 'down' | 'top' | 'bottom',
+  ): boolean => {
+    const { schema, page } = this.host.draft(pageId);
+    const source = findNode(page, nodeId);
+    if (!source) throw new Error('移动目标节点不存在');
+    if (source.node.lock) throw new Error('组件已锁定，不能移动');
+    const total = source.list.length;
+    let index = source.index;
+    if (direction === 'up') index -= 1;
+    else if (direction === 'down') index += 1;
+    else if (direction === 'top') index = 0;
+    else index = total - 1;
+    if (index < 0 || index >= total || index === source.index) return false;
+    // prepareMove already expects the destination position in post-removal
+    // coordinates; the raw sibling index maps directly onto it.
+    const moved = this.prepareMove(pageId, nodeId, {
+      parentId: source.parentId,
+      slot: source.slot,
+      index,
+    });
+    const labels = {
+      up: '上移一层',
+      down: '下移一层',
+      top: '置于顶层',
+      bottom: '置于底层',
+    } as const;
+    return this.host.commit(moved, `${labels[direction]} ${nodeId}`, { pageId, nodeId });
   };
 
   duplicateNode = (pageId: string, nodeId: string, target?: InsertTarget): string => {
@@ -202,6 +237,7 @@ export class DocumentNodes {
     const { schema, page } = this.host.draft(pageId),
       location = findNode(page, nodeId);
     if (!location) throw new Error('删除目标节点不存在');
+    if (location.node.lock) throw new Error('组件已锁定，不能删除');
     location.list.splice(location.index, 1);
     const selected = this.host.selection();
     const nodeStillExists =
@@ -227,6 +263,20 @@ export class DocumentNodes {
     if (!nodeIds.length) return false;
     const roots = new Set(topSelectedNodeIds(before, nodeIds));
     const { schema, page } = this.host.draft(pageId);
+    const lockedRoot = (list: NodeSchema[]): NodeSchema | undefined => {
+      for (const node of list) {
+        if (roots.has(node.id) && node.lock) return node;
+        const nested = lockedRoot(node.children ?? []);
+        if (nested) return nested;
+        for (const slot of Object.values(node.slots ?? {})) {
+          const inner = lockedRoot(slot.children);
+          if (inner) return inner;
+        }
+      }
+      return undefined;
+    };
+    const blocked = lockedRoot(page.children);
+    if (blocked) throw new Error('组件已锁定，不能删除：' + blocked.id);
     const remove = (list: NodeSchema[]): NodeSchema[] =>
       list.filter((node) => {
         if (roots.has(node.id)) return false;

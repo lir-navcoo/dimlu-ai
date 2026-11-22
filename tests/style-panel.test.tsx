@@ -35,6 +35,42 @@ const style = (doc: EditorDocument, id = 'purchase-heading') =>
   findNode(doc.getSnapshot().plan.pages.get('purchase')!.schema, id)!.node.style;
 
 describe('style inspector', () => {
+  it('edits component CSS, retains invalid drafts, and synchronizes fixed visual settings', () => {
+    const doc = make();
+    doc.setStyle('purchase', 'purchase-heading', {
+      width: { kind: 'literal', value: 24 },
+      height: { kind: 'expression', language: 'javascript', source: "'30px'" },
+    });
+    mount(doc);
+    fireEvent.click(screen.getByRole('button', { name: 'CSS 源码' }));
+    const input = screen.getByRole('textbox', { name: '组件 CSS 源码' }) as HTMLTextAreaElement;
+    expect(input.value).toBe(':root {\n  width: 24px;\n}');
+    changeControl(input, 'body { color: red; }');
+    fireEvent.click(screen.getByRole('button', { name: '应用 CSS' }));
+    expect(screen.getByRole('alert').textContent).toContain('CSS 选择器');
+    expect(
+      doc.getSnapshot().plan.pages.get('purchase')!.children[0].schema.styleCss,
+    ).toBeUndefined();
+    changeControl(
+      input,
+      ':root { width: 56px; border-radius: 10px; } :root:hover { opacity: .5; }',
+    );
+    fireEvent.click(screen.getByRole('button', { name: '应用 CSS' }));
+    fireEvent.click(screen.getByRole('button', { name: '可视设置' }));
+    expect((screen.getByRole('textbox', { name: '宽度' }) as HTMLInputElement).value).toBe('56px');
+    expect(style(doc)?.height?.kind).toBe('expression');
+    changeControl(screen.getByRole('textbox', { name: '宽度' }), '88px');
+    fireEvent.click(screen.getByRole('button', { name: 'CSS 源码' }));
+    expect(
+      (screen.getByRole('textbox', { name: '组件 CSS 源码' }) as HTMLTextAreaElement).value,
+    ).toContain('width: 88px');
+    expect(doc.exportJson()).toContain('border-radius: 10px');
+    fireEvent.click(screen.getByRole('button', { name: '恢复全部样式' }));
+    expect(style(doc)).toBeUndefined();
+    expect(doc.exportJson()).not.toContain('border-radius: 10px');
+    act(() => doc.undo());
+    expect(style(doc)?.width).toEqual({ kind: 'literal', value: '88px' });
+  });
   it('lazily mounts styles and preserves invalid and binding drafts across inspector tabs', () => {
     const doc = make();
     let width!: ReactSetterProps;
@@ -218,7 +254,7 @@ describe('style inspector', () => {
       expect(doc.exportJson()).toBe(before);
       expect(screen.queryByRole('alert')).toBeNull();
       expect(screen.getByRole('combobox', { name: '宽度绑定取值方式' }).textContent).toContain(
-        mode === 'expression' ? 'JavaScript 表达式' : mode === 'dataRef' ? '数据源' : '不设置',
+        mode === 'expression' ? 'JS 表达式' : mode === 'dataRef' ? '数据源' : '不设置',
       );
       if (mode === 'expression')
         expect(

@@ -1,4 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import type { RefObject } from 'react';
 import { Menu } from '@base-ui/react/menu';
 import { findNode, type EditorDocument, type EditorSnapshot } from '../../packages/editor/document';
 import { selectedNodeIds } from '../../packages/editor/selection';
@@ -67,6 +68,86 @@ export function initialReferencePaths(initial: Json): { paths: string[]; truncat
   };
   walk(initial, []);
   return { paths, truncated };
+}
+
+/**
+ * Shared presentation for the three initial-value path pickers. All interaction
+ * gating stays in the owner (permission receipt / epoch / allowed checks); this
+ * component only renders the decided state so the menu markup lives in one place.
+ */
+export function ReferencePathMenuView({
+  open,
+  onOpenChange,
+  triggerRef,
+  sourceId,
+  disabled,
+  label,
+  choices,
+  onChoose,
+}: {
+  open: boolean;
+  onOpenChange: (next: boolean) => void;
+  triggerRef: RefObject<HTMLButtonElement | null>;
+  sourceId: string | undefined;
+  disabled: boolean;
+  label: string;
+  choices: { paths: string[]; truncated: boolean };
+  onChoose: (path: string) => void;
+}) {
+  return (
+    <Menu.Root open={open} onOpenChange={onOpenChange} modal={false}>
+      <Menu.Trigger
+        ref={triggerRef}
+        render={<Button variant="ghost" />}
+        disabled={disabled}
+        aria-label={`${label}初始值路径`}
+        className="max-w-full text-xs"
+      >
+        初始值路径
+      </Menu.Trigger>
+      <Menu.Portal>
+        <Menu.Positioner
+          sideOffset={4}
+          align="start"
+          className="select-positioner max-w-[var(--available-width)]"
+        >
+          <Menu.Popup
+            aria-label={`${label}初始值路径选项`}
+            className="ui-menu flex max-h-[var(--available-height)] w-[min(360px,calc(100vw-24px))] max-w-full flex-col"
+          >
+            <p className="shrink-0 px-2 py-1 text-[11px] break-words text-slate-500">
+              初始值路径 · {sourceId}；运行数据可能不同。
+            </p>
+            <div className="min-h-0 max-h-[min(280px,var(--available-height))] overflow-y-auto overscroll-contain">
+              {choices.paths.map((path) => (
+                <Menu.Item
+                  key={path}
+                  label={path}
+                  className="ui-menu-item whitespace-normal break-all"
+                  closeOnClick={false}
+                  onClick={() => onChoose(path)}
+                >
+                  <code className="min-w-0 flex-1">{path}</code>
+                  {path === '[]' && <span className="ml-2 text-slate-500">完整值</span>}
+                </Menu.Item>
+              ))}
+            </div>
+            {choices.truncated ? (
+              <p className="shrink-0 px-2 py-1 text-[11px] text-slate-500">
+                初始值路径较多，仅显示部分；可继续手动填写路径。
+              </p>
+            ) : (
+              choices.paths.length === 1 && (
+                <p className="shrink-0 px-2 py-1 text-[11px] text-slate-500">
+                  初始值没有嵌套路径。
+                </p>
+              )
+            )}
+          </Menu.Popup>
+        </Menu.Positioner>
+      </Menu.Portal>
+    </Menu.Root>
+  );
 }
 
 type Binding = { kind: string; sourceId: string; path: string };
@@ -270,58 +351,15 @@ export function ReferencePaths({
   };
   const open = !!presentation?.active && pending.current === presentation;
   return (
-    <Menu.Root open={open} onOpenChange={changeOpen} modal={false}>
-      <Menu.Trigger
-        ref={trigger}
-        render={<Button variant="ghost" />}
-        disabled={!source || !context.enabled || context.interacting}
-        aria-label={`${label}初始值路径`}
-        className="max-w-full text-xs"
-      >
-        初始值路径
-      </Menu.Trigger>
-      <Menu.Portal>
-        <Menu.Positioner
-          sideOffset={4}
-          align="start"
-          className="select-positioner max-w-[var(--available-width)]"
-        >
-          <Menu.Popup
-            aria-label={`${label}初始值路径选项`}
-            className="ui-menu flex max-h-[var(--available-height)] w-[min(360px,calc(100vw-24px))] max-w-full flex-col"
-          >
-            <p className="shrink-0 px-2 py-1 text-[11px] break-words text-slate-500">
-              初始值路径 · {source?.id}；运行数据可能不同。
-            </p>
-            <div className="min-h-0 max-h-[min(280px,var(--available-height))] overflow-y-auto overscroll-contain">
-              {presentation &&
-                choices.paths.map((path) => (
-                  <Menu.Item
-                    key={path}
-                    label={path}
-                    className="ui-menu-item whitespace-normal break-all"
-                    closeOnClick={false}
-                    onClick={() => choose(presentation, path)}
-                  >
-                    <code className="min-w-0 flex-1">{path}</code>
-                    {path === '[]' && <span className="ml-2 text-slate-500">完整值</span>}
-                  </Menu.Item>
-                ))}
-            </div>
-            {choices.truncated ? (
-              <p className="shrink-0 px-2 py-1 text-[11px] text-slate-500">
-                初始值路径较多，仅显示部分；可继续手动填写路径。
-              </p>
-            ) : (
-              choices.paths.length === 1 && (
-                <p className="shrink-0 px-2 py-1 text-[11px] text-slate-500">
-                  初始值没有嵌套路径。
-                </p>
-              )
-            )}
-          </Menu.Popup>
-        </Menu.Positioner>
-      </Menu.Portal>
-    </Menu.Root>
+    <ReferencePathMenuView
+      open={open}
+      onOpenChange={changeOpen}
+      triggerRef={trigger}
+      sourceId={source?.id}
+      disabled={!source || !context.enabled || context.interacting}
+      label={label}
+      choices={{ paths: presentation ? choices.paths : [], truncated: choices.truncated }}
+      onChoose={(path) => presentation && choose(presentation, path)}
+    />
   );
 }

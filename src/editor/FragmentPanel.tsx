@@ -602,14 +602,16 @@ export function FragmentPanel({
   return (
     <section className="fragment-panel" aria-label="会话片段" ref={panel} tabIndex={-1}>
       <div className="fragment-heading">
-        <strong>会话片段</strong>
+        <Tip
+          content="把选中的静态组件存为片段，在本文档的其他页面插入；不包含页面代码、CSS 或模型。"
+          side="right"
+        >
+          <strong tabIndex={0}>会话片段</strong>
+        </Tip>
         <span>
           {fragments.items.length} / {SAVED_FRAGMENT_LIMIT}
         </span>
       </div>
-      <p className="editor-note">
-        仅当前编辑会话保留，刷新或重置项目后清空；导入应用文件会保留会话片段。
-      </p>
       <div className="fragment-save">
         <label htmlFor={nameId}>片段名称 · 最多 {SAVED_FRAGMENT_NAME_LIMIT} 个字符</label>
         <Input
@@ -639,8 +641,9 @@ export function FragmentPanel({
           <Archive size={14} aria-hidden="true" /> 保存所选
         </Button>
       </div>
-      <p className="editor-note">仅保存静态组件内容和内联样式，不包含页面代码、CSS 或模型。</p>
-      <p className="editor-note">保存与删除不参与页面撤销；插入页面的副本可以撤销。</p>
+      <p className="editor-note">
+        仅当前会话保留，导入应用文件会保留会话片段；片段仅含静态组件与内联样式，插入的副本可撤销。
+      </p>
       {visibleStatus && (
         <p
           className={`fragment-feedback${visibleStatus.error ? ' is-error' : ''}`}
@@ -688,7 +691,7 @@ export function FragmentPanel({
         ))}
       </ul>
       {!fragments.items.length && (
-        <p className="editor-note">选择静态组件并命名，保存后可在当前文档的其他页面使用。</p>
+        <p className="editor-note">选中组件并命名保存，即可在其他页面插入。</p>
       )}
       <AlertDialog.Root
         open={!!prompt?.active}

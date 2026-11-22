@@ -291,6 +291,7 @@ export const applicationJsonSchema = {
         id: { $ref: '#/$defs/id' },
         component: { $ref: '#/$defs/id' },
         props: { $ref: '#/$defs/values' },
+        styleCss: { type: 'string', maxLength: 12000 },
         style: {
           type: 'object',
           additionalProperties: false,
@@ -307,6 +308,8 @@ export const applicationJsonSchema = {
         },
         children: { $ref: '#/$defs/nodes' },
         when: { $ref: '#/$defs/value' },
+        lock: { type: 'boolean' },
+        hidden: { type: 'boolean' },
         extensions: { $ref: '#/$defs/nodeExtensions' },
         on: { type: 'object', additionalProperties: { $ref: '#/$defs/actions' } },
         slots: {

@@ -110,6 +110,30 @@ function OptionsSetter(props: ReactSetterProps) {
     <SelectOptionsEditor value={props.value} draftKey={props.draftKey} onCommit={props.onChange} />
   );
 }
+function ColorSetter(props: ReactSetterProps) {
+  const value = props.error ? props.draft : String(props.value ?? '');
+  const change = (source: string) => {
+    props.onDraftChange(source);
+    props.onChange(source);
+  };
+  const hex = /^#[0-9a-fA-F]{6}$/.test(value) ? value : '#000000';
+  return (
+    <span className="color-setter">
+      <input
+        type="color"
+        aria-label={`${props.label} 颜色选取`}
+        value={hex}
+        onChange={(event) => change(event.target.value)}
+      />
+      <Input
+        id={props.id}
+        value={value}
+        placeholder="如 #1e293b 或 red"
+        onChange={(event) => change(event.target.value)}
+      />
+    </span>
+  );
+}
 const builtins: ReactSetterRegistry = Object.freeze({
   text: TextSetter,
   number: JsonSetter,
@@ -118,6 +142,7 @@ const builtins: ReactSetterRegistry = Object.freeze({
   select: SelectSetter,
   options: OptionsSetter,
   columns: TableColumnsEditor,
+  color: ColorSetter,
 });
 /** Each host supplies an immutable registry snapshot; the same ID intentionally replaces a setter. */
 export function createSetterRegistry(overrides: ReactSetterRegistry = {}): ReactSetterRegistry {

@@ -6,7 +6,12 @@ import type { ApplicationSchema, Json, NodeSchema, Value } from '../packages/sch
 import { styleProperties, styleValueError, type StyleProperty } from '../packages/schema/style';
 import { createRegistry } from '../packages/runtime/registry';
 import { compileApplication, PageRuntime } from '../packages/runtime/engine';
-import { RuntimeRenderer, type SlotRenderers } from '../packages/react-runtime/Renderer';
+import {
+  RuntimeRenderer,
+  materialStyleTarget,
+  type SlotRenderers,
+} from '../packages/react-runtime/Renderer';
+import { assertStyleSource, scopeStyleSource } from '../packages/schema/style-source';
 import { EditorDocument, findNode } from '../packages/editor/document';
 import { formReferences } from '../packages/editor/forms';
 import { sourceReferences, stateReferences } from '../packages/editor/data';
@@ -30,7 +35,7 @@ const boxRegistry = () =>
       box: {
         version: '1.0.0',
         props: {},
-        style: { target: 'root', properties: [...styleProperties] },
+        style: { target: 'root', properties: [...styleProperties], source: true },
         children: true,
       },
       host: { version: '1.0.0', props: {}, slots: { content: ['row'] } },
@@ -59,7 +64,7 @@ function app(node: NodeSchema = { id: 'box', component: 'box', props: {} }): App
   };
 }
 const box = ({ style, children }: { style?: CSSProperties; children?: React.ReactNode }) => (
-  <div data-testid="box" style={style}>
+  <div data-testid="box" style={style} {...materialStyleTarget(style)}>
     {children ?? '组件仍显示'}
   </div>
 );
@@ -251,6 +256,101 @@ describe('typed node style schema and document commands', () => {
 });
 
 describe('style runtime and real material targets', () => {
+  it('keeps visual gap values in sync when replacing or splitting a CSS shorthand', () => {
+    const document = new EditorDocument(app(), boxRegistry());
+    const node = () => findNode(document.getSnapshot().plan.pages.get('page')!.schema, 'box')!.node;
+    document.setStyleSource('page', 'box', ':root { gap: 4px; }');
+    expect(node().style).toMatchObject({
+      gap: literal('4px'),
+      rowGap: literal('4px'),
+      columnGap: literal('4px'),
+    });
+    document.setStyle('page', 'box', { rowGap: literal(6) });
+    expect(node().style).toEqual({ rowGap: literal(6), columnGap: literal('4px') });
+    expect(node().styleCss).toContain('column-gap: 4px');
+    document.setStyleSource('page', 'box', ':root { gap: 4px 8px; column-gap: 10px; }');
+    document.setStyle('page', 'box', { gap: literal(12) });
+    expect(node().style).toEqual({
+      gap: literal(12),
+      rowGap: literal('12px'),
+      columnGap: literal('12px'),
+    });
+    expect(node().styleCss).toContain('gap: 12px');
+  });
+  it.each([
+    'body { color: red; }',
+    ':root, body { color: red; }',
+    ':root + div { color: red; }',
+    ':root > div { color: red; }',
+    ':root:has(div) { color: red; }',
+    '@import "blocked.css";',
+    ':root { color: red; @media (width > 300px) { color: blue; } }',
+    ':root { position: fixed; }',
+    ':root { z-index: 10; }',
+    ':root { pointer-events: none; }',
+    ':root { --layer-modal: 999999; }',
+    ':root { background-image: var(--host-image); }',
+    ':root { font-family: "a;b"; }',
+    ':root { background-image: url("blocked.png"); }',
+    ':root { background-image: image-set("blocked.png" 1x); }',
+    ':root { background-image: u/**/rl("blocked.png"); }',
+    String.raw`:root { background-image: \75rl("blocked.png"); }`,
+  ])('rejects out-of-scope CSS before import or serialization (%s)', (source) => {
+    expect(() => assertStyleSource(source)).toThrow();
+    const schema = app({ id: 'box', component: 'box', props: {}, styleCss: source });
+    expect(() => compileApplication(schema, boxRegistry())).toThrow(/styleCss/);
+  });
+  it('applies source only to its component and cleans its scoped stylesheet on unmount', () => {
+    const schema = app({ id: 'box', component: 'box', props: {} });
+    schema.pages[0].children.push({ id: 'sibling', component: 'box', props: {} });
+    const doc = new EditorDocument(schema, boxRegistry());
+    doc.setStyle('page', 'box', { height: expression('state.width') });
+    doc.setStyleSource(
+      'page',
+      'box',
+      ':root { padding: 2px 4px; border-radius: 9px; color: red !important; color: blue; } :root:hover { opacity: .5; color: green; }',
+    );
+    doc.setStyle('page', 'box', { paddingTop: literal(6) });
+    const imported = JSON.parse(doc.exportJson());
+    const scoped = imported.pages[0].children[0] as NodeSchema;
+    expect(scoped.style).toMatchObject({
+      paddingTop: literal(6),
+      paddingRight: literal('4px'),
+      height: expression('state.width'),
+    });
+    expect(scoped.styleCss).toContain('padding-top: 6px');
+    expect(scoped.styleCss).not.toContain('padding:');
+    const runtime = new PageRuntime(compileApplication(imported, boxRegistry()), 'page');
+    const mounted = render(<RuntimeRenderer runtime={runtime} materials={ownMaterials} />);
+    const [target, sibling] = screen.getAllByTestId('box');
+    const mark = target.getAttribute('data-material-style');
+    expect(mark).toBeTruthy();
+    expect(sibling.hasAttribute('data-material-style')).toBe(false);
+    expect(getComputedStyle(target).borderRadius).toBe('9px');
+    expect(getComputedStyle(sibling).borderRadius).toBe('');
+    expect(target.style.height).toBe('10px');
+    const scope = `[data-material-style="${mark}"]`;
+    const stylesheet = [...document.head.querySelectorAll('style')].find((tag) =>
+      tag.textContent?.includes(scope),
+    )!;
+    const active = ':where(:not([hidden], [data-closed]))';
+    expect(stylesheet.textContent).toContain(`${scope}${active}:hover`);
+    expect(stylesheet.textContent).toContain(
+      `${scope.repeat(3)}${active} { color: red !important; }`,
+    );
+    const baseRule = [...stylesheet.sheet!.cssRules].find(
+      (rule): rule is CSSStyleRule =>
+        'selectorText' in rule && rule.selectorText === `${scope}${active}`,
+    )!;
+    expect(target.matches(baseRule.selectorText)).toBe(true);
+    for (const hidden of ['hidden', 'data-closed']) {
+      target.setAttribute(hidden, '');
+      expect(target.matches(baseRule.selectorText)).toBe(false);
+      target.removeAttribute(hidden);
+    }
+    mounted.unmount();
+    expect(stylesheet.isConnected).toBe(false);
+  });
   it('omits a bad dynamic item, reports once after commit, preserves other styles and recovers', () => {
     const source = app();
     source.pages[0].children[0].style = {

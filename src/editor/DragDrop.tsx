@@ -26,7 +26,8 @@ import {
 } from '../../packages/editor/material-template';
 import { catalog } from './catalog';
 import { errorText } from './errors';
-import { hitTestDrop } from './hit-test';
+import { locateDrop, type DropHit } from './hit-test';
+import { DragAlignment } from './drag-alignment';
 import { clippingBounds, documentViewport } from './CanvasHost';
 import {
   canvasBoundary,
@@ -62,6 +63,7 @@ interface Session {
   point: Point;
   pointerId?: number;
   candidate?: Candidate;
+  dropHit?: DropHit;
 }
 interface DragApi {
   stage?: CanvasStage;
@@ -343,7 +345,7 @@ export function DragDropProvider({
   };
   const choose = (intent: DropIntent) => {
     const drag = active.current;
-    if (drag) publish({ ...drag, candidate: inspect(drag, intent) });
+    if (drag) publish({ ...drag, dropHit: undefined, candidate: inspect(drag, intent) });
   };
   const begin = (source: DragSource, event?: ReactPointerEvent<HTMLElement>) => {
     const actual = current.current.document.getSnapshot();
@@ -453,9 +455,9 @@ export function DragDropProvider({
     }
     cancel();
   };
-  const hitTest = (point: Point): DropIntent | undefined => {
+  const hitTest = (hit: ReturnType<typeof canvasHitAtPoint>) => {
     const { plan, selection } = current.current.snapshot;
-    return hitTestDrop(point, plan, selection.pageId);
+    return locateDrop(hit, plan, selection.pageId);
   };
   // Window listeners stay stable while refs carry current document and drag state.
   const handlers = useRef({ begin, finish, cancel, hitTest, inspect, publish });
@@ -481,11 +483,12 @@ export function DragDropProvider({
       if (!drag || drag.method !== 'pointer') return;
       if (drag.pointerId !== event.pointerId) return;
       event.preventDefault();
-      const intent = handlers.current.hitTest(point);
+      const dropHit = handlers.current.hitTest(canvasHitAtPoint(point));
       handlers.current.publish({
         ...drag,
         point,
-        candidate: intent ? handlers.current.inspect(drag, intent) : undefined,
+        dropHit,
+        candidate: dropHit ? handlers.current.inspect(drag, dropHit.intent) : undefined,
       });
     };
     const up = (event: PointerEvent, owner: Document) => {
@@ -499,10 +502,12 @@ export function DragDropProvider({
         return;
       if (active.current?.method === 'pointer') {
         const drag = active.current,
-          intent = handlers.current.hitTest(point);
+          dropHit = handlers.current.hitTest(canvasHitAtPoint(point));
         handlers.current.publish({
           ...drag,
-          candidate: intent ? handlers.current.inspect(drag, intent) : undefined,
+          point,
+          dropHit,
+          candidate: dropHit ? handlers.current.inspect(drag, dropHit.intent) : undefined,
         });
         suppressClick.current = capture.current?.element ?? null;
         handlers.current.finish();
@@ -698,16 +703,20 @@ export function DragDropProvider({
     const scroll = () => {
       const drag = active.current;
       if (drag?.method !== 'pointer') return;
-      const scrolled = autoScrollAtPoint(drag.point);
-      const intent = handlers.current.hitTest(drag.point);
+      let hit = canvasHitAtPoint(drag.point);
+      const scrolled = autoScrollAtPoint(drag.point, hit.element);
+      if (scrolled) hit = canvasHitAtPoint(drag.point);
+      const dropHit = handlers.current.hitTest(hit);
       if (
         scrolled ||
-        (intent ? intentKey(intent) : '') !==
+        dropHit?.reference !== drag.dropHit?.reference ||
+        (dropHit ? intentKey(dropHit.intent) : '') !==
           (drag.candidate ? intentKey(drag.candidate.intent) : '')
       )
         handlers.current.publish({
           ...drag,
-          candidate: intent ? handlers.current.inspect(drag, intent) : undefined,
+          dropHit,
+          candidate: dropHit ? handlers.current.inspect(drag, dropHit.intent) : undefined,
         });
       frame = requestAnimationFrame(scroll);
     };
@@ -767,6 +776,12 @@ export function DragDropProvider({
     };
     walk(visibleSession.plan.pages.get(visibleSession.pageId)!.schema.children);
   }
+  const alignmentHit =
+    visibleSession?.method === 'pointer' &&
+    visibleSession.candidate?.valid &&
+    visibleSession.dropHit?.surface
+      ? visibleSession.dropHit
+      : undefined;
   return (
     <DragContext.Provider
       value={{
@@ -793,59 +808,72 @@ export function DragDropProvider({
       {children}
       {createPortal(
         visibleSession ? (
-          <aside
-            className={`drag-feedback ${visibleSession.method} ${visibleSession.candidate && !visibleSession.candidate.valid ? 'invalid' : ''}`}
-            aria-label="拖放操作"
-            style={
-              visibleSession.method === 'pointer'
-                ? {
-                    left: Math.max(8, Math.min(visibleSession.point.x + 14, innerWidth - 280)),
-                    top: Math.max(8, Math.min(visibleSession.point.y + 18, innerHeight - 140)),
-                  }
-                : undefined
-            }
-          >
-            <strong>
-              {visibleSession.source.kind === 'material'
-                ? `新增 ${catalog[visibleSession.source.component]?.title}`
-                : `移动 ${nodeLabel(visibleSession.plan, visibleSession.pageId, visibleSession.source.nodeId)}`}
-            </strong>
-            <p role="status">
-              {visibleSession.candidate
-                ? `${visibleSession.candidate.valid ? '放入：' : '不可放入：'}${visibleSession.candidate.label}`
-                : '移动到画布、组件树或插槽落点'}
-            </p>
-            {visibleSession.candidate?.reason && <small>{visibleSession.candidate.reason}</small>}
-            {visibleSession.method === 'keyboard' ? (
-              <>
-                <label ref={destination}>
-                  拖放位置
-                  <Select
-                    autoFocus
-                    aria-label="拖放位置"
-                    value={
-                      visibleSession.candidate ? intentKey(visibleSession.candidate.intent) : ''
-                    }
-                    onValueChange={(event) => choose(JSON.parse(event))}
-                  >
-                    {keyboardTargets.map((intent) => (
-                      <option key={intentKey(intent)} value={intentKey(intent)}>
-                        {intentLabel(visibleSession.plan, visibleSession.pageId, intent)}
-                      </option>
-                    ))}
-                  </Select>
-                </label>
-                <div>
-                  <Button disabled={!visibleSession.candidate?.valid} onClick={finish}>
-                    确认放置
-                  </Button>
-                  <Button onClick={cancel}>取消拖动</Button>
-                </div>
-              </>
-            ) : (
-              <small>松开放置 · Esc 取消</small>
+          <>
+            {alignmentHit && visibleSession.candidate?.target && (
+              <DragAlignment
+                point={visibleSession.point}
+                hit={alignmentHit}
+                target={visibleSession.candidate.target}
+                page={visibleSession.plan.pages.get(visibleSession.pageId)!.schema}
+                sourceId={
+                  visibleSession.source.kind === 'node' ? visibleSession.source.nodeId : undefined
+                }
+              />
             )}
-          </aside>
+            <aside
+              className={`drag-feedback ${visibleSession.method} ${visibleSession.candidate && !visibleSession.candidate.valid ? 'invalid' : ''}`}
+              aria-label="拖放操作"
+              style={
+                visibleSession.method === 'pointer'
+                  ? {
+                      left: Math.max(8, Math.min(visibleSession.point.x + 14, innerWidth - 280)),
+                      top: Math.max(8, Math.min(visibleSession.point.y + 18, innerHeight - 140)),
+                    }
+                  : undefined
+              }
+            >
+              <strong>
+                {visibleSession.source.kind === 'material'
+                  ? `新增 ${catalog[visibleSession.source.component]?.title}`
+                  : `移动 ${nodeLabel(visibleSession.plan, visibleSession.pageId, visibleSession.source.nodeId)}`}
+              </strong>
+              <p role="status">
+                {visibleSession.candidate
+                  ? `${visibleSession.candidate.valid ? '放入：' : '不可放入：'}${visibleSession.candidate.label}`
+                  : '移动到画布、组件树或插槽落点'}
+              </p>
+              {visibleSession.candidate?.reason && <small>{visibleSession.candidate.reason}</small>}
+              {visibleSession.method === 'keyboard' ? (
+                <>
+                  <label ref={destination}>
+                    拖放位置
+                    <Select
+                      autoFocus
+                      aria-label="拖放位置"
+                      value={
+                        visibleSession.candidate ? intentKey(visibleSession.candidate.intent) : ''
+                      }
+                      onValueChange={(event) => choose(JSON.parse(event))}
+                    >
+                      {keyboardTargets.map((intent) => (
+                        <option key={intentKey(intent)} value={intentKey(intent)}>
+                          {intentLabel(visibleSession.plan, visibleSession.pageId, intent)}
+                        </option>
+                      ))}
+                    </Select>
+                  </label>
+                  <div>
+                    <Button disabled={!visibleSession.candidate?.valid} onClick={finish}>
+                      确认放置
+                    </Button>
+                    <Button onClick={cancel}>取消拖动</Button>
+                  </div>
+                </>
+              ) : (
+                <small>松开放置 · Esc 取消</small>
+              )}
+            </aside>
+          </>
         ) : (
           visibleNotice && (
             <div

@@ -9,10 +9,11 @@ import {
 } from '../src/editor/coordinates';
 import { clippingBounds, CanvasHost, nearestInstance } from '../src/editor/CanvasHost';
 import { nodeRect } from '../src/editor/geometry';
-import { hitTestDrop } from '../src/editor/hit-test';
+import { hitTestDrop, locateDrop } from '../src/editor/hit-test';
+import { measureDragAlignment } from '../src/editor/drag-alignment';
 import { autoScrollAtPoint } from '../src/editor/DragDrop';
 import { compileApplication } from '../packages/runtime/engine';
-import { selectionApplication, selectionRegistry } from './multiselection-fixture';
+import { selectionApplication, selectionRegistry, selectionText } from './multiselection-fixture';
 
 const cleanups: (() => void)[] = [];
 afterEach(() => {
@@ -246,6 +247,60 @@ describe('canvas-stage trusted document geometry', () => {
     contents.style.cssText = 'display:contents;overflow:auto';
     f.box(clip, 10, 20, 0, 0);
     expect(clippingBounds(a.element, f.surface)).toBeUndefined();
+  });
+
+  it('maps a guide from the hit iframe instance and excludes source and other row templates', () => {
+    const f = boundary(0.75, 1.25);
+    const schema = selectionApplication();
+    const page = schema.pages[0];
+    const cardSchema = page.children[0].children![1];
+    const footer = cardSchema.slots!.footer.children;
+    footer.push(selectionText('source'));
+    const plan = compileApplication(schema, selectionRegistry());
+    const card = marker(f.child, 'card', f.surface);
+    const lane = f.child.createElement('div');
+    lane.style.cssText = 'display:flex;flex-direction:row;overflow:hidden;width:250px;height:100px';
+    f.box(lane, 20, 20, 250, 100);
+    card.element.append(lane);
+    const hitCopy = marker(f.child, 'slot-wrap', lane);
+    const moving = marker(f.child, 'source', lane);
+    const dropZone = f.child.createElement('div');
+    dropZone.dataset.dropIntent = JSON.stringify({
+      kind: 'inside',
+      parentId: 'card',
+      slot: 'footer',
+    });
+    lane.append(dropZone);
+    const staleCopy = marker(f.child, 'slot-wrap', lane);
+    const staleSource = marker(f.child, 'source', lane);
+    const staleZone = dropZone.cloneNode();
+    lane.append(staleZone);
+    const foreign = marker(f.child, 'body', lane);
+    f.box(hitCopy.text, 20, 45, 100, 40);
+    f.box(moving.text, 125, 36, 100, 40);
+    f.box(staleCopy.text, 20, 36, 100, 40);
+    f.box(staleSource.text, 125, 60, 100, 40);
+    f.box(foreign.text, 40, 36, 100, 40);
+    const target = { parentId: 'card', slot: 'footer', index: 0 };
+    f.lookup(document, f.frame);
+    f.lookup(f.child, hitCopy.text);
+    const point = toParentPoint({ x: 23, y: 47 }, f.child)!;
+    const hit = locateDrop(canvasHitAtPoint(point), plan, 'a')!;
+    expect(hit.intent).toEqual({ kind: 'before', nodeId: 'slot-wrap' });
+    expect(hit.reference).toBe(hitCopy.element);
+    expect(measureDragAlignment(point, hit, target, page, 'source')).toEqual({
+      axis: 'y',
+      position: 140.5,
+      start: 116.75,
+      end: 195.75,
+    });
+    const far = toParentPoint({ x: 40, y: 36 }, f.child)!;
+    expect(measureDragAlignment(far, hit, target, page, 'source')).toBeUndefined();
+    expect(measureDragAlignment(far, hit, target, page)?.position).toBe(far.y);
+    moving.element.dataset.editorInactive = 'condition';
+    expect(measureDragAlignment(far, hit, target, page)).toBeUndefined();
+    f.retire();
+    expect(measureDragAlignment(point, hit, target, page, 'source')).toBeUndefined();
   });
 
   it('G4 reveals and autoscrolls child boundaries before parent pan without touching the parent window', () => {

@@ -1181,3 +1181,172 @@ export function useKeyboardClipboard({
       : null;
   return { onKeyDown, feedback: displayed };
 }
+
+/** Ctrl/Cmd+A selects every top-level component of the active page (Yidao parity). */
+export function useKeyboardSelectAll({
+  document,
+  snapshot,
+  host,
+  domain,
+  enabled = true,
+}: {
+  document: EditorDocument;
+  snapshot: EditorSnapshot;
+  host: RefObject<HTMLDivElement | null>;
+  domain: 'canvas' | 'tree';
+  enabled?: boolean;
+}) {
+  const canAuthor = useAuthorGuard(document, snapshot, undefined, enabled);
+  const drag = useDragDrop();
+  const stage = useCanvasStage();
+  const composing = useRef(false);
+  useLayoutEffect(() => {
+    const element = host.current;
+    if (!element) return;
+    const start = () => {
+      composing.current = true;
+    };
+    const end = () => {
+      composing.current = false;
+    };
+    element.addEventListener('compositionstart', start, true);
+    element.addEventListener('compositionend', end, true);
+    return () => {
+      element.removeEventListener('compositionstart', start, true);
+      element.removeEventListener('compositionend', end, true);
+    };
+  }, [host, host.current]);
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (!(event.ctrlKey || event.metaKey) || /^[cvxs]$/i.test(event.key)) return;
+    if (event.key !== 'a' && event.key !== 'A') return;
+    const native = event.nativeEvent,
+      element = host.current;
+    if (
+      !element ||
+      event.defaultPrevented ||
+      native.defaultPrevented ||
+      consumed.has(native) ||
+      event.repeat ||
+      event.altKey ||
+      native.isComposing ||
+      native.keyCode === 229 ||
+      composing.current ||
+      !enabled ||
+      !authorHostCurrent(element, domain, stage) ||
+      drag?.enabled === false ||
+      drag?.isInteracting ||
+      snapshot.plan.pages.get(snapshot.selection.pageId)?.schema.code?.enabled ||
+      !canAuthor()
+    )
+      return;
+    const target = event.target;
+    if (
+      !hostElement(target, element) ||
+      !element.contains(target) ||
+      target.shadowRoot ||
+      target.isContentEditable ||
+      target.closest(
+        'input,textarea,select,[contenteditable]:not([contenteditable="false"]),.monaco-editor,.code-editor,[role="textbox"],[role="combobox"]',
+      )
+    )
+      return;
+    const page = snapshot.plan.pages.get(snapshot.selection.pageId)?.schema;
+    if (!page) return;
+    const ids = topSelectedNodeIds(page, pageNodeOrder(page));
+    if (!ids.length) return;
+    consumed.add(native);
+    event.preventDefault();
+    event.stopPropagation();
+    document.selectMany(snapshot.selection.pageId, ids);
+  };
+  return { onKeyDown };
+}
+
+/** Arrow up/down reorders the primary selected node among its siblings (canvas only). */
+export function useKeyboardNudge({
+  document,
+  snapshot,
+  host,
+  enabled = true,
+}: {
+  document: EditorDocument;
+  snapshot: EditorSnapshot;
+  host: RefObject<HTMLDivElement | null>;
+  enabled?: boolean;
+}) {
+  const canAuthor = useAuthorGuard(document, snapshot, undefined, enabled);
+  const { navigation } = useEditorNavigation();
+  const drag = useDragDrop();
+  const stage = useCanvasStage();
+  const composing = useRef(false);
+  const [error, setError] = useState('');
+  useLayoutEffect(() => {
+    const element = host.current;
+    if (!element) return;
+    const start = () => {
+      composing.current = true;
+    };
+    const end = () => {
+      composing.current = false;
+    };
+    element.addEventListener('compositionstart', start, true);
+    element.addEventListener('compositionend', end, true);
+    return () => {
+      element.removeEventListener('compositionstart', start, true);
+      element.removeEventListener('compositionend', end, true);
+    };
+  }, [host, host.current]);
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    const native = event.nativeEvent,
+      element = host.current;
+    if (
+      !element ||
+      event.defaultPrevented ||
+      native.defaultPrevented ||
+      consumed.has(native) ||
+      native.isComposing ||
+      native.keyCode === 229 ||
+      composing.current ||
+      !enabled ||
+      !authorHostCurrent(element, 'canvas', stage) ||
+      drag?.enabled === false ||
+      drag?.isInteracting ||
+      snapshot.plan.pages.get(snapshot.selection.pageId)?.schema.code?.enabled ||
+      !canAuthor()
+    )
+      return;
+    const target = event.target;
+    if (
+      !hostElement(target, element) ||
+      target !== element ||
+      element.ownerDocument.activeElement !== target ||
+      target.shadowRoot ||
+      target.isContentEditable ||
+      target.closest(
+        'input,textarea,select,[contenteditable]:not([contenteditable="false"]),.monaco-editor,.code-editor,[role="textbox"],[role="combobox"]',
+      )
+    )
+      return;
+    const path = native.composedPath();
+    if (path[0] !== target || shadowPath(path, element)) return;
+    const nodeId = snapshot.selection.nodeId;
+    if (!nodeId) return;
+    consumed.add(native);
+    event.preventDefault();
+    event.stopPropagation();
+    try {
+      navigation.retireClipboardPasteForCommand(document, 'canvas');
+      document.reorderNode(
+        snapshot.selection.pageId,
+        nodeId,
+        event.key === 'ArrowUp' ? 'up' : 'down',
+      );
+      setError('');
+    } catch (cause) {
+      setError(errorText(cause));
+    }
+  };
+  return { onKeyDown, error };
+}

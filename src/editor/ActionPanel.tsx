@@ -1,5 +1,6 @@
 import { bindingDraft, parseBinding, ValueInput, type BindingDraft } from './ValueEditor';
-import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Dialog } from '@base-ui/react/dialog';
 import type { EditorDocument, EditorSnapshot } from '../../packages/editor/document';
 import { nodeScopeNames } from '../../packages/editor/scope';
 import type { ApplicationMethodReference } from '../../packages/editor/data';
@@ -10,7 +11,7 @@ import type {
   NodeSchema,
   PageSchema,
 } from '../../packages/schema/types';
-import { useEffect, useLayoutEffect, useReducer, useRef } from 'react';
+import { useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
 import { registry } from '../materials';
 import { Button, Select, Tip } from '../ui/primitives';
 import { DraftNotice, useDraft, useEditorSession, useSessionState } from './session';
@@ -27,6 +28,32 @@ type CallDraft = {
   input: Record<string, BindingDraft>;
   resultTo: string;
 };
+function bindingSummary(binding: BindingDraft): string {
+  switch (binding.kind) {
+    case 'literal':
+      return binding.text;
+    case 'expression':
+      return `{${binding.text}}`;
+    case 'stateRef':
+      return `状态 ${binding.stateId}`;
+    case 'dataRef':
+      return `${binding.sourceId}.${binding.path}`;
+    case 'fieldRef':
+      return `${binding.formId}.${binding.fieldId}`;
+    case 'formValues':
+      return `表单 ${binding.formId}`;
+    default:
+      return '';
+  }
+}
+/** One-line overview for the compact action row; full editing moves into the dialog. */
+function callSummary(call: CallDraft): string {
+  const parts = Object.entries(call.input)
+    .filter(([, binding]) => binding.kind !== 'unset')
+    .map(([name, binding]) => `${name}=${bindingSummary(binding)}`);
+  const result = call.resultTo ? ` → ${call.resultTo}` : '';
+  return (parts.join('、') + result) || '未配置参数';
+}
 export type OpenApplicationMethods = (
   trigger: HTMLButtonElement,
   target?: { methodId: string } | { onCreated: (method: ApplicationMethod) => void },
@@ -131,15 +158,24 @@ export function ActionChainEditor({
   };
   const { drafts } = useEditorSession();
   const [draft, setDraft, status] = useDraft(draftKey, source, initial);
+  // Yidao-style authoring: the list shows compact rows, parameters edit in a dialog.
+  const [editingCall, setEditingCall] = useState<number | null>(null);
   const referenceFocus = useRef<HTMLElement>(null);
   const focusedCall = draft.calls.find(
     (call) => call.id === focusReference?.callId && call.action === focusReference.actionId,
   );
   useEffect(() => {
     if (!focusReference || !authoringAllowed) return;
+    // Opening the dialog both surfaces the parameters and focuses them; the
+    // compact row still scrolls into view once the dialog closes.
+    setEditingCall((current) => {
+      if (current !== null) return current;
+      return draft.calls.findIndex(
+        (call) => call.id === focusReference.callId && call.action === focusReference.actionId,
+      );
+    });
     const frame = requestAnimationFrame(() => {
       const target = referenceFocus.current;
-      target?.focus({ preventScroll: true });
       target?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
     });
     return () => cancelAnimationFrame(frame);
@@ -334,6 +370,7 @@ export function ActionChainEditor({
         },
       ],
     }));
+    setEditingCall(draft.calls.length);
   };
   const appendMethod = (method: ApplicationMethod) => {
     if (!canAuthor()) return;
@@ -350,6 +387,7 @@ export function ActionChainEditor({
       error: '',
       calls: [...current.calls, call],
     }));
+    setEditingCall(latest.current.draft.calls.length);
   };
   const save = () => {
     const current = latest.current;
@@ -381,6 +419,245 @@ export function ActionChainEditor({
       setDraft((d) => ({ ...d, error: errorText(error) }));
     }
   };
+  // Full parameter editing for one call. Rendered inside the config dialog;
+  // the compact list row only shows name and summary.
+  const renderCallEditor = (call: CallDraft, index: number) => (
+    <>
+      <Select
+        aria-label={`动作 ${index + 1} 类型`}
+        value={call.action}
+        onValueChange={(action) =>
+          update(index, {
+            action,
+            resultTo: '',
+            input: Object.fromEntries(
+              Object.entries(actionRegistry.actions[action].input).map(([name, field]) => [
+                name,
+                action === 'app.navigate' && name === 'pageId'
+                  ? bindingDraft(
+                      {
+                        kind: 'literal',
+                        value: applicationDefinition?.entryPageId ?? page.id,
+                      },
+                      field,
+                    )
+                  : action === 'app.navigate' && name === 'replace'
+                    ? bindingDraft({ kind: 'literal', value: false }, field)
+                    : bindingDraft(undefined, field),
+              ]),
+            ),
+          })
+        }
+      >
+        {!actionContract(call.action) && (
+          <option value={call.action} disabled>
+            已不可用 · {call.action}
+          </option>
+        )}
+        {methodActionIds.length > 0 ? (
+          <>
+            <optgroup label="常用动作">{standardActionIds.map(renderActionOption)}</optgroup>
+            <optgroup label="应用自定义方法">
+              {methodActionIds.map(renderActionOption)}
+            </optgroup>
+          </>
+        ) : (
+          standardActionIds.map(renderActionOption)
+        )}
+      </Select>
+      {renderMethodDescription(call.action)}
+      {onOpenMethods && applicationMethods.has(call.action) && (
+        <Button
+          type="button"
+          variant="ghost"
+          className="page-logic-methods-button"
+          disabled={!!drag?.isInteracting || drag?.enabled === false}
+          onClick={(event) => {
+            const method = applicationMethods.get(call.action);
+            if (method && canAuthor())
+              onOpenMethods(event.currentTarget, { methodId: method.id });
+          }}
+        >
+          编辑 JS
+        </Button>
+      )}
+      {!actionContract(call.action) && (
+        <p className="editor-note" role="status">
+          此动作已不可用。请选择其他动作，或移除此项后再保存。
+        </p>
+      )}
+      {Object.entries(actionContract(call.action)?.input ?? {}).map(([name, field]) => {
+        const callId = call.id;
+        const action = call.action;
+        const binding = call.input[name];
+        const referenceOwner: EventReferenceOwner | undefined =
+          eventReference && !pageScope && referenceEntry
+            ? {
+                ...eventReference,
+                draftKey,
+                eventSource: source,
+                entryIdentity: referenceEntry,
+                draftIdentity: draft,
+                callIdentity: call,
+                index,
+                callId,
+                action,
+                parameter: name,
+                subscribeDraft: drafts.subscribe,
+                requestCallerRender: requestReferenceOwnerRender,
+                canChoose: () => {
+                  const current = referenceCurrent.current;
+                  const context = current.eventReference;
+                  return (
+                    active.current &&
+                    authoringAllowed &&
+                    current.authoringAllowed &&
+                    !pageScope &&
+                    !current.pageScope &&
+                    !!context &&
+                    context.document === eventReference.document &&
+                    context.snapshot.plan === eventReference.snapshot.plan &&
+                    context.snapshot.selection === eventReference.snapshot.selection &&
+                    context.nodeId === eventReference.nodeId &&
+                    context.eventName === eventReference.eventName &&
+                    context.savedActions === eventReference.savedActions &&
+                    current.page === page &&
+                    current.draftKey === draftKey &&
+                    current.source === source &&
+                    current.savedEventSource === savedEventSource &&
+                    source === savedEventSource &&
+                    current.referenceEntry === referenceEntry &&
+                    referenceEntry.value === draft &&
+                    current.draft === draft &&
+                    !current.status.stale &&
+                    draft.calls[index] === call &&
+                    call.id === callId &&
+                    call.action === action &&
+                    call.input[name] === binding &&
+                    canSave?.() === true
+                  );
+                },
+              }
+            : undefined;
+        const bindingKind = binding?.kind;
+        const bindingSourceId = binding?.sourceId;
+        const bindingPath = binding?.path;
+        const boundSource = page.dataSources?.find((item) => item.id === bindingSourceId);
+        const canChoosePageParameter = () => {
+          const allowed =
+            canReferencePage() &&
+            draft.calls[index] === call &&
+            call.id === callId &&
+            call.action === action &&
+            call.input[name] === binding &&
+            binding.kind === bindingKind &&
+            binding.sourceId === bindingSourceId &&
+            binding.path === bindingPath &&
+            bindingKind === 'dataRef' &&
+            !!boundSource &&
+            page.dataSources?.find((item) => item.id === bindingSourceId) === boundSource &&
+            actionRegistry.actions[action]?.input[name] !== undefined;
+          if (!allowed) return refusePageReference();
+          return true;
+        };
+        const pageReferenceOwner: PageEntryReferenceOwner | undefined =
+          pageReferenceEnabled && pageReference && pageEntry
+            ? {
+                ...pageReference,
+                draftKey,
+                entryIdentity: pageEntry,
+                bindingIdentity: binding,
+                parentGeneration: pageOwnerGeneration,
+                authoringAllowed,
+                draftIdentity: draft,
+                callIdentity: call,
+                index,
+                callId,
+                action,
+                parameter: name,
+                subscribeDraft: drafts.subscribe,
+                requestCallerRender: requestPageReferenceRender,
+                canChoose: canChoosePageParameter,
+                choosePath: (path) => {
+                  if (!canChoosePageParameter()) {
+                    requestPageReferenceRender();
+                    return;
+                  }
+                  const calls = [...draft.calls];
+                  calls[index] = {
+                    ...call,
+                    input: { ...call.input, [name]: { ...binding, path } },
+                  };
+                  setDraft({ ...draft, calls, error: '' });
+                },
+              }
+            : undefined;
+        return action === 'app.navigate' &&
+          name === 'pageId' &&
+          (binding.kind === 'literal' || binding.kind === 'unset') ? (
+          <label className="action-parameter" key={name}>
+            <span className="action-parameter-label">
+              <span>目标页面 *</span>
+              <code>string</code>
+            </span>
+            <Select
+              aria-label="目标页面"
+              value={binding.kind === 'literal' ? binding.text : ''}
+              onValueChange={(pageId) =>
+                update(index, {
+                  input: {
+                    ...call.input,
+                    [name]: bindingDraft({ kind: 'literal', value: pageId }, field),
+                  },
+                })
+              }
+            >
+              {(applicationDefinition?.pages ?? [page]).map((target) => (
+                <option key={target.id} value={target.id}>
+                  {target.title} · {target.id}
+                </option>
+              ))}
+            </Select>
+          </label>
+        ) : (
+          <ValueInput
+            key={name}
+            label={name}
+            field={field}
+            draft={call.input[name]}
+            page={page}
+            pageScope={pageScope}
+            eventReferenceOwner={referenceOwner}
+            pageReferenceOwner={pageReferenceOwner}
+            onChange={(value) => update(index, { input: { ...call.input, [name]: value } })}
+          />
+        );
+      })}
+      {actionContract(call.action)?.output && (
+        <label className="action-parameter">
+          返回值写入
+          <Select
+            aria-label={`动作 ${index + 1} 结果状态`}
+            value={call.resultTo}
+            onValueChange={(resultTo) => update(index, { resultTo })}
+          >
+            <option value="">不保存返回值</option>
+            {page.state
+              .filter(
+                (state) =>
+                  actionRegistry.actions[call.action].output === 'json' ||
+                  actionRegistry.actions[call.action].output === state.type,
+              )
+              .map((state) => (
+                <option key={state.id} value={state.id}>
+                  {state.id}
+                </option>
+              ))}
+          </Select>
+        </label>
+      )}
+    </>
+  );
   return (
     <>
       <p className="editor-note">动作按顺序执行，失败后停止。</p>
@@ -391,32 +668,27 @@ export function ActionChainEditor({
       ) : (
         <ExpressionContext scopeNames={scopes} eventAllowed={true} />
       )}
-      <fieldset
-        className="action-chain-controls"
-        disabled={!authoringAllowed}
-        inert={!authoringAllowed}
-      >
-        <DraftNotice
-          {...status}
-          reset={() => {
-            if (canAuthor()) latest.current.status.reset();
+      <DraftNotice
+        {...status}
+        reset={() => {
+          if (canAuthor()) latest.current.status.reset();
+        }}
+        rebase={() => {
+          if (canAuthor()) latest.current.status.rebase();
+        }}
+      />
+      {focusReference && !focusedCall && (
+        <div
+          ref={(element) => {
+            referenceFocus.current = element;
           }}
-          rebase={() => {
-            if (canAuthor()) latest.current.status.rebase();
-          }}
-        />
-        {focusReference && !focusedCall && (
-          <div
-            ref={(element) => {
-              referenceFocus.current = element;
-            }}
-            className="editor-note"
-            role="status"
-            tabIndex={-1}
-          >
-            此调用已在草稿中移除或替换。当前草稿已保留。
-          </div>
-        )}
+          className="editor-note"
+          role="status"
+          tabIndex={-1}
+        >
+          此调用已在草稿中移除或替换。当前草稿已保留。
+        </div>
+      )}
         {draft.calls.map((call, index) => (
           <section
             ref={call === focusedCall ? referenceFocus : undefined}
@@ -426,9 +698,24 @@ export function ActionChainEditor({
             key={call.id}
           >
             <header>
-              <strong>
-                {index + 1}. {actionLabel(call.action)}
-              </strong>
+              <button
+                type="button"
+                className="action-card-open"
+                aria-label={`打开动作 ${index + 1} 配置`}
+                onClick={() => {
+                  // Opening the dialog is a view action; actual editing stays
+                  // gated by the disabled fieldset and control-level guards.
+                  setEditingCall(index);
+                }}
+              >
+                <strong>
+                  {index + 1}. {actionLabel(call.action)}
+                  {!actionContract(call.action) && (
+                    <span className="action-card-badge">已不可用</span>
+                  )}
+                </strong>
+                <span className="action-card-summary">{callSummary(call)}</span>
+              </button>
               <div className="action-card-tools">
                 {[
                   { label: '上移动作', Icon: ArrowUp, offset: -1 },
@@ -441,6 +728,7 @@ export function ActionChainEditor({
                       disabled={index + offset < 0 || index + offset >= draft.calls.length}
                       onClick={() => {
                         if (!canAuthor()) return;
+                        setEditingCall(null);
                         setDraft((d) => {
                           const calls = [...d.calls];
                           [calls[index], calls[index + offset]] = [
@@ -455,12 +743,24 @@ export function ActionChainEditor({
                     </Button>
                   </Tip>
                 ))}
+                <Tip content="编辑动作">
+                  <Button
+                    className="icon-button"
+                    aria-label={`编辑动作 ${index + 1}`}
+                    onClick={() => {
+                      setEditingCall(index);
+                    }}
+                  >
+                    <Pencil size={13} />
+                  </Button>
+                </Tip>
                 <Tip content="删除动作">
                   <Button
                     className="icon-button"
                     aria-label={`删除动作 ${index + 1}`}
                     onClick={() => {
                       if (!canAuthor()) return;
+                      setEditingCall(null);
                       setDraft((d) => ({
                         ...d,
                         error: '',
@@ -473,239 +773,6 @@ export function ActionChainEditor({
                 </Tip>
               </div>
             </header>
-            <Select
-              aria-label={`动作 ${index + 1} 类型`}
-              value={call.action}
-              onValueChange={(action) =>
-                update(index, {
-                  action,
-                  resultTo: '',
-                  input: Object.fromEntries(
-                    Object.entries(actionRegistry.actions[action].input).map(([name, field]) => [
-                      name,
-                      action === 'app.navigate' && name === 'pageId'
-                        ? bindingDraft(
-                            {
-                              kind: 'literal',
-                              value: applicationDefinition?.entryPageId ?? page.id,
-                            },
-                            field,
-                          )
-                        : action === 'app.navigate' && name === 'replace'
-                          ? bindingDraft({ kind: 'literal', value: false }, field)
-                          : bindingDraft(undefined, field),
-                    ]),
-                  ),
-                })
-              }
-            >
-              {!actionContract(call.action) && (
-                <option value={call.action} disabled>
-                  已不可用 · {call.action}
-                </option>
-              )}
-              {methodActionIds.length > 0 ? (
-                <>
-                  <optgroup label="常用动作">{standardActionIds.map(renderActionOption)}</optgroup>
-                  <optgroup label="应用自定义方法">
-                    {methodActionIds.map(renderActionOption)}
-                  </optgroup>
-                </>
-              ) : (
-                standardActionIds.map(renderActionOption)
-              )}
-            </Select>
-            {renderMethodDescription(call.action)}
-            {onOpenMethods && applicationMethods.has(call.action) && (
-              <Button
-                type="button"
-                variant="ghost"
-                className="page-logic-methods-button"
-                disabled={!!drag?.isInteracting || drag?.enabled === false}
-                onClick={(event) => {
-                  const method = applicationMethods.get(call.action);
-                  if (method && canAuthor())
-                    onOpenMethods(event.currentTarget, { methodId: method.id });
-                }}
-              >
-                编辑 JS
-              </Button>
-            )}
-            {!actionContract(call.action) && (
-              <p className="editor-note" role="status">
-                此动作已不可用。请选择其他动作，或移除此项后再保存。
-              </p>
-            )}
-            {Object.entries(actionContract(call.action)?.input ?? {}).map(([name, field]) => {
-              const callId = call.id;
-              const action = call.action;
-              const binding = call.input[name];
-              const referenceOwner: EventReferenceOwner | undefined =
-                eventReference && !pageScope && referenceEntry
-                  ? {
-                      ...eventReference,
-                      draftKey,
-                      eventSource: source,
-                      entryIdentity: referenceEntry,
-                      draftIdentity: draft,
-                      callIdentity: call,
-                      index,
-                      callId,
-                      action,
-                      parameter: name,
-                      subscribeDraft: drafts.subscribe,
-                      requestCallerRender: requestReferenceOwnerRender,
-                      canChoose: () => {
-                        const current = referenceCurrent.current;
-                        const context = current.eventReference;
-                        return (
-                          active.current &&
-                          authoringAllowed &&
-                          current.authoringAllowed &&
-                          !pageScope &&
-                          !current.pageScope &&
-                          !!context &&
-                          context.document === eventReference.document &&
-                          context.snapshot.plan === eventReference.snapshot.plan &&
-                          context.snapshot.selection === eventReference.snapshot.selection &&
-                          context.nodeId === eventReference.nodeId &&
-                          context.eventName === eventReference.eventName &&
-                          context.savedActions === eventReference.savedActions &&
-                          current.page === page &&
-                          current.draftKey === draftKey &&
-                          current.source === source &&
-                          current.savedEventSource === savedEventSource &&
-                          source === savedEventSource &&
-                          current.referenceEntry === referenceEntry &&
-                          referenceEntry.value === draft &&
-                          current.draft === draft &&
-                          !current.status.stale &&
-                          draft.calls[index] === call &&
-                          call.id === callId &&
-                          call.action === action &&
-                          call.input[name] === binding &&
-                          canSave?.() === true
-                        );
-                      },
-                    }
-                  : undefined;
-              const bindingKind = binding?.kind;
-              const bindingSourceId = binding?.sourceId;
-              const bindingPath = binding?.path;
-              const boundSource = page.dataSources?.find((item) => item.id === bindingSourceId);
-              const canChoosePageParameter = () => {
-                const allowed =
-                  canReferencePage() &&
-                  draft.calls[index] === call &&
-                  call.id === callId &&
-                  call.action === action &&
-                  call.input[name] === binding &&
-                  binding.kind === bindingKind &&
-                  binding.sourceId === bindingSourceId &&
-                  binding.path === bindingPath &&
-                  bindingKind === 'dataRef' &&
-                  !!boundSource &&
-                  page.dataSources?.find((item) => item.id === bindingSourceId) === boundSource &&
-                  actionRegistry.actions[action]?.input[name] !== undefined;
-                if (!allowed) return refusePageReference();
-                return true;
-              };
-              const pageReferenceOwner: PageEntryReferenceOwner | undefined =
-                pageReferenceEnabled && pageReference && pageEntry
-                  ? {
-                      ...pageReference,
-                      draftKey,
-                      entryIdentity: pageEntry,
-                      bindingIdentity: binding,
-                      parentGeneration: pageOwnerGeneration,
-                      authoringAllowed,
-                      draftIdentity: draft,
-                      callIdentity: call,
-                      index,
-                      callId,
-                      action,
-                      parameter: name,
-                      subscribeDraft: drafts.subscribe,
-                      requestCallerRender: requestPageReferenceRender,
-                      canChoose: canChoosePageParameter,
-                      choosePath: (path) => {
-                        if (!canChoosePageParameter()) {
-                          requestPageReferenceRender();
-                          return;
-                        }
-                        const calls = [...draft.calls];
-                        calls[index] = {
-                          ...call,
-                          input: { ...call.input, [name]: { ...binding, path } },
-                        };
-                        setDraft({ ...draft, calls, error: '' });
-                      },
-                    }
-                  : undefined;
-              return action === 'app.navigate' &&
-                name === 'pageId' &&
-                (binding.kind === 'literal' || binding.kind === 'unset') ? (
-                <label className="action-parameter" key={name}>
-                  <span className="action-parameter-label">
-                    <span>目标页面 *</span>
-                    <code>string</code>
-                  </span>
-                  <Select
-                    aria-label="目标页面"
-                    value={binding.kind === 'literal' ? binding.text : ''}
-                    onValueChange={(pageId) =>
-                      update(index, {
-                        input: {
-                          ...call.input,
-                          [name]: bindingDraft({ kind: 'literal', value: pageId }, field),
-                        },
-                      })
-                    }
-                  >
-                    {(applicationDefinition?.pages ?? [page]).map((target) => (
-                      <option key={target.id} value={target.id}>
-                        {target.title} · {target.id}
-                      </option>
-                    ))}
-                  </Select>
-                </label>
-              ) : (
-                <ValueInput
-                  key={name}
-                  label={name}
-                  field={field}
-                  draft={call.input[name]}
-                  page={page}
-                  pageScope={pageScope}
-                  eventReferenceOwner={referenceOwner}
-                  pageReferenceOwner={pageReferenceOwner}
-                  onChange={(value) => update(index, { input: { ...call.input, [name]: value } })}
-                />
-              );
-            })}
-            {actionContract(call.action)?.output && (
-              <label className="action-parameter">
-                返回值写入
-                <Select
-                  aria-label={`动作 ${index + 1} 结果状态`}
-                  value={call.resultTo}
-                  onValueChange={(resultTo) => update(index, { resultTo })}
-                >
-                  <option value="">不保存返回值</option>
-                  {page.state
-                    .filter(
-                      (state) =>
-                        actionRegistry.actions[call.action].output === 'json' ||
-                        actionRegistry.actions[call.action].output === state.type,
-                    )
-                    .map((state) => (
-                      <option key={state.id} value={state.id}>
-                        {state.id}
-                      </option>
-                    ))}
-                </Select>
-              </label>
-            )}
           </section>
         ))}
         {!draft.calls.length && (
@@ -719,7 +786,7 @@ export function ActionChainEditor({
           </p>
         )}
         <div className="action-panel-footer">
-          <Button onClick={add}>
+          <Button disabled={!authoringAllowed} onClick={add}>
             <Plus size={13} />
             添加动作
           </Button>
@@ -744,7 +811,35 @@ export function ActionChainEditor({
             {saveLabel}
           </Button>
         </div>
-      </fieldset>
+        <Dialog.Root
+          open={editingCall !== null && draft.calls[editingCall] !== undefined}
+          onOpenChange={(open) => {
+            if (!open) setEditingCall(null);
+          }}
+        >
+          <Dialog.Portal>
+            <Dialog.Backdrop className="material-modal-backdrop" />
+            <Dialog.Popup className="material-modal action-config-dialog">
+              <Dialog.Title className="action-config-heading">
+                {editingCall !== null && draft.calls[editingCall]
+                  ? `动作配置 · ${editingCall + 1}. ${actionLabel(draft.calls[editingCall].action)}`
+                  : '动作配置'}
+              </Dialog.Title>
+              {editingCall !== null && draft.calls[editingCall] && (
+                <fieldset
+                  className="action-config-body"
+                  disabled={!authoringAllowed}
+                  inert={!authoringAllowed}
+                >
+                  {renderCallEditor(draft.calls[editingCall], editingCall)}
+                </fieldset>
+              )}
+              <div className="action-config-footer">
+                <Dialog.Close className="ui-button">完成</Dialog.Close>
+              </div>
+            </Dialog.Popup>
+          </Dialog.Portal>
+        </Dialog.Root>
     </>
   );
 }

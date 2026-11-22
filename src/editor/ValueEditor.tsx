@@ -120,30 +120,32 @@ export function ValueInput({
   };
   return (
     <div className="action-parameter">
-      {showLabel && (
+      {(showLabel || showMode) && (
         <div className="action-parameter-label">
-          <label htmlFor={id}>
-            {label}
-            {field.required ? ' *' : ''}
-          </label>
-          <code>{field.type}</code>
+          {showLabel && (
+            <label htmlFor={id} className="action-parameter-name">
+              {label}
+              {field.required ? ' *' : ''}
+            </label>
+          )}
+          {showMode && (
+            <Select
+              disabled={readOnly}
+              aria-label={`${label}取值方式`}
+              value={draft.kind}
+              onValueChange={(kind) => update({ kind: kind as BindingDraft['kind'] })}
+            >
+              <option value="unset">不设置</option>
+              <option value="literal">固定值</option>
+              <option value="stateRef">页面状态</option>
+              <option value="fieldRef">表单字段</option>
+              <option value="formValues">表单数据</option>
+              <option value="expression">JS 表达式</option>
+              <option value="dataRef">数据源</option>
+            </Select>
+          )}
+          {showLabel && <code>{field.type}</code>}
         </div>
-      )}
-      {showMode && (
-        <Select
-          disabled={readOnly}
-          aria-label={`${label}取值方式`}
-          value={draft.kind}
-          onValueChange={(kind) => update({ kind: kind as BindingDraft['kind'] })}
-        >
-          <option value="unset">不设置</option>
-          <option value="literal">固定值</option>
-          <option value="stateRef">页面状态</option>
-          <option value="fieldRef">表单字段</option>
-          <option value="formValues">表单数据</option>
-          <option value="expression">JavaScript 表达式</option>
-          <option value="dataRef">数据源</option>
-        </Select>
       )}
       {draft.kind === 'dataRef' && (
         <>

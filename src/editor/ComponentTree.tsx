@@ -9,7 +9,14 @@ import {
   type KeyboardEvent,
   type SetStateAction,
 } from 'react';
-import { ChevronRight, LocateFixed, ScanSearch, SlidersHorizontal } from 'lucide-react';
+import {
+  ChevronRight,
+  EyeOff,
+  LocateFixed,
+  Lock,
+  ScanSearch,
+  SlidersHorizontal,
+} from 'lucide-react';
 import { Button, Input, Tip } from '../ui/primitives';
 import type { EditorDocument, EditorSnapshot } from '../../packages/editor/document';
 import type { NodeSchema } from '../../packages/schema/types';
@@ -21,6 +28,8 @@ import { revealRect } from './CanvasHost';
 import { selectedNodeIds } from '../../packages/editor/selection';
 import { useAuthorGuard } from './author-guard';
 import { SelectionControls } from './SelectionControls';
+import { NodeContextMenu, type NodeContextMenuState } from './NodeContextMenu';
+import { useKeyboardSelectAll } from './keyboard-authoring';
 import {
   isHistoryKeyFamily,
   isClipboardKeyFamily,
@@ -148,6 +157,12 @@ export function ComponentTree({
     treeQuery: query,
     treeClosed: closed,
   });
+  const keyboardSelectAll = useKeyboardSelectAll({
+    document,
+    snapshot,
+    host,
+    domain: 'tree',
+  });
   const drag = useDragDrop(),
     intent = drag?.session?.candidate?.intent;
   const page = snapshot.plan.pages.get(pageId)!.schema;
@@ -178,6 +193,7 @@ export function ComponentTree({
   const composing = useRef(false);
   const focusEpoch = useRef(0);
   const [publication, setPublication] = useState(0);
+  const [contextMenu, setContextMenu] = useState<NodeContextMenuState | null>(null);
   if (local.current.query !== query || local.current.closed !== closed) {
     if (permission.current) permission.current.active = false;
     if (receipt.current) receipt.current.active = false;
@@ -616,6 +632,13 @@ export function ComponentTree({
                     aria-label={`选中 ${displayNodeName(node, title)}${displayNodeName(node, title) !== title ? ` ${title}` : ''} ${node.id}`}
                     aria-pressed={selected.has(node.id)}
                     disabled={!!drag?.isInteracting}
+                    onContextMenu={(event) => {
+                      if (drag?.isInteracting) return;
+                      event.preventDefault();
+                      event.stopPropagation();
+                      if (!selected.has(node.id)) document.select(pageId, node.id);
+                      setContextMenu({ x: event.clientX, y: event.clientY, pageId, nodeId: node.id });
+                    }}
                     onKeyDown={(event) => {
                       if ((event.ctrlKey || event.metaKey) && event.key === ' ') {
                         event.preventDefault();
@@ -640,6 +663,12 @@ export function ComponentTree({
                       <MaterialIcon name={catalog[node.component]?.icon} size={14} />
                     </span>
                     <span>{labelFor(node)}</span>
+                    {(node.lock || node.hidden) && (
+                      <span className="tree-flags" aria-hidden="true">
+                        {node.lock && <Lock size={11} data-flag="lock" />}
+                        {node.hidden && <EyeOff size={11} data-flag="hidden" />}
+                      </span>
+                    )}
                   </Button>
                 </Tip>
                 {onEditProperties && nodeId === node.id && selected.size === 1 && (
@@ -726,6 +755,8 @@ export function ComponentTree({
       onKeyDown={(event) => {
         if (isClipboardKeyFamily(event)) keyboardClipboard.onKeyDown(event);
         else if (isHistoryKeyFamily(event)) keyboardHistory.onKeyDown(event);
+        else if ((event.ctrlKey || event.metaKey) && /^[a]$/i.test(event.key))
+          keyboardSelectAll.onKeyDown(event);
         else keyboardDelete.onKeyDown(event);
       }}
     >
@@ -774,6 +805,13 @@ export function ComponentTree({
       {nodes(model.roots)}
       {query && !model.roots.length && <p className="editor-note">没有匹配的组件</p>}
       <DropZone intent={{ kind: 'inside' }} label="页面末尾" />
+      <NodeContextMenu
+        state={contextMenu}
+        onClose={() => setContextMenu(null)}
+        document={document}
+        snapshot={snapshot}
+        authoringAllowed={canAuthor()}
+      />
     </div>
   );
 }

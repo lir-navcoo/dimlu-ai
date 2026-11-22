@@ -4,6 +4,7 @@ import { Check, ChevronDown, X } from 'lucide-react';
 import { Button, Tip } from './ui/primitives';
 import type { SelectOption, SelectValue } from './select-options';
 import { textStyle } from './materials/style';
+import { materialStyleTarget } from '../packages/react-runtime/Renderer';
 import { runtimePortalContainer, useRuntimeDomEnvironment } from './ui/runtime-dom';
 
 type Selection<Multiple extends boolean> = Multiple extends true
@@ -78,6 +79,7 @@ export function SelectMaterial<Multiple extends boolean = false>({
     <div
       className="material-field material-select-field"
       style={style}
+      {...materialStyleTarget(style)}
       onBlur={(event) => {
         const next = event.relatedTarget as Node | null;
         if (next && (event.currentTarget.contains(next) || popup.current?.contains(next))) return;

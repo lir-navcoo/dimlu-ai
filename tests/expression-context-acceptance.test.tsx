@@ -10,7 +10,7 @@ import { ExpressionContext } from '../src/editor/ExpressionContext';
 import { bindingDraft, ValueInput } from '../src/editor/ValueEditor';
 import { EditorSessionProvider, useEditorSession } from '../src/editor/session';
 import { TipProvider } from '../src/ui/primitives';
-import { changeControl } from './ui-helpers';
+import { changeControl, closeActionConfig, openActionConfig } from './ui-helpers';
 
 afterEach(() => {
   cleanup();
@@ -294,6 +294,7 @@ describe('042 independent actual expression entry contexts', () => {
     expect(notes()).toHaveLength(1);
     expect(notes()[0].textContent).toMatch(/\bevent\b/);
     expect(codes(notes()[0])).toEqual(['scope["row"]', 'scope["index"]', 'scope["slot-param"]']);
+    openActionConfig(1);
     changeControl(input('title'), 'state.');
     const editor = input('title');
     const probe = passiveProbe(doc);
@@ -305,6 +306,7 @@ describe('042 independent actual expression entry contexts', () => {
     expect(input('title')).toBe(editor);
     expect(editor.value).toBe('state.');
     probe.verify(2);
+    closeActionConfig();
     fireEvent.click(screen.getByRole('button', { name: '保存事件' }));
     expect(screen.getByRole('alert')).toBeTruthy();
     expect(

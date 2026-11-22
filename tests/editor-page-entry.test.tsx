@@ -17,7 +17,7 @@ import { PageLifecyclePanel } from '../src/editor/PageLifecyclePanel';
 import { EditorSessionProvider } from '../src/editor/session';
 import { registry } from '../src/materials';
 import { TipProvider } from '../src/ui/primitives';
-import { changeControl, selectPage } from './ui-helpers';
+import { changeControl, closeActionConfig, openActionConfig, selectPage } from './ui-helpers';
 
 const literal = (value: Json): Value => ({ kind: 'literal', value });
 const expression = (source: string): Value => ({
@@ -311,12 +311,16 @@ const enterRegion = () => screen.getByRole('region', { name: '页面进入动作
 function addNotice(title: string) {
   // The harness reuses this helper for the component-event editor, which has no lifecycle region.
   const host = screen.queryByRole('region', { name: '页面进入动作' }) ?? document.body;
+  const before = within(host).queryAllByRole('region', { name: /^动作 \d+$/ }).length;
   fireEvent.click(within(host).getByRole('button', { name: '添加动作' }));
-  const cards = within(host).getAllByRole('region', { name: /^动作 \d+$/ });
-  const card = within(cards.at(-1)!);
-  changeControl(card.getByLabelText(/动作 \d+ 类型/), 'ui.notify');
-  changeControl(card.getByLabelText('title取值方式'), 'literal');
-  changeControl(card.getByLabelText('title'), title);
+  // Adding opens the config dialog for the new call; reopen it deterministically.
+  const index = before + 1;
+  closeActionConfig();
+  openActionConfig(index);
+  changeControl(screen.getByLabelText(`动作 ${index} 类型`), 'ui.notify');
+  changeControl(screen.getByLabelText('title取值方式'), 'literal');
+  changeControl(screen.getByLabelText('title'), title);
+  closeActionConfig();
 }
 const saveEntry = () => screen.getByRole('button', { name: '保存进入动作' });
 const titleInput = () => screen.getByRole('textbox', { name: 'title' }) as HTMLInputElement;
@@ -363,17 +367,21 @@ describe('page-entry authoring isolation and permissions', () => {
     const document = new EditorDocument(application(), registry);
     mount(document);
     addNotice('原始');
+    openActionConfig(1);
     changeControl(screen.getByLabelText('title取值方式'), 'expression');
     const input = titleInput();
     expect(input.getAttribute('placeholder')).toContain('state.');
     expect(input.getAttribute('placeholder')).not.toMatch(/scope|event/);
     changeControl(input, 'scope["row"].name');
     const before = document.getSnapshot();
+    closeActionConfig();
     fireEvent.click(saveEntry());
     expect(screen.getByRole('alert')).toBeTruthy();
     expect(document.getSnapshot()).toBe(before);
+    openActionConfig(1);
     expect(titleInput().value).toBe('scope["row"].name');
     changeControl(titleInput(), 'state.label');
+    closeActionConfig();
     fireEvent.click(saveEntry());
     expect(saved(document)?.[0].input.title).toEqual(expression('state.label'));
   });
@@ -385,20 +393,27 @@ describe('page-entry authoring isolation and permissions', () => {
     act(() => document.select('b', 'button'));
     addNotice('页面 B 草稿');
     act(() => document.select('a', 'button'));
+    openActionConfig(1);
     expect(titleInput().value).toBe('页面 A 草稿');
+    closeActionConfig();
     fireEvent.click(screen.getByRole('button', { name: '测试组件事件' }));
     addNotice('组件事件草稿');
     fireEvent.click(screen.getByRole('button', { name: '测试页面面板' }));
+    openActionConfig(1);
     expect(titleInput().value).toBe('页面 A 草稿');
+    closeActionConfig();
     fireEvent.click(saveEntry());
     fireEvent.click(screen.getByRole('button', { name: '测试组件事件' }));
+    openActionConfig(1);
     expect(titleInput().value).toBe('组件事件草稿');
+    closeActionConfig();
     fireEvent.click(screen.getByRole('button', { name: '保存事件' }));
     const nodeCall = findNode(page(document), 'button')!.node.on!.onClick[0];
     expect(nodeCall.input.title).toEqual(literal('组件事件草稿'));
     expect(nodeCall.id).not.toBe(saved(document)?.[0].id);
     act(() => document.select('b', 'button'));
     fireEvent.click(screen.getByRole('button', { name: '测试页面面板' }));
+    openActionConfig(1);
     expect(titleInput().value).toBe('页面 B 草稿');
   });
 
@@ -408,11 +423,15 @@ describe('page-entry authoring isolation and permissions', () => {
     addNotice('保留草稿');
     act(() => document.updateState('a', 'label', { type: 'string', initial: '其他更新' }));
     expect((saveEntry() as HTMLButtonElement).disabled).toBe(true);
+    openActionConfig(1);
     expect(titleInput().value).toBe('保留草稿');
+    closeActionConfig();
     fireEvent.click(screen.getByRole('button', { name: '确认使用草稿' }));
     fireEvent.click(saveEntry());
     expect(saved(document)?.[0].input.title).toEqual(literal('保留草稿'));
+    openActionConfig(1);
     changeControl(titleInput(), '待放弃');
+    closeActionConfig();
     act(() => document.undo());
     expect((saveEntry() as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: '放弃草稿' }));
@@ -433,7 +452,9 @@ describe('page-entry authoring isolation and permissions', () => {
     fireEvent.click(saveEntry());
     expect(document.getSnapshot()).toBe(before);
     fireEvent.click(screen.getByRole('button', { name: '测试切换权限' }));
+    openActionConfig(1);
     expect(titleInput().value).toBe('预览不得保存');
+    closeActionConfig();
     fireEvent.click(saveEntry());
     expect(saved(document)?.[0].input.title).toEqual(literal('预览不得保存'));
   });
@@ -442,15 +463,21 @@ describe('page-entry authoring isolation and permissions', () => {
     const document = new EditorDocument(application(), registry);
     document.setPageEnterActions('a', [execute(), notify()]);
     mount(document);
+    openActionConfig(1);
     changeControl(screen.getByLabelText('动作 1 结果状态'), 'result');
+    closeActionConfig();
+    openActionConfig(2);
     changeControl(screen.getByLabelText('title取值方式'), 'stateRef');
     changeControl(screen.getByLabelText('title页面状态'), 'label');
+    closeActionConfig();
     fireEvent.click(saveEntry());
     expect(saved(document)?.[0].resultTo).toBe('result');
     expect(saved(document)?.[1].input.title).toEqual({ kind: 'stateRef', stateId: 'label' });
+    openActionConfig(2);
     changeControl(screen.getByLabelText('title取值方式'), 'fieldRef');
     changeControl(screen.getByLabelText('title表单'), 'model');
     changeControl(screen.getByLabelText('title字段'), 'name');
+    closeActionConfig();
     fireEvent.click(saveEntry());
     expect(saved(document)?.[1].input.title).toEqual({
       kind: 'fieldRef',
@@ -561,11 +588,15 @@ describe('page-entry execution boundaries', () => {
     const logicTab = screen.getByRole('tab', { name: '页面逻辑' });
     fireEvent.click(logicTab);
     expect(window.location.search).toBe('?panel=logic');
+    openActionConfig(3);
     changeControl(titleInput(), '已保存进入动作');
+    closeActionConfig();
     fireEvent.click(screen.getByRole('tab', { name: '数据' }));
     expect(screen.queryByRole('region', { name: '页面生命周期配置' })).toBeNull();
     fireEvent.click(logicTab);
+    openActionConfig(3);
     expect(titleInput().value).toBe('已保存进入动作');
+    closeActionConfig();
     fireEvent.click(saveEntry());
     expect(query).not.toHaveBeenCalled();
     expect(mutation).not.toHaveBeenCalled();

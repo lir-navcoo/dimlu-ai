@@ -9,7 +9,7 @@ import { FormPanel } from '../src/editor/FormPanel';
 import { PageLifecyclePanel } from '../src/editor/PageLifecyclePanel';
 import { EditorSessionProvider, useEditorSession } from '../src/editor/session';
 import { TipProvider } from '../src/ui/primitives';
-import { changeControl } from './ui-helpers';
+import { changeControl, closeActionConfig, openActionConfig } from './ui-helpers';
 import { lit, selectionApplication, selectionRegistry } from './multiselection-fixture';
 
 const held = vi.hoisted(() => ({ saves: new Map<string, () => void>() }));
@@ -74,6 +74,8 @@ function setupAction(kind: ActionHost) {
   );
   const key = kind === 'event' ? 'event:a/action-node/onClick' : 'page-enter:a';
   const saveLabel = kind === 'event' ? '保存事件' : '保存进入动作';
+  // Action parameters live inside the config dialog; open it for the callers.
+  openActionConfig(1);
   return { document, session, view, key, saveLabel };
 }
 
@@ -156,6 +158,7 @@ describe('child save refusal retains unapplied drafts', () => {
   it('page source conflict keeps the original diagnostic and unapplied dirty draft', () => {
     const { document, session, key, saveLabel } = setupAction('page');
     changeControl(screen.getByLabelText('value'), '"source conflict draft"');
+    closeActionConfig();
     const save = held.saves.get(saveLabel)!;
     const clear = vi.spyOn(session.drafts, 'clear');
     const publish = vi.spyOn(document, 'setPageEnterActions');
@@ -164,6 +167,7 @@ describe('child save refusal retains unapplied drafts', () => {
     act(() => save());
     expect(screen.getByRole('alert').textContent).toContain('页面定义已变化');
     expect(screen.getByText('有未保存草稿')).toBeTruthy();
+    openActionConfig(1);
     expect((screen.getByLabelText('value') as HTMLTextAreaElement).value).toBe(
       '"source conflict draft"',
     );
@@ -219,6 +223,7 @@ describe('child save refusal retains unapplied drafts', () => {
         kind === 'event' ? 'setEventActions' : 'setPageEnterActions',
       );
       const before = document.getSnapshot();
+      closeActionConfig();
       fireEvent.click(screen.getByRole('button', { name: saveLabel }));
       expect(publish).toHaveBeenCalledOnce();
       expect(publish.mock.results[0].value).toBe(false);

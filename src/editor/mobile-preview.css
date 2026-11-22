@@ -1,0 +1,120 @@
+.material-modal.mobile-preview-dialog {
+  box-sizing: border-box;
+  width: min(460px, calc(100vw - 28px));
+  max-height: min(740px, calc(100dvh - 28px));
+  overflow: auto;
+}
+.material-modal.mobile-preview-dialog > header {
+  align-items: center;
+  gap: 12px;
+}
+.mobile-preview-dialog > header > div {
+  min-width: 0;
+}
+.mobile-preview-dialog > header .ui-button {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0;
+}
+.material-modal-body.mobile-preview-body {
+  gap: 14px;
+}
+.mobile-preview-lan-note {
+  display: grid;
+  gap: 5px;
+  padding: 10px 12px;
+  border: 1px solid #dbeafe;
+  border-radius: 6px;
+  background: #f8fbff;
+  color: #475569;
+  font-size: 11px;
+  line-height: 1.55;
+}
+.mobile-preview-lan-note strong {
+  color: #1e3a8a;
+  font-size: 12px;
+}
+.mobile-preview-lan-note code {
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #eef2ff;
+  color: #4338ca;
+  font:
+    11px ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+}
+.mobile-preview-session {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 4px 0 2px;
+}
+.mobile-preview-session > img,
+.mobile-preview-qr-placeholder {
+  width: min(240px, 70vw);
+  aspect-ratio: 1;
+  box-sizing: border-box;
+  padding: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+}
+.mobile-preview-qr-placeholder {
+  display: grid;
+  place-items: center;
+  color: #64748b;
+  font-size: 12px;
+  text-align: center;
+}
+.mobile-preview-expiry {
+  margin: 0;
+  color: #64748b;
+  font-size: 11px;
+  text-align: center;
+}
+.mobile-preview-link {
+  width: 100%;
+  min-width: 0;
+  font-size: 11px;
+}
+.mobile-preview-session-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+.mobile-preview-session-actions .ui-button {
+  gap: 5px;
+}
+.mobile-preview-empty {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  align-items: center;
+  text-align: center;
+}
+.mobile-preview-empty > .editor-note {
+  margin: 0;
+  line-height: 1.6;
+}
+.mobile-preview-error {
+  margin: 0;
+  color: #b42318;
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: center;
+}
+@media (max-width: 480px) {
+  .mobile-preview-session-actions {
+    width: 100%;
+  }
+  .mobile-preview-session-actions .ui-button {
+    flex: 1 1 auto;
+  }
+}

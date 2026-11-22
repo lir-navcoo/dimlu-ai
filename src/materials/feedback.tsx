@@ -7,6 +7,7 @@ import {
   useMaterialPresentation,
   useMaterialNode,
   useHasSlot,
+  materialStyleTarget,
   type SlotRenderers,
 } from '../../packages/react-runtime/Renderer';
 import type { PageRuntime } from '../../packages/runtime/engine';
@@ -120,6 +121,7 @@ function OverlayMaterial({
               data-overlay-presentation={overlayMode}
               className={`material-modal ${drawer ? 'drawer' : ''} ${design ? 'design' : ''}`}
               style={{ '--modal-width': `${width}px`, ...style } as React.CSSProperties}
+              {...materialStyleTarget(style)}
             >
               <header>
                 <div>
@@ -218,6 +220,7 @@ export function AlertMaterial({
     <div
       className={`material-alert ${tone}`}
       style={style}
+      {...materialStyleTarget(style)}
       role={tone === 'error' || tone === 'warning' ? 'alert' : 'status'}
     >
       <Icon size={17} />
@@ -255,7 +258,12 @@ export function LoadingMaterial({
 }) {
   const design = useDesignMode();
   return (
-    <section className="material-loading" style={style} aria-busy={loading || undefined}>
+    <section
+      className="material-loading"
+      style={style}
+      {...materialStyleTarget(style)}
+      aria-busy={loading || undefined}
+    >
       <div
         inert={loading && blocking && !design ? true : undefined}
         className="material-loading-content"

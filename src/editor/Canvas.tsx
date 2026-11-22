@@ -34,6 +34,7 @@ import {
   nearestInstance,
   clippingBounds,
   intersectRect,
+  type CanvasRect,
 } from './CanvasHost';
 import './navigation.css';
 import './overlay-focus.css';
@@ -49,6 +50,7 @@ import { errorText } from './errors';
 import { selectedNodeIds } from '../../packages/editor/selection';
 import { useAuthorGuard } from './author-guard';
 import { SelectionControls } from './SelectionControls';
+import { NodeContextMenu, type NodeContextMenuState } from './NodeContextMenu';
 import {
   isDeleteKey,
   isHistoryKeyFamily,
@@ -56,12 +58,16 @@ import {
   useKeyboardDelete,
   useKeyboardHistory,
   useKeyboardClipboard,
+  useKeyboardNudge,
+  useKeyboardSelectAll,
 } from './keyboard-authoring';
 import { useStandaloneCanvasEscape } from './author-escape';
 import { describeNodeName, displayNodeName } from './node-display-name';
 import { useCanvasStage, useCanvasStageVersion } from './canvas-stage';
 import { RuntimeDomProvider, isDocumentElement } from '../ui/runtime-dom';
 import { toParentRect } from './coordinates';
+import { useCanvasMarquee } from './CanvasMarquee';
+import { CanvasResize } from './CanvasResize';
 
 function CanvasEditorLayer({
   as = 'div',
@@ -121,7 +127,9 @@ function NodeHost({ node, instanceKey, children, inactiveReason, presentation }:
               ? '循环数据为空'
               : inactiveReason === 'field'
                 ? '字段当前不可见'
-                : '显示条件未满足'}{' '}
+                : inactiveReason === 'author-hidden'
+                  ? '作者已隐藏'
+                  : '显示条件未满足'}{' '}
             · 预览时隐藏
           </span>
         </div>
@@ -169,6 +177,7 @@ interface Box {
   valid?: boolean;
   axis?: 'x' | 'y';
   toolbar?: { left: number; top: number; width: number };
+  resize?: { marker: HTMLElement; bounds: CanvasRect; outline: CanvasRect };
 }
 export function EditorCanvas({
   document,
@@ -200,6 +209,7 @@ export function EditorCanvas({
   const viewportMetrics = useViewportMetrics();
   const [boxes, setBoxes] = useState<Box[]>([]);
   const [actionError, setActionError] = useState('');
+  const [contextMenu, setContextMenu] = useState<NodeContextMenuState | null>(null);
   const [focusState, setFocusState] = useState<{
     document: EditorDocument;
     focus: OverlayFocus;
@@ -222,6 +232,23 @@ export function EditorCanvas({
     [snapshot.selection],
   );
   const canAuthor = useAuthorGuard(document, snapshot, undefined, mode === 'edit');
+  const marquee = useCanvasMarquee({
+    stage,
+    enabled: mode === 'edit',
+    document,
+    snapshot,
+    runtime,
+    width: viewportMetrics?.width,
+    scale: viewportMetrics?.scale,
+    canAuthor,
+    onSelect: (hits, additive) => {
+      const ids = additive ? [...new Set([...selectedIds, ...hits.keys()])] : [...hits.keys()];
+      document.selectMany(pageId, ids, additive ? (nodeId ?? undefined) : undefined);
+      const primary = document.getSnapshot().selection.nodeId;
+      if (primary && hits.has(primary))
+        navigation.setSelectedInstance({ pageId, nodeId: primary, instanceKey: hits.get(primary) });
+    },
+  });
   const keyboardDelete = useKeyboardDelete({
     document,
     snapshot,
@@ -243,6 +270,19 @@ export function EditorCanvas({
     domain: 'canvas',
     enabled: mode === 'edit',
     canvasRuntime: runtime,
+  });
+  const keyboardSelectAll = useKeyboardSelectAll({
+    document,
+    snapshot,
+    host: canvas,
+    domain: 'canvas',
+    enabled: mode === 'edit',
+  });
+  const keyboardNudge = useKeyboardNudge({
+    document,
+    snapshot,
+    host: canvas,
+    enabled: mode === 'edit',
   });
   const hover = interaction.hover?.pageId === pageId ? interaction.hover : null;
   useLayoutEffect(
@@ -340,6 +380,7 @@ export function EditorCanvas({
       );
       const reasons: Record<string, string> = {
         condition: '显示条件未满足',
+        'author-hidden': '作者已隐藏',
         field: '字段当前不可见',
         'empty-repeat': '循环数据为空',
       };
@@ -534,7 +575,9 @@ export function EditorCanvas({
                 })
               : clipped;
           const rect = bounds && intersectRect(fullRect, bounds);
-          return rect && bounds ? [{ key: box.key, rect, fullRect, bounds, box }] : [];
+          return marker && rect && bounds
+            ? [{ key: box.key, rect, fullRect, bounds, box, marker }]
+            : [];
         });
       const preferred =
         interaction.selectedInstance?.nodeId === nodeId
@@ -543,6 +586,7 @@ export function EditorCanvas({
       const primary = nearestInstance(visible, viewport, preferred);
       if (primary) {
         const bounds = primary.bounds;
+        primary.box.resize = { marker: primary.marker, bounds, outline: primary.fullRect };
         const width = Math.min(218, Math.max(0, bounds.width - 8));
         const left = Math.max(
           bounds.left + 4,
@@ -633,6 +677,12 @@ export function EditorCanvas({
     if (mode !== 'edit') return;
     if (isEditorControl(event.target)) return;
     if (!canAuthor()) return;
+    if (event.type === 'click' && marquee.suppressClick.current) {
+      marquee.suppressClick.current = false;
+      pointerSelection.current = null;
+      block(event);
+      return;
+    }
     if (
       event.type === 'click' &&
       event.nativeEvent instanceof canvas.current!.ownerDocument.defaultView!.MouseEvent &&
@@ -677,7 +727,18 @@ export function EditorCanvas({
       onPointerDownCapture={(event) => {
         if (mode !== 'edit' || isEditorControl(event.target) || event.button !== 0 || !canAuthor())
           return;
+        marquee.suppressClick.current = false;
+        if (marquee.gesture.current) return;
         const marker = markerFor(event.target);
+        if (
+          surface.current &&
+          (!marker || event.shiftKey) &&
+          marquee.begin(event, surface.current, !!marker)
+        ) {
+          pointerSelection.current = null;
+          navigation.clearHover('canvas');
+          return;
+        }
         pointerSelection.current = {
           id: marker?.dataset.editorNode ?? null,
           instanceKey: marker?.dataset.editorInstance,
@@ -699,7 +760,13 @@ export function EditorCanvas({
       onClickCapture={select}
       onDoubleClickCapture={block}
       onPointerOverCapture={(event) => {
-        if (mode !== 'edit' || drag?.isInteracting || (stage && !stage.current())) return;
+        if (
+          mode !== 'edit' ||
+          drag?.isInteracting ||
+          marquee.gesture.current ||
+          (stage && !stage.current())
+        )
+          return;
         const marker = markerFor(event.target);
         if (marker?.dataset.editorNode)
           navigation.setHover(
@@ -713,6 +780,14 @@ export function EditorCanvas({
         else navigation.clearHover('canvas');
       }}
       onPointerLeave={() => navigation.clearHover('canvas')}
+      onContextMenu={(event) => {
+        if (mode !== 'edit' || drag?.isInteracting) return;
+        const marker = markerFor(event.target);
+        const id = marker?.dataset.editorNode ?? null;
+        event.preventDefault();
+        document.select(pageId, id);
+        setContextMenu({ x: event.clientX, y: event.clientY, pageId, nodeId: id });
+      }}
       onFocusCapture={(event) => {
         if (isEditorControl(event.target)) return;
         if (mode === 'edit' && event.target !== event.currentTarget) {
@@ -731,6 +806,14 @@ export function EditorCanvas({
         }
         if (isDeleteKey(event.key)) {
           keyboardDelete.onKeyDown(event);
+          return;
+        }
+        if ((event.ctrlKey || event.metaKey) && /^[a]$/i.test(event.key)) {
+          keyboardSelectAll.onKeyDown(event);
+          return;
+        }
+        if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+          keyboardNudge.onKeyDown(event);
           return;
         }
         if (event.key === 'Escape') {
@@ -860,6 +943,7 @@ export function EditorCanvas({
       </Surface>
       {mode === 'edit' && (
         <CanvasEditorLayer className="canvas-overlays">
+          {marquee.box && <div className="canvas-marquee" style={marquee.box} aria-hidden="true" />}
           {boxes
             .filter(
               (box) =>
@@ -879,6 +963,20 @@ export function EditorCanvas({
                 key={box.key}
                 style={{ left: box.left, top: box.top, width: box.width, height: box.height }}
               >
+                {box.resize &&
+                  selectedIds.size === 1 &&
+                  !drag?.isInteracting &&
+                  !marquee.gesture.current && (
+                    <CanvasResize
+                      document={document}
+                      snapshot={snapshot}
+                      marker={box.resize.marker}
+                      bounds={box.resize.bounds}
+                      outline={box.resize.outline}
+                      canAuthor={canAuthor}
+                      onError={setActionError}
+                    />
+                  )}
                 {box.selected && box.id === nodeId && box.toolbar && (
                   <span
                     className="canvas-selection-toolbar"
@@ -985,6 +1083,15 @@ export function EditorCanvas({
         <CanvasEditorLayer as="p" className="canvas-action-error" role="alert">
           {actionError}
         </CanvasEditorLayer>
+      )}
+      {mode === 'edit' && (
+        <NodeContextMenu
+          state={contextMenu}
+          onClose={() => setContextMenu(null)}
+          document={document}
+          snapshot={snapshot}
+          authoringAllowed={canAuthor()}
+        />
       )}
     </div>
   );

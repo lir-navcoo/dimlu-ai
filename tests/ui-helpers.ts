@@ -45,3 +45,23 @@ export function selectPage(id: string) {
   fireEvent.pointerDown(option, { pointerType: 'mouse', button: 0 });
   fireEvent.click(option);
 }
+/**
+ * Open the action config dialog for the nth (1-based) call of the current chain.
+ * Parameters live inside the dialog, so every parameter interaction must run
+ * after this. Closes a previously open dialog first: while a dialog is open the
+ * compact rows are aria-hidden and unreachable.
+ */
+export function openActionConfig(n: number) {
+  closeActionConfig();
+  const open = screen.queryByRole('button', { name: `打开动作 ${n} 配置` });
+  if (open) fireEvent.click(open);
+}
+/**
+ * Close the action config dialog ("完成"). While the dialog is open the rest of
+ * the panel is aria-hidden, so panel-level controls (保存事件 etc.) are only
+ * reachable after closing. No-op when the dialog is not open.
+ */
+export function closeActionConfig() {
+  const done = screen.queryByRole('button', { name: '完成' });
+  if (done) fireEvent.click(done);
+}

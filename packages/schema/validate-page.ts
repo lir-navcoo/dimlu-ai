@@ -2,6 +2,7 @@ import { temporalError } from './formats';
 import { fieldTypes, type Registry } from '../runtime/registry';
 import { assertValueScope, compileValue, valueScopeReads } from '../runtime/expression';
 import { isStyleProperty, styleValueError, styleValueTypes } from './style';
+import { assertStyleSource } from './style-source';
 import { rowValues } from './field-data';
 import { prepareFormPatch } from './form-patch';
 import { checkTransportInput } from '../runtime/data-source';
@@ -40,11 +41,7 @@ export interface ValueChecker {
 }
 
 /** Entry: validates one page against the registry using the shared issue collector. */
-export function validatePage(
-  page: PageSchema,
-  base: string,
-  context: PageValidationContext,
-): void {
+export function validatePage(page: PageSchema, base: string, context: PageValidationContext): void {
   const models: PageModels = {
     states: new Map(page.state.map((s) => [s.id, s])),
     forms: new Map((page.forms ?? []).map((f) => [f.id, f])),
@@ -93,7 +90,8 @@ function createValueChecker(context: PageValidationContext, models: PageModels):
           if (!forms.has(id.slice(6))) add(path, 'form.missing', `未知表单 ${id.slice(6)}`);
         } else if (id.startsWith('@source:')) {
           if (id === '@source:*') add(path, 'source.reference', '数据源引用需要明确的源 ID');
-          else if (!sources.has(id.slice(8))) add(path, 'source.missing', `未知数据源 ${id.slice(8)}`);
+          else if (!sources.has(id.slice(8)))
+            add(path, 'source.missing', `未知数据源 ${id.slice(8)}`);
         } else if (id !== '*' && !states.has(id)) add(path, 'state.missing', `未知状态 ${id}`);
       if (v.kind === 'fieldRef' && !forms.get(v.formId)?.fields.some((f) => f.id === v.fieldId))
         add(path, 'field.missing', `未知字段 ${v.formId}.${v.fieldId}`);
@@ -169,8 +167,7 @@ function validateDataSources(
       const path = `${at}/input/${key}`;
       value(binding, path);
       if (contract) {
-        if (!Object.hasOwn(contract.input, key))
-          add(path, 'source.input', `未知数据源参数 ${key}`);
+        if (!Object.hasOwn(contract.input, key)) add(path, 'source.input', `未知数据源参数 ${key}`);
         else {
           if (binding.kind === 'literal' && !matchesType(binding.value, contract.input[key].type))
             add(path, 'source.type', `数据源参数 ${key} 类型错误`);
@@ -196,8 +193,7 @@ function checkFieldIdentities(
     paths: string[][] = [];
   for (const [i, entry] of entries.entries()) {
     const fp = `${prefix}/${i}`;
-    if (ids.has(entry.id) || reserved.has(entry.id))
-      add(fp, 'field.id', '重复或保留的字段 ID');
+    if (ids.has(entry.id) || reserved.has(entry.id)) add(fp, 'field.id', '重复或保留的字段 ID');
     ids.add(entry.id);
     if (
       paths.some((p) =>
@@ -502,6 +498,15 @@ function createNodeValidator(
         (!contract?.style || !['root', 'field', 'popup'].includes(contract.style.target))
       )
         add(`${at}/style`, 'style.unsupported', '物料没有声明可用的样式目标');
+      if (node.styleCss !== undefined) {
+        const path = `${at}/styleCss`;
+        if (!contract?.style?.source) add(path, 'style.unsupported', '物料未提供组件 CSS 目标');
+        try {
+          assertStyleSource(node.styleCss);
+        } catch (error) {
+          add(path, 'style.source', error instanceof Error ? error.message : String(error));
+        }
+      }
       for (const [key, binding] of Object.entries(node.style ?? {})) {
         const path = `${at}/style/${key}`;
         value(binding, path, false, localScope);
@@ -512,11 +517,7 @@ function createNodeValidator(
         const error = binding.kind === 'literal' ? styleValueError(key, binding.value) : undefined;
         if (error) add(path, 'style.value', error);
         const type = knownType(binding);
-        if (
-          type &&
-          type !== 'json' &&
-          !styleValueTypes(key).includes(type as 'string' | 'number')
-        )
+        if (type && type !== 'json' && !styleValueTypes(key).includes(type as 'string' | 'number'))
           add(path, 'style.type', `样式 ${key} 不接收 ${type} 类型`);
         try {
           assertValueScope(binding, localScope);
@@ -593,14 +594,12 @@ function createNodeValidator(
             ? forms.get(node.field.formId)?.fields.find((f) => f.id === node.field!.fieldId)
             : undefined,
           fieldItemType: node.field
-            ? forms
-                .get(node.field.formId)
-                ?.fields.find((field) => field.id === node.field!.fieldId)?.itemType
+            ? forms.get(node.field.formId)?.fields.find((field) => field.id === node.field!.fieldId)
+                ?.itemType
             : undefined,
           fieldType: node.field
-            ? forms
-                .get(node.field.formId)
-                ?.fields.find((field) => field.id === node.field!.fieldId)?.type
+            ? forms.get(node.field.formId)?.fields.find((field) => field.id === node.field!.fieldId)
+                ?.type
             : undefined,
         }) ?? [])
           add(`${at}/props`, 'prop.value', message);
@@ -650,7 +649,11 @@ function createNodeValidator(
         validateCalls(list, `${at}/on/${name}`, true, localScope);
       nodes(node.children ?? [], `${at}/children`, localScope);
       for (const [name, slot] of Object.entries(node.slots ?? {}))
-        nodes(slot.children, `${at}/slots/${name}/children`, new Set([...localScope, ...slot.params]));
+        nodes(
+          slot.children,
+          `${at}/slots/${name}/children`,
+          new Set([...localScope, ...slot.params]),
+        );
     });
   return nodes;
 }

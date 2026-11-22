@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode, type FocusEventHandler } from 'react';
 import type { ComponentContract } from '../../packages/runtime/registry';
 import { textStyle } from './style';
+import { materialStyleTarget } from '../../packages/react-runtime/Renderer';
 import { isDocumentNode } from '../ui/runtime-dom';
 
 export const textProp = { type: 'string' as const };
@@ -54,6 +55,7 @@ export function FieldFrame({
     <div
       className="material-field"
       style={style}
+      {...materialStyleTarget(style)}
       onBlur={(event) => {
         if (
           isDocumentNode(event.relatedTarget, event.currentTarget.ownerDocument) &&
