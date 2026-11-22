@@ -17,18 +17,18 @@ function decodePageId(value: string) {
 
 export function editorRoutePath(pageId: string, panel: EditorPanelId) {
   const path = `${editorRoot}/page/${encodeURIComponent(pageId)}`;
-  return panel === 'structure' ? path : `${path}?panel=${encodeURIComponent(panel)}`;
+  return panel === 'outline' ? path : `${path}?panel=${encodeURIComponent(panel)}`;
 }
 
 export function parseEditorLocation(location: Location): EditorRoute {
   const match = location.pathname.match(/^\/editor\/page\/(.+)$/);
   const pageId = match ? decodePageId(match[1]) : undefined;
   const panel = location.search
-    ? (new URLSearchParams(location.search).get('panel') ?? 'structure')
-    : 'structure';
+    ? (new URLSearchParams(location.search).get('panel') ?? 'outline')
+    : 'outline';
   return {
     pageId,
-    panel: panel === 'materials' ? panel : (editorPanelRoute(panel)?.id ?? 'structure'),
+    panel: editorPanelRoute(panel)?.id ?? 'outline',
   };
 }
 

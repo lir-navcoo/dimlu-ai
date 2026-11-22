@@ -711,7 +711,7 @@ describe('registered panel activation through navigation', () => {
     fireEvent.click(screen.getByRole('button', { name: '在组件树定位' }));
     await frame();
     await frame();
-    expect(screen.getByRole('tab', { name: '结构' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('tab', { name: '大纲' }).getAttribute('aria-selected')).toBe('true');
     expect((screen.getByLabelText('搜索组件树') as HTMLInputElement).value).toBe('');
     expect(screen.getByRole('button', { name: '选中 标题 purchase-heading' })).toBeTruthy();
     fireEvent.click(screen.getByRole('tab', { name: '代码' }));

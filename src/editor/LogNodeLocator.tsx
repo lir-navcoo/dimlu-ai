@@ -276,7 +276,7 @@ export function useLogNodeLocator(input: Input) {
       if (
         target.acknowledged &&
         (latest.input.open ||
-          latest.session.leftTab !== 'structure' ||
+          latest.session.leftTab !== 'outline' ||
           !latest.session.leftOpen ||
           !bridge ||
           bridge.current !== target.presentation ||
@@ -376,7 +376,7 @@ export function useLogNodeLocator(input: Input) {
       bridge.current !== target.presentation ||
       bridge.read() !== target.presentation ||
       input.open ||
-      session.leftTab !== 'structure' ||
+      session.leftTab !== 'outline' ||
       !session.leftOpen ||
       input.authorSnapshot !== target.result ||
       target.publications !== target.expectedPublications

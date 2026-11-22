@@ -40,8 +40,7 @@ describe('workbench organization and session state', () => {
   it('shows a compact basic palette with SVG icons and no manual insertion or demo materials', () => {
     seedLegacyProject();
     render(<App />);
-    fireEvent.click(screen.getByRole('tab', { name: '结构' }));
-    fireEvent.click(screen.getByRole('tab', { name: '添加组件' }));
+    fireEvent.click(screen.getByRole('tab', { name: '组件' }));
     for (const name of ['成员行', '摘要', 'React 计数器', '插槽卡片'])
       expect(screen.queryByRole('button', { name: `拖入 ${name}` })).toBeNull();
     expect(screen.queryByLabelText('组件类型')).toBeNull();
@@ -61,7 +60,7 @@ describe('workbench organization and session state', () => {
     selectPage('composition');
     for (let i = 0; i < 3; i++)
       insertMaterial('标题', { kind: 'inside', parentId: 'person-card', slot: 'footer' });
-    expect(screen.getByRole('tab', { name: '添加组件' }).getAttribute('aria-selected')).toBe(
+    expect(screen.getByRole('tab', { name: '组件' }).getAttribute('aria-selected')).toBe(
       'true',
     );
     const headings = screen.getAllByRole('heading', { name: '新的标题' });

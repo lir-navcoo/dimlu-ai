@@ -120,7 +120,7 @@ describe('real App plan/runtime remount and local keyboard focus', () => {
       mountApp('tail');
       fireEvent.click(screen.getByRole('button', { name: '打开页面设计' }));
       const dialog = screen.getByRole('dialog', { name: '页面设计' });
-      expect(within(dialog).getByRole('tabpanel', { name: '结构' })).toBeTruthy();
+      expect(within(dialog).getByRole('tabpanel', { name: '大纲' })).toBeTruthy();
       const selected = treeRow('tail');
       expect(dialog.contains(selected)).toBe(true);
       selected.focus();
@@ -135,7 +135,7 @@ describe('real App plan/runtime remount and local keyboard focus', () => {
 
   it('tree filter native Backspace neither deletes a definition nor steals focus', () => {
     mountApp();
-    fireEvent.click(screen.getByRole('tab', { name: '结构' }));
+    fireEvent.click(screen.getByRole('tab', { name: '大纲' }));
     const search = screen.getByLabelText('搜索组件树');
     fireEvent.change(search, { target: { value: 'Alpha' } });
     search.focus();

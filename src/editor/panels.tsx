@@ -2,9 +2,10 @@ import type { EditorDocument, EditorSnapshot } from '../../packages/editor/docum
 import { findNode } from '../../packages/editor/document';
 import type { ApplicationMethodReference } from '../../packages/editor/data';
 import type { OpenApplicationMethods } from './ActionPanel';
-import { ComponentsPanel } from './ComponentsPanel';
+import { ComponentTree } from './ComponentTree';
 import { DataPanel } from './DataPanel';
 import { CodePanel } from '../code/CodePanel';
+import { InsertPanel } from './InsertPanel';
 import { PagePanel } from './PagePanel';
 import { PageLifecyclePanel } from './PageLifecyclePanel';
 import { editorPanelRoutes, type EditorPanelId } from './panel-routes';
@@ -28,21 +29,15 @@ const renderers: Record<EditorPanelId, (context: EditorPanelContext) => ReactNod
       onNavigatePage={onNavigatePage}
     />
   ),
-  structure: ({ document, snapshot, authoringAllowed, onEditProperties }) => (
-    <ComponentsPanel
+  materials: ({ document, snapshot, authoringAllowed }) => (
+    <InsertPanel
       document={document}
       snapshot={snapshot}
       authoringAllowed={authoringAllowed}
-      onEditProperties={onEditProperties}
     />
   ),
-  materials: ({ document, snapshot, authoringAllowed, onEditProperties }) => (
-    <ComponentsPanel
-      document={document}
-      snapshot={snapshot}
-      authoringAllowed={authoringAllowed}
-      onEditProperties={onEditProperties}
-    />
+  outline: ({ document, snapshot, onEditProperties }) => (
+    <ComponentTree document={document} snapshot={snapshot} onEditProperties={onEditProperties} />
   ),
   data: ({ document, snapshot, dataNodeId, authoringAllowed }) => (
     <DataPanel

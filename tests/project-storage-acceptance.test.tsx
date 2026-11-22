@@ -217,7 +217,7 @@ describe('independent N5 project persistence acceptance', () => {
     expect(m.read().schema).toEqual(serverRecordsExample);
     expect(m.adapter.setItem).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('tab', { name: '结构' }));
+    fireEvent.click(screen.getByRole('tab', { name: '大纲' }));
     fireEvent.click(screen.getByRole('button', { name: '选中 抽屉 edit-drawer' }));
     const designDialog = await screen.findByRole('dialog', { name: '编辑服务端记录' });
     expect(designDialog.classList.contains('design')).toBe(true);

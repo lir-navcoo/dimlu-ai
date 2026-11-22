@@ -443,9 +443,7 @@ function Sidebar({
   }, [session.leftTab]);
   return (
     <nav aria-label="页面设计" className="sidebar">
-      {session.leftTab !== 'structure' && (
-        <div className="sidebar-heading">{editorPanelRoute(session.leftTab)?.title}</div>
-      )}
+      <div className="sidebar-heading">{editorPanelRoute(session.leftTab)?.title}</div>
       {designPanels.map((panel) => (
         <Tabs.Panel key={panel.id} value={panel.id} className={panel.className} keepMounted>
           {(!panel.lazy || visited.has(panel.id) || session.leftTab === panel.id) &&
@@ -556,7 +554,7 @@ function Workbench({
       const emptyPage = current.plan.pages.get(nextPageId)?.schema;
       const hasExplicitPanel = new URLSearchParams(window.location.search).has('panel');
       const effectivePanel =
-        route.panel === 'structure' &&
+        route.panel === 'outline' &&
         !hasExplicitPanel &&
         emptyPage &&
         !emptyPage.code?.enabled &&
@@ -658,7 +656,7 @@ function Workbench({
       owner.document.getSnapshot() === owner.expected &&
       current.mode === 'edit' &&
       !current.debugOpen &&
-      current.session.leftTab === 'structure' &&
+      current.session.leftTab === 'outline' &&
       current.session.leftOpen &&
       current.leftNarrow === attempt.narrow
     );
@@ -711,7 +709,7 @@ function Workbench({
     if (current.selection.pageId !== nextPageId) {
       document.selectPage(nextPageId);
       const page = current.plan.pages.get(nextPageId)!.schema;
-      if (panel === 'structure' && !page.code?.enabled && page.children.length === 0) {
+      if (panel === 'outline' && !page.code?.enabled && page.children.length === 0) {
         panel = 'materials';
         session.setLeftTab(panel);
       }
@@ -745,7 +743,7 @@ function Workbench({
     document.select(page.id, owner?.nodeId ?? null);
     setLocatedCall(methodReferenceRequest);
     if (owner) {
-      session.activatePanel('structure', false);
+      session.activatePanel('outline', false);
       session.setLeftOpen(false);
       setRightOpen(true);
       setLayout((current) =>
@@ -757,7 +755,7 @@ function Workbench({
     }
     writeEditorRoute(
       page.id,
-      owner ? 'structure' : 'logic',
+      owner ? 'outline' : 'logic',
       isEditorApplicationLocation(window.location),
     );
   }, [methodReferenceRequest]);
@@ -804,7 +802,7 @@ function Workbench({
         pageId: actual.selection.pageId,
       });
     setDebugOpen(false);
-    current.session.activatePanel('structure');
+    current.session.activatePanel('outline');
     setLayout((previous) =>
       previous.leftCollapsed ? { ...previous, leftCollapsed: false } : previous,
     );
@@ -856,7 +854,7 @@ function Workbench({
     snapshot === logPresentation.expected &&
     mode === 'edit' &&
     !debugOpen &&
-    session.leftTab === 'structure' &&
+    session.leftTab === 'outline' &&
     logHostAttempt.current?.presentation === logPresentation &&
     logHostAttempt.current.active &&
     logHostAttempt.current.status === 'ready' &&
@@ -904,7 +902,7 @@ function Workbench({
       const targetPageId = effect.data.pageId;
       if (!plan.pages.has(targetPageId)) return;
       document.selectPage(targetPageId);
-      writeEditorRoute(targetPageId, 'structure', effect.data.replace === true);
+      writeEditorRoute(targetPageId, 'outline', effect.data.replace === true);
       window.dispatchEvent(new PopStateEvent('popstate'));
     });
   }, [document, plan, runtime]);
@@ -1045,7 +1043,7 @@ function Workbench({
               <Tip key={id} content={title} side="right">
                 <Tabs.Tab
                   value={id}
-                  aria-label={id === 'structure' ? '结构' : title}
+                  aria-label={title}
                   onClick={() => navigatePanel(id)}
                 >
                   <Icon size={17} aria-hidden="true" />
@@ -1352,7 +1350,7 @@ function RoutedWorkspace({
   };
   const backToEditor = () => {
     const pageId = projectSnapshot.document.getSnapshot().selection.pageId;
-    window.history.pushState({}, '', editorRoutePath(pageId, 'structure'));
+    window.history.pushState({}, '', editorRoutePath(pageId, 'outline'));
     setRoute('editor');
   };
   const openMethodReference = (reference: ApplicationMethodReference) => {
@@ -1362,7 +1360,7 @@ function RoutedWorkspace({
       pendingReference.current = request;
       setApplicationDialog(null);
     } else {
-      writeEditorRoute(reference.pageId, reference.owner ? 'structure' : 'logic');
+      writeEditorRoute(reference.pageId, reference.owner ? 'outline' : 'logic');
       setMethodReferenceRequest(request);
       setRoute('editor');
     }
@@ -1532,7 +1530,7 @@ export default function App({
     const storageId = entry?.key ?? appId;
     directory.setActive(storageId);
     setActiveAppId(storageId);
-    window.history.pushState({}, '', editorRoutePath(pageId, 'structure'));
+    window.history.pushState({}, '', editorRoutePath(pageId, 'outline'));
     window.dispatchEvent(new PopStateEvent('popstate'));
   };
   const deleteApplication = (appId: string, replacementAppId?: string) => {
@@ -1553,7 +1551,7 @@ export default function App({
     window.history.replaceState(
       {},
       '',
-      editorRoutePath(snapshot.document.getSnapshot().selection.pageId, 'structure'),
+      editorRoutePath(snapshot.document.getSnapshot().selection.pageId, 'outline'),
     );
     window.dispatchEvent(new PopStateEvent('popstate'));
   };

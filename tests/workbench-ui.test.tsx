@@ -32,9 +32,7 @@ describe('Base UI workbench', () => {
     fireEvent.click(screen.getByRole('button', { name: '预览模式' }));
     const counter = screen.getByRole('button', { name: /本地计数/ });
     fireEvent.click(counter);
-    fireEvent.click(screen.getByRole('tab', { name: '结构' }));
-    fireEvent.click(screen.getByRole('tab', { name: '添加组件' }));
-    fireEvent.click(screen.getByRole('tab', { name: '组件树' }));
+    fireEvent.click(screen.getByRole('tab', { name: '大纲' }));
     fireEvent.click(screen.getByRole('tab', { name: '页面状态' }));
     fireEvent.click(screen.getByRole('button', { name: '关闭调试区' }));
     expect(screen.getByRole('button', { name: /本地计数/ })).toBe(counter);

@@ -1,4 +1,4 @@
-import { Boxes, Database, Code2, Files, Workflow } from 'lucide-react';
+import { Database, Code2, Files, LayoutGrid, ListTree, Workflow } from 'lucide-react';
 /** Local panel routes share labels, size policy and mounting policy. */
 export const editorPanelRoutes = [
   {
@@ -10,9 +10,17 @@ export const editorPanelRoutes = [
     lazy: true,
   },
   {
-    id: 'structure',
-    title: '结构',
-    icon: Boxes,
+    id: 'materials',
+    title: '组件',
+    icon: LayoutGrid,
+    minWidth: 192,
+    className: 'sidebar-content components-workspace',
+    lazy: false,
+  },
+  {
+    id: 'outline',
+    title: '大纲',
+    icon: ListTree,
     minWidth: 192,
     className: 'sidebar-content components-workspace',
     lazy: false,
@@ -42,8 +50,9 @@ export const editorPanelRoutes = [
     lazy: true,
   },
 ] as const;
-export type EditorPanelId = (typeof editorPanelRoutes)[number]['id'] | 'materials';
+export type EditorPanelId = (typeof editorPanelRoutes)[number]['id'];
 export function editorPanelRoute(id: string) {
-  const normalizedId = id === 'materials' ? 'structure' : id;
+  // 会话里可能残留拆分前的 'structure' 值：大纲面板承接它。
+  const normalizedId = id === 'structure' ? 'outline' : id;
   return editorPanelRoutes.find((panel) => panel.id === normalizedId);
 }

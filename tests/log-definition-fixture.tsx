@@ -173,7 +173,7 @@ export function logHarness(doc = logAuthor(), firstRuntime = logRuntime(doc), no
                       owner.current = next;
                       setPresentation(next);
                       setOpen(false);
-                      session.activatePanel('structure');
+                      session.activatePanel('outline');
                       duringPrepare?.();
                       return next.active && owner.current === next;
                     },

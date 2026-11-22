@@ -441,7 +441,7 @@ describe('043 independent bounded receipt and fresh-owner cancellation', () => {
       });
       const retiredBeforeReturn = h.releaseCount();
       act(() => {
-        if (kind === 'panel') h.session().activatePanel('structure');
+        if (kind === 'panel') h.session().activatePanel('outline');
         else h.session().setLeftOpen(true);
       });
       h.view.rerender(h.tree());

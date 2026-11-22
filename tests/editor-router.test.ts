@@ -16,7 +16,7 @@ describe('editor router', () => {
   });
 
   it('uses structure on the editor root', () => {
-    expect(parseEditorLocation(window.location)).toEqual({ panel: 'structure' });
+    expect(parseEditorLocation(window.location)).toEqual({ panel: 'outline' });
   });
 
   it('recognizes the standalone page-management route', () => {
@@ -52,7 +52,7 @@ describe('editor router', () => {
     window.history.replaceState({}, '', '/editor/page/orders?panel=unknown');
     expect(parseEditorLocation(window.location)).toEqual({
       pageId: 'orders',
-      panel: 'structure',
+      panel: 'outline',
     });
   });
 
@@ -79,7 +79,7 @@ describe('editor router', () => {
     window.history.replaceState({}, '', '/editor/page/orders');
     const push = vi.spyOn(window.history, 'pushState');
     const replace = vi.spyOn(window.history, 'replaceState');
-    writeEditorRoute('orders', 'structure');
+    writeEditorRoute('orders', 'outline');
     expect(push).not.toHaveBeenCalled();
     expect(replace).not.toHaveBeenCalled();
   });

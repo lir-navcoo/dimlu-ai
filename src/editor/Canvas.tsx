@@ -1014,7 +1014,7 @@ export function EditorCanvas({
                         onClick={() => {
                           if (!canAuthor()) return;
                           if (navigation.requestLocate('tree', box.id, box.key))
-                            session?.activatePanel('structure');
+                            session?.activatePanel('outline');
                         }}
                       >
                         <ListTree size={13} />

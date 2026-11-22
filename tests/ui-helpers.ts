@@ -17,12 +17,10 @@ export function changeControl(control: HTMLElement, value: string) {
   fireEvent.click(option);
 }
 export function showMaterials() {
-  fireEvent.click(screen.getByRole('tab', { name: '结构' }));
-  fireEvent.click(screen.getByRole('tab', { name: '添加组件' }));
+  fireEvent.click(screen.getByRole('tab', { name: '组件' }));
 }
 export function showStructure() {
-  fireEvent.click(screen.getByRole('tab', { name: '结构' }));
-  fireEvent.click(screen.getByRole('tab', { name: '组件树' }));
+  fireEvent.click(screen.getByRole('tab', { name: '大纲' }));
 }
 export function insertMaterial(title = '标题', intent: object = { kind: 'inside' }) {
   showMaterials();

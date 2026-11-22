@@ -63,8 +63,6 @@ type Session = {
   setRevealLeft: (value: boolean) => void;
   dataTarget: DataTarget | null;
   openData: (target: DataTarget) => void;
-  componentView: 'materials' | 'structure';
-  setComponentView: (value: 'materials' | 'structure') => void;
 };
 const Context = editorContext<Session | null>('session', null);
 export function EditorSessionProvider({ children }: { children: ReactNode }) {
@@ -72,16 +70,13 @@ export function EditorSessionProvider({ children }: { children: ReactNode }) {
   const [navigation] = useState(() => new EditorNavigation());
   useLayoutEffect(() => () => navigation.resetKeyboardInteraction(), [navigation]);
   const [viewport] = useState(() => new ViewportStore());
-  const [leftTab, setLeftTab] = useState<EditorPanelId>('structure');
+  const [leftTab, setLeftTab] = useState<EditorPanelId>('outline');
   const [leftOpen, setLeftOpen] = useState(false);
   const [revealLeft, setRevealLeft] = useState(false);
   const [dataTarget, setDataTarget] = useState<DataTarget | null>(null);
-  const [componentView, setComponentView] = useState<'materials' | 'structure'>('structure');
   const activatePanel = (id: string, reveal = true) => {
     const panel = editorPanelRoute(id);
     if (!panel) return;
-    if (id === 'structure' || id === 'materials')
-      setComponentView(id === 'materials' ? 'materials' : 'structure');
     setLeftTab(panel.id);
     if (reveal) {
       setLeftOpen(true);
@@ -102,8 +97,6 @@ export function EditorSessionProvider({ children }: { children: ReactNode }) {
         revealLeft,
         setRevealLeft,
         dataTarget,
-        componentView,
-        setComponentView,
         openData: (target) => {
           setDataTarget(target);
           activatePanel('data');
