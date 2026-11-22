@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Tabs } from '@base-ui/react/tabs';
 import { Dialog } from '@base-ui/react/dialog';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, X } from 'lucide-react';
 import type { EditorDocument, EditorSnapshot } from '../../packages/editor/document';
 import type {
   DataSourceDefinition,
@@ -900,6 +900,16 @@ function SourcesPanel({ document, snapshot, lock, authoringAllowed }: Definition
     definition: source,
     entries: [choiceOwner, errorOwner],
   });
+  const [editorOpen, setEditorOpen] = useState(false);
+  const pickSource = (id: string) => {
+    owner.run((operation) => {
+      if (operation.write('clear', errorOwner.key, () => setError('')))
+        operation.finish(() => {
+          setChosen(id);
+          setEditorOpen(true);
+        });
+    });
+  };
   return (
     <section className="data-model-panel" aria-label="数据源管理">
       <div className="data-model-heading">
@@ -908,70 +918,88 @@ function SourcesPanel({ document, snapshot, lock, authoringAllowed }: Definition
           <Button
             disabled={!owner.allowed}
             aria-label="新建数据源"
-            onClick={() => {
-              owner.run((operation) => {
-                if (operation.write('clear', errorOwner.key, () => setError('')))
-                  operation.finish(() => setChosen('@new'));
-              });
-            }}
+            onClick={() => pickSource('@new')}
           >
             <Plus size={13} />
           </Button>
         </Tip>
       </div>
-      {!!page.dataSources?.length && (
-        <div className="data-model-picker">
-          <Select
-            disabled={!owner.allowed}
-            aria-label="管理数据源"
-            value={source?.id ?? '@new'}
-            onValueChange={(id) => {
-              owner.run((operation) => {
-                if (operation.write('clear', errorOwner.key, () => setError('')))
-                  operation.finish(() => setChosen(id));
-              });
-            }}
-          >
-            <option value="@new">新建数据源</option>
-            {page.dataSources.map((source) => (
-              <option key={source.id} value={source.id}>
-                {source.id} · {source.kind}
-              </option>
-            ))}
-          </Select>
-          {source && (
-            <Tip content="删除数据源">
-              <Button
-                disabled={!owner.allowed}
-                aria-label={`删除数据源 ${source.id}`}
-                onClick={() => {
-                  owner.run((operation) =>
-                    operation.finish(() => setDeleteTarget({ id: source.id, plan: snapshot.plan })),
-                  );
-                }}
-              >
-                <Trash2 size={13} />
-              </Button>
-            </Tip>
-          )}
-        </div>
-      )}
       {error && (
         <p role="alert" className="field-error action-error">
           {error}
         </p>
       )}
-      <SourceEditor
-        key={`${page.id}/${source?.id ?? '@new'}`}
-        document={document}
-        snapshot={snapshot}
-        source={source}
-        onSaved={setChosen}
-        chosen={chosen}
-        owners={[choiceOwner, errorOwner]}
-        lock={lock}
-        authoringAllowed={authoringAllowed}
-      />
+      {!!page.dataSources?.length && (
+        <ul className="data-source-list" aria-label="数据源列表">
+          {page.dataSources.map((item) => (
+            <li className="data-source-row" key={item.id}>
+              <button
+                type="button"
+                className="data-source-open"
+                disabled={!owner.allowed}
+                aria-label={`编辑数据源 ${item.id}`}
+                onClick={() => pickSource(item.id)}
+              >
+                <span className="data-source-name">{item.id}</span>
+                <span className="data-source-kind">
+                  {item.kind === 'query' ? '查询' : '写入'}
+                </span>
+              </button>
+              <Tip content="删除数据源">
+                <Button
+                  disabled={!owner.allowed}
+                  variant="ghost"
+                  aria-label={`删除数据源 ${item.id}`}
+                  onClick={() => {
+                    owner.run((operation) =>
+                      operation.finish(() =>
+                        setDeleteTarget({ id: item.id, plan: snapshot.plan }),
+                      ),
+                    );
+                  }}
+                >
+                  <Trash2 size={13} />
+                </Button>
+              </Tip>
+            </li>
+          ))}
+        </ul>
+      )}
+      {!page.dataSources?.length && (
+        <p className="editor-note">尚无数据源。点右上角「+」创建，或从动作里新建。</p>
+      )}
+      <Dialog.Root open={editorOpen} onOpenChange={setEditorOpen}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="material-modal-backdrop" />
+          <Dialog.Popup className="material-modal data-source-dialog">
+            <div className="data-source-dialog-head">
+              <Dialog.Title className="project-confirmation-title">
+                {source ? `编辑数据源 · ${source.id}` : '新建数据源'}
+              </Dialog.Title>
+              <Dialog.Close
+                className="ui-button ui-button-ghost"
+                aria-label="关闭数据源编辑"
+              >
+                <X size={14} />
+              </Dialog.Close>
+            </div>
+            <Dialog.Description className="editor-note">
+              配置保存不执行请求；字段变化也不会自动请求。
+            </Dialog.Description>
+            <SourceEditor
+              key={`${page.id}/${source?.id ?? '@new'}`}
+              document={document}
+              snapshot={snapshot}
+              source={source}
+              onSaved={setChosen}
+              chosen={chosen}
+              owners={[choiceOwner, errorOwner]}
+              lock={lock}
+              authoringAllowed={authoringAllowed}
+            />
+          </Dialog.Popup>
+        </Dialog.Portal>
+      </Dialog.Root>
       <Dialog.Root
         open={deleteTarget !== null}
         onOpenChange={(open) => !open && setDeleteTarget(null)}

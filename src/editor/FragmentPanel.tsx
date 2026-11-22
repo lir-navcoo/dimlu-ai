@@ -16,7 +16,7 @@ import {
   topSelectedNodeIds,
 } from '../../packages/editor/selection';
 import type { NodeSchema } from '../../packages/schema/types';
-import { Button, Input, Tip } from '../ui/primitives';
+import { Button, Disclosure, Input, Tip } from '../ui/primitives';
 import { useDragDrop } from './DragDrop';
 import { errorText } from './errors';
 import { useEditorSession, useSessionState } from './session';
@@ -601,98 +601,99 @@ export function FragmentPanel({
       : null;
   return (
     <section className="fragment-panel" aria-label="会话片段" ref={panel} tabIndex={-1}>
-      <div className="fragment-heading">
-        <Tip
-          content="把选中的静态组件存为片段，在本文档的其他页面插入；不包含页面代码、CSS 或模型。"
-          side="right"
-        >
-          <strong tabIndex={0}>会话片段</strong>
-        </Tip>
-        <span>
-          {fragments.items.length} / {SAVED_FRAGMENT_LIMIT}
-        </span>
-      </div>
-      <div className="fragment-save">
-        <label htmlFor={nameId}>片段名称 · 最多 {SAVED_FRAGMENT_NAME_LIMIT} 个字符</label>
-        <Input
-          id={nameId}
-          value={draft.text}
-          placeholder="例如：页面页头"
-          disabled={!allowed}
-          onChange={(event) => {
-            if (
-              !mounted.current ||
-              owner.current !== capturedOwner ||
-              !capturedOwner.active ||
-              !observeAuthorOwner(capturedOwner) ||
-              !allowed ||
-              current.current.document !== document ||
-              readDraft() !== draft
-            )
-              return;
-            const next = { text: event.target.value, token: {} };
-            setDraft((previous) => (previous === draft ? next : previous));
-          }}
-        />
-        <Button
-          disabled={!allowed || !selectedNodeIds(snapshot.selection).length}
-          onClick={() => run('save', generation)}
-        >
-          <Archive size={14} aria-hidden="true" /> 保存所选
-        </Button>
-      </div>
-      <p className="editor-note">
-        仅当前会话保留，导入应用文件会保留会话片段；片段仅含静态组件与内联样式，插入的副本可撤销。
-      </p>
-      {visibleStatus && (
-        <p
-          className={`fragment-feedback${visibleStatus.error ? ' is-error' : ''}`}
-          role={visibleStatus.error ? 'alert' : 'status'}
-        >
-          {visibleStatus.text}
+      <Disclosure
+        title={
+          <>
+            会话片段
+            <span aria-label="已保存片段数">
+              {fragments.items.length} / {SAVED_FRAGMENT_LIMIT}
+            </span>
+          </>
+        }
+        defaultOpen={false}
+      >
+        <p className="editor-note">
+          把画布选中的静态组件存为片段，即可在本文档的其他页面插入；仅当前会话保留，导入应用文件会保留会话片段，插入的副本可撤销。
         </p>
-      )}
-      <ul className="fragment-list" aria-label="已保存的会话片段">
-        {fragments.items.map((item) => (
-          <li className="fragment-row" key={item.id}>
-            <div className="fragment-info">
-              <Tip content={`${item.name} · 来自 ${item.sourcePageTitle}`} side="right">
-                <span className="fragment-name" tabIndex={0}>
-                  {item.name}
+        <div className="fragment-save">
+          <label htmlFor={nameId}>片段名称 · 最多 {SAVED_FRAGMENT_NAME_LIMIT} 个字符</label>
+          <Input
+            id={nameId}
+            value={draft.text}
+            placeholder="例如：页面页头"
+            disabled={!allowed}
+            onChange={(event) => {
+              if (
+                !mounted.current ||
+                owner.current !== capturedOwner ||
+                !capturedOwner.active ||
+                !observeAuthorOwner(capturedOwner) ||
+                !allowed ||
+                current.current.document !== document ||
+                readDraft() !== draft
+              )
+                return;
+              const next = { text: event.target.value, token: {} };
+              setDraft((previous) => (previous === draft ? next : previous));
+            }}
+          />
+          <Button
+            disabled={!allowed || !selectedNodeIds(snapshot.selection).length}
+            onClick={() => run('save', generation)}
+          >
+            <Archive size={14} aria-hidden="true" /> 保存所选
+          </Button>
+        </div>
+        {visibleStatus && (
+          <p
+            className={`fragment-feedback${visibleStatus.error ? ' is-error' : ''}`}
+            role={visibleStatus.error ? 'alert' : 'status'}
+          >
+            {visibleStatus.text}
+          </p>
+        )}
+        <ul className="fragment-list" aria-label="已保存的会话片段">
+          {fragments.items.map((item) => (
+            <li className="fragment-row" key={item.id}>
+              <div className="fragment-info">
+                <Tip content={`${item.name} · 来自 ${item.sourcePageTitle}`} side="right">
+                  <span className="fragment-name" tabIndex={0}>
+                    {item.name}
+                  </span>
+                </Tip>
+                <span className="fragment-count">
+                  {item.rootCount} 个顶层组件 · 共 {item.nodeCount} 个组件
                 </span>
-              </Tip>
-              <span className="fragment-count">
-                {item.rootCount} 个顶层组件 · 共 {item.nodeCount} 个组件
-              </span>
-            </div>
-            <div className="fragment-actions">
-              <Tip content={`插入「${item.name}」到页面末尾`}>
-                <Button
-                  variant="ghost"
-                  aria-label={`插入会话片段 ${item.name}`}
-                  disabled={!allowed}
-                  onClick={() => run('insert', generation, item)}
-                >
-                  <Plus size={14} aria-hidden="true" />
-                </Button>
-              </Tip>
-              <Tip content={`删除会话片段「${item.name}」`}>
-                <Button
-                  variant="ghost"
-                  aria-label={`删除会话片段 ${item.name}`}
-                  disabled={!allowed}
-                  onClick={() => openRemoval(item)}
-                >
-                  <Trash2 size={14} aria-hidden="true" />
-                </Button>
-              </Tip>
-            </div>
-          </li>
-        ))}
-      </ul>
-      {!fragments.items.length && (
-        <p className="editor-note">选中组件并命名保存，即可在其他页面插入。</p>
-      )}
+              </div>
+              <div className="fragment-actions">
+                <Tip content={`插入「${item.name}」到页面末尾`}>
+                  <Button
+                    variant="ghost"
+                    aria-label={`插入会话片段 ${item.name}`}
+                    disabled={!allowed}
+                    onClick={() => run('insert', generation, item)}
+                  >
+                    <Plus size={14} aria-hidden="true" />
+                  </Button>
+                </Tip>
+                <Tip content={`删除会话片段「${item.name}」`}>
+                  <Button
+                    variant="ghost"
+                    aria-label={`删除会话片段 ${item.name}`}
+                    disabled={!allowed}
+                    onClick={() => openRemoval(item)}
+                  >
+                    <Trash2 size={14} aria-hidden="true" />
+                  </Button>
+                </Tip>
+              </div>
+            </li>
+          ))}
+        </ul>
+        {!fragments.items.length && (
+          <p className="editor-note">尚无片段。选中组件、命名后点「保存所选」。</p>
+        )}
+      </Disclosure>
       <AlertDialog.Root
         open={!!prompt?.active}
         onOpenChange={(open) => {

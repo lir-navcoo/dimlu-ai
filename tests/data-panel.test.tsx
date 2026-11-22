@@ -77,11 +77,14 @@ describe('data configuration panels', () => {
         .schema.state.some((state) => state.id === 'selected'),
     ).toBe(false);
     fireEvent.click(screen.getByRole('tab', { name: '数据源' }));
+    fireEvent.click(screen.getByRole('button', { name: '编辑数据源 people' }));
     changeControl(screen.getByRole('textbox', { name: '数据源初始值' }), '{');
     fireEvent.click(screen.getByRole('button', { name: '保存数据源' }));
     expect(screen.getByRole('alert')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '关闭数据源编辑' }));
     fireEvent.click(screen.getByRole('tab', { name: '页面状态配置' }));
     fireEvent.click(screen.getByRole('tab', { name: '数据源' }));
+    fireEvent.click(screen.getByRole('button', { name: '编辑数据源 people' }));
     expect(
       (screen.getByRole('textbox', { name: '数据源初始值' }) as HTMLTextAreaElement).value,
     ).toBe('{');
@@ -94,6 +97,7 @@ describe('data configuration panels', () => {
     const doc = new EditorDocument(dataSourceExample, registry);
     mount(doc);
     fireEvent.click(screen.getByRole('tab', { name: '数据源' }));
+    fireEvent.click(screen.getByRole('button', { name: '编辑数据源 people' }));
     changeControl(screen.getByRole('textbox', { name: '数据源初始值' }), '{"rows":[],"total":5}');
     const source = doc.getSnapshot().plan.pages.get('query')!.schema.dataSources![0];
     act(() =>

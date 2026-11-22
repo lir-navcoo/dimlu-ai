@@ -82,11 +82,16 @@ function mount(document: EditorDocument) {
     </TipProvider>,
   );
   showSources();
+  openSource('main');
 }
 function showSources() {
   fireEvent.click(screen.getByRole('tab', { name: '数据源' }));
 }
 const transport = (id: string) => changeControl(screen.getByLabelText('数据源 Transport'), id);
+const openSource = (id: string) =>
+  fireEvent.click(screen.getByRole('button', { name: `编辑数据源 ${id}` }));
+const closeSource = () =>
+  fireEvent.click(screen.getByRole('button', { name: '关闭数据源编辑' }));
 const text = (label: string) => (screen.getByLabelText(label) as HTMLInputElement).value;
 const incompleteA = () => {
   changeControl(screen.getByLabelText('query取值方式'), 'expression');
@@ -109,6 +114,7 @@ describe('transport-specific source parameter drafts', () => {
       </TipProvider>,
     );
     showSources();
+    openSource('main');
     incompleteA();
     setB('7');
     transport('test.a');
@@ -130,6 +136,9 @@ describe('transport-specific source parameter drafts', () => {
         </EditorSessionProvider>
       </TipProvider>,
     );
+    closeSource();
+    showSources();
+    openSource('main');
     expect((screen.getByRole('button', { name: '保存数据源' }) as HTMLButtonElement).disabled).toBe(
       true,
     );
@@ -201,19 +210,25 @@ describe('transport-specific source parameter drafts', () => {
     mount(document);
     incompleteA();
     setB('7');
-    changeControl(screen.getByLabelText('管理数据源'), 'lookup');
+    closeSource();
+    openSource('lookup');
     expect(text('query')).toBe('lookup-a');
-    changeControl(screen.getByLabelText('管理数据源'), 'main');
+    closeSource();
+    openSource('main');
     expect(text('query')).toBe('7');
+    closeSource();
     act(() => document.selectPage('b'));
     showSources();
+    openSource('main');
     expect(text('query')).toBe('original-b');
     act(() => document.selectPage('a'));
     expect(text('query')).toBe('7');
     transport('test.a');
     expect(text('query')).toBe('state.');
+    closeSource();
     fireEvent.click(screen.getByRole('tab', { name: '表单模型' }));
     showSources();
+    openSource('main');
     expect(text('query')).toBe('state.');
   });
 });

@@ -459,25 +459,36 @@ describe('independent data editor acceptance', () => {
     mount(document);
     show('sources');
     const before = document.getSnapshot();
+    const openSource = (id: string) => {
+      fireEvent.click(screen.getByRole('button', { name: `编辑数据源 ${id}` }));
+    };
+    const closeSource = () => {
+      fireEvent.click(screen.getByRole('button', { name: '关闭数据源编辑' }));
+    };
+    openSource('people');
     changeControl(screen.getByRole('textbox', { name: '数据源初始值' }), '{');
     fireEvent.click(screen.getByRole('button', { name: '保存数据源' }));
     expect(screen.getByRole('alert')).toBeTruthy();
     expect(document.getSnapshot()).toBe(before);
-    changeControl(screen.getByLabelText('管理数据源'), 'other');
+    closeSource();
+    openSource('other');
     expect(
       (screen.getByRole('textbox', { name: '数据源初始值' }) as HTMLTextAreaElement).value,
     ).toContain('a-other');
     changeControl(screen.getByRole('textbox', { name: '数据源初始值' }), '{"tag":"other draft"}');
+    closeSource();
     act(() => document.select('b', 'text'));
     show('sources');
+    openSource('people');
     expect(
       (screen.getByRole('textbox', { name: '数据源初始值' }) as HTMLTextAreaElement).value,
     ).toContain('"b"');
     changeControl(screen.getByRole('textbox', { name: '数据源初始值' }), '{"tag":"B draft"}');
+    closeSource();
     act(() => document.select('a', 'text'));
     show('states');
     show('sources');
-    changeControl(screen.getByLabelText('管理数据源'), 'people');
+    openSource('people');
     expect(
       (screen.getByRole('textbox', { name: '数据源初始值' }) as HTMLTextAreaElement).value,
     ).toBe('{');
@@ -492,7 +503,8 @@ describe('independent data editor acceptance', () => {
     fireEvent.click(screen.getByRole('button', { name: '保存数据源' }));
     expect(page(document).dataSources![0].initial).toEqual({ tag: 'A draft' });
     expect(page(document, 'b').dataSources![0].initial).toMatchObject({ tag: 'b' });
-    changeControl(screen.getByLabelText('管理数据源'), 'other');
+    closeSource();
+    openSource('other');
     expect(
       (screen.getByRole('textbox', { name: '数据源初始值' }) as HTMLTextAreaElement).value,
     ).toBe('{"tag":"other draft"}');
@@ -503,6 +515,7 @@ describe('independent data editor acceptance', () => {
       document = new EditorDocument(application(), registry);
     mount(document);
     show('sources');
+    fireEvent.click(screen.getByRole('button', { name: '编辑数据源 people' }));
     changeControl(screen.getByLabelText('数据源 Transport'), 'test.alt');
     expect(screen.queryByLabelText('query取值方式')).toBeNull();
     changeControl(screen.getByLabelText('filter取值方式'), 'literal');
@@ -510,6 +523,7 @@ describe('independent data editor acceptance', () => {
     fireEvent.click(screen.getByRole('button', { name: '保存数据源' }));
     expect(page(document).dataSources![0].input).toEqual({ filter: literal('新过滤') });
     expect(document.getSnapshot().plan.schema.dependencies.transports!['test.alt']).toBe('2.0.0');
+    fireEvent.click(screen.getByRole('button', { name: '关闭数据源编辑' }));
     fireEvent.click(screen.getByRole('button', { name: '新建数据源' }));
     changeControl(screen.getByRole('textbox', { name: '数据源 ID' }), 'created');
     expect(screen.queryByLabelText('filter取值方式')).toBeNull();

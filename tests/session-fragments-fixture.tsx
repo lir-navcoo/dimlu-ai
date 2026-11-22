@@ -104,10 +104,21 @@ export function savedHarness(
     },
   };
 }
-export const savedInput = () =>
-  screen.getByRole('textbox', { name: /片段名称/ }) as HTMLInputElement;
-export const savedSave = () => screen.getByRole('button', { name: '保存所选' });
+// 会话片段面板默认折叠；查询类 helper 先展开一次再查找。
+export function ensureFragmentsExpanded() {
+  if (screen.queryByRole('button', { name: '保存所选' })) return;
+  fireEvent.click(screen.getByRole('button', { name: /会话片段/ }));
+}
+export const savedInput = () => {
+  ensureFragmentsExpanded();
+  return screen.getByRole('textbox', { name: /片段名称/ }) as HTMLInputElement;
+};
+export const savedSave = () => {
+  ensureFragmentsExpanded();
+  return screen.getByRole('button', { name: '保存所选' });
+};
 export function savedRow(name: string) {
+  ensureFragmentsExpanded();
   return screen.getByText(name, { exact: true }).closest<HTMLElement>('.fragment-row')!;
 }
 export function savedAction(name: string, action: 'insert' | 'remove') {
