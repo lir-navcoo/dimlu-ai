@@ -708,6 +708,8 @@ describe('registered panel activation through navigation', () => {
     changeControl(id, 'pendingState');
     changeControl(initial, '{未完成');
     await frame();
+    // 弹窗为模态，导航前先关闭；草稿经 session 保留。
+    fireEvent.click(screen.getByRole('button', { name: '关闭状态编辑' }));
     fireEvent.click(screen.getByRole('button', { name: '在组件树定位' }));
     await frame();
     await frame();
@@ -718,12 +720,14 @@ describe('registered panel activation through navigation', () => {
     expect(screen.getByRole('textbox', { name: '页面 React 代码' })).toBe(code);
     expect(code.value).toBe('export default () => <');
     fireEvent.click(screen.getByRole('tab', { name: '数据' }));
-    expect(screen.getByRole('textbox', { name: '状态 ID' })).toBe(id);
-    expect(screen.getByRole('textbox', { name: '状态初始值' })).toBe(initial);
-    expect(id.value).toBe('pendingState');
-    expect(initial.value).toBe('{未完成');
+    fireEvent.click(screen.getByRole('tab', { name: '页面状态配置' }));
+    fireEvent.click(screen.getByRole('button', { name: '新建状态' }));
+    // 弹窗重挂后是新控件，草稿值仍保留。
+    expect((screen.getByRole('textbox', { name: '状态 ID' }) as HTMLInputElement).value).toBe('pendingState');
+    expect((screen.getByRole('textbox', { name: '状态初始值' }) as HTMLTextAreaElement).value).toBe('{未完成');
     expect(document.querySelector('[aria-label="页面代码"]')).not.toBeNull();
     expect(document.querySelector('[aria-label="页面状态管理"]')).not.toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '关闭状态编辑' }));
     const undo = within(screen.getByLabelText('文档操作')).getByRole('button', { name: '↶ 撤销' });
     expect((undo as HTMLButtonElement).disabled).toBe(true);
   });
