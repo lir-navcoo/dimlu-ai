@@ -422,6 +422,12 @@
   font-size: 10px;
   color: #94a3b8;
 }
+/* 动作链容器：卡片、说明与底部按钮之间统一间距（外层 section 本身无样式）。 */
+.action-panel > .action-chain {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+}
 /* 动作链底部按钮组：辅助按钮靠左成组，保存主按钮靠右。 */
 .action-panel-footer-group {
   display: flex;
@@ -449,26 +455,24 @@
   flex: 0 0 auto;
   background: #fbfcfe;
 }
-/* 画布上方的页面页签条：对标宜搭的页面导航位置。 */
-.page-tabs-bar {
+/* 页面页签内联在画布工具条中：与面包屑、视口控件同行，多页面时横向滚动。 */
+.page-tabs-inline {
   display: flex;
+  min-width: 0;
+  flex: 0 1 auto;
   align-items: center;
-  gap: 4px;
-  height: 34px;
-  padding-inline: 8px 4px;
-  border-bottom: 1px solid var(--border);
+  gap: 2px;
 }
-.page-tabs-scroll {
+.page-tabs-inline > .page-tabs-scroll {
   display: flex;
   align-items: center;
   gap: 2px;
   min-width: 0;
-  flex: 1;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: thin;
 }
-.page-tabs-scroll > .page-tab {
+.page-tabs-inline .page-tab {
   flex-shrink: 0;
   max-width: 168px;
   height: 26px;
@@ -482,23 +486,24 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.page-tabs-scroll > .page-tab:hover {
+.page-tabs-inline .page-tab:hover {
   background: #eceff7;
 }
-.page-tabs-scroll > .page-tab.is-active {
+.page-tabs-inline .page-tab.is-active {
   background: #eef0ff;
   color: #4338ca;
   font-weight: 600;
 }
-.page-tabs-bar > .ui-button {
+.page-tabs-inline > .ui-button {
   flex-shrink: 0;
   width: 28px;
   min-width: 28px;
   padding: 0;
 }
 .canvas-toolbar {
-  height: 40px;
-  gap: 8px;
+  min-height: 40px;
+  flex-wrap: wrap;
+  gap: 6px 8px;
   padding-inline: 8px;
   border-bottom: 0;
 }

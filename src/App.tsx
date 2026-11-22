@@ -386,7 +386,7 @@ function PageTabs({
   const drag = useDragDrop();
   const current = snapshot.selection.pageId;
   return (
-    <nav className="page-tabs-bar" aria-label="页面页签">
+    <nav className="page-tabs-inline" aria-label="页面页签">
       <div className="page-tabs-scroll">
         {snapshot.plan.schema.pages.map((page) => (
           <button
@@ -1099,14 +1099,6 @@ function Workbench({
           )}
           <main className="main-area">
             <div className="canvas-tools" role="group" aria-label="画布工具">
-              <PageTabs
-                snapshot={snapshot}
-                onPageChange={(nextPageId) => {
-                  retireLogPresentation();
-                  navigatePage(nextPageId);
-                }}
-                onOpenPagePanel={navigatePanel}
-              />
               <div className="canvas-toolbar" inert={rightNarrow && debugOpen}>
                 <Button
                   ref={leftTrigger}
@@ -1122,6 +1114,14 @@ function Workbench({
                 >
                   <PanelLeft size={15} aria-hidden="true" />
                 </Button>
+                <PageTabs
+                  snapshot={snapshot}
+                  onPageChange={(nextPageId) => {
+                    retireLogPresentation();
+                    navigatePage(nextPageId);
+                  }}
+                  onOpenPagePanel={navigatePanel}
+                />
                 <CanvasBreadcrumb document={document} snapshot={snapshot} />
                 <div
                   className="canvas-toolbar-viewport"

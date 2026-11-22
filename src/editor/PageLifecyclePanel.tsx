@@ -109,7 +109,7 @@ export function PageLifecyclePanel({
       {!authoringAllowed && (
         <p className="editor-note">当前为预览模式，请切回编辑模式配置进入动作。</p>
       )}
-      <section aria-label="页面进入动作">
+      <section className="action-chain" aria-label="页面进入动作">
         <ActionChainEditor
           key={`enter-${page.id}`}
           page={page}
@@ -148,7 +148,7 @@ export function PageLifecyclePanel({
       <p className="editor-note">
         对齐宜搭「页面关闭时」：预览中离开页面（切换页面或销毁页面实例）时执行一次；编辑时保存不执行。
       </p>
-      <section aria-label="页面离开动作">
+      <section className="action-chain" aria-label="页面离开动作">
         <ActionChainEditor
           key={`leave-${page.id}`}
           page={page}
