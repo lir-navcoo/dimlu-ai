@@ -133,7 +133,7 @@ describe('ordinary page CSS', () => {
       screen.getByRole<HTMLTextAreaElement>('textbox', { name: '普通页面 CSS 源码' });
     const save = () => screen.getByRole<HTMLButtonElement>('button', { name: '保存页面 CSS' });
     fireEvent.click(tab('页面 CSS'));
-    expect(editor().value).toBe(':root {\n}');
+    expect(editor().value).toBe(':root {\n  margin: 16px;\n}');
     expect(editor().placeholder).toBe('');
     expect(save().disabled).toBe(true);
     fireEvent.change(editor(), { target: { value: '@import "theme.css";' } });
@@ -145,7 +145,7 @@ describe('ordinary page CSS', () => {
     fireEvent.click(tab('页面 CSS'));
     expect(editor().value).toBe(source);
     act(() => doc.selectPage('two'));
-    expect(editor().value).toBe(':root {\n}');
+    expect(editor().value).toBe(':root {\n  margin: 16px;\n}');
     act(() => doc.selectPage('one'));
     expect(editor().value).toBe(source);
     view.rerender(tree(false));

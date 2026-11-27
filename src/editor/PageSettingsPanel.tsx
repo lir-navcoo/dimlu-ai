@@ -102,7 +102,7 @@ function PageCssEntry({
 }) {
   const { pageId } = snapshot.selection;
   const saved = snapshot.plan.pages.get(pageId)!.schema.css ?? '';
-  const initial = saved || ':root {\n}';
+  const initial = saved || ':root {\n  margin: 16px;\n}';
   const [draft, setDraft, status] = useDraft(`page-css:${pageId}`, saved, initial);
   const [error, setError] = useState('');
   const canAuthor = useAuthorGuard(document, snapshot, undefined, authoringAllowed);
