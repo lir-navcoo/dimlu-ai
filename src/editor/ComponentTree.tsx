@@ -32,6 +32,7 @@ import { NodeContextMenu, type NodeContextMenuState } from './NodeContextMenu';
 import { useKeyboardSelectAll } from './keyboard-authoring';
 import {
   isHistoryKeyFamily,
+  isDuplicateKeyFamily,
   isClipboardKeyFamily,
   useKeyboardDelete,
   useKeyboardHistory,
@@ -754,7 +755,9 @@ export function ComponentTree({
       }}
       onKeyDown={(event) => {
         if (isClipboardKeyFamily(event)) keyboardClipboard.onKeyDown(event);
-        else if (isHistoryKeyFamily(event)) keyboardHistory.onKeyDown(event);
+        else if (isDuplicateKeyFamily(event)) {
+          if (!contextMenu) keyboardHistory.onKeyDown(event);
+        } else if (isHistoryKeyFamily(event)) keyboardHistory.onKeyDown(event);
         else if ((event.ctrlKey || event.metaKey) && /^[a]$/i.test(event.key))
           keyboardSelectAll.onKeyDown(event);
         else keyboardDelete.onKeyDown(event);

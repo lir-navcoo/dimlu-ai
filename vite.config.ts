@@ -15,6 +15,10 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    // vmThreads: the default forks pool fails module resolution in this
+    // environment ("Vitest failed to find the runner" from setup files);
+    // vmThreads loads worker modules through the same runner as the CLI.
+    pool: 'vmThreads',
     // Workbench interaction suites are CPU-heavy; bound concurrency to avoid timer starvation.
     maxWorkers: 4,
     // Heavy App-render suites take 6-8s when dev servers and MCP hosts share the machine;

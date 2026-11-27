@@ -26,16 +26,10 @@
   gap: 7px;
   white-space: nowrap;
 }
-.brand-mark {
-  width: 25px;
-  height: 25px;
-  border-radius: 7px;
-  background: var(--blue);
-  color: white;
-  font:
-    bold 23px/25px Georgia,
-    serif;
-  text-align: center;
+.brand-logo {
+  height: 32px;
+  width: auto;
+  color: var(--ink, #1f2937);
 }
 .brand strong {
   font-size: 17px;

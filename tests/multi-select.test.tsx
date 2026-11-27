@@ -12,7 +12,7 @@ import { FormRuntime } from '../packages/runtime/form';
 import App from '../src/App';
 import { seedLegacyProject } from './legacy-project';
 import { changeControl, showStructure } from './ui-helpers';
-import example from '../public/examples/multi-select.json';
+import { multiSelectExample as example } from './fixtures/example-json';
 
 afterEach(cleanup);
 const literal = (value: Json): Value => ({ kind: 'literal', value });
@@ -178,7 +178,7 @@ describe('multiple select', () => {
   it('checks dynamic option element types and recovers without dropping selections', () => {
     const app = fixture();
     app.pages[0].state = [{ id: 'options', type: 'array', initial: [{ label: '零', value: 0 }] }];
-    app.pages[0].children[1].children![1].props.options = { kind: 'stateRef', stateId: 'options' };
+    app.pages[0].children[2].children![1].props.options = { kind: 'stateRef', stateId: 'options' };
     const runtime = new PageRuntime(compileApplication(app, registry), 'multi-select-demo');
     render(<RuntimeRenderer runtime={runtime} materials={materials} />);
     act(() => runtime.setState('options', [{ label: '一', value: 1 }]));
@@ -305,12 +305,12 @@ describe('multiple select', () => {
     fireEvent.click(screen.getByRole('button', { name: '选中 选择器 priority' }));
     changeControl(screen.getByLabelText('选择模式'), 'false');
     expect(screen.getByRole('alert').textContent).toContain('请先解除字段绑定');
-    expect(readSchema().pages[0].children[1].children![1].props.multiple).toEqual(literal(true));
+    expect(readSchema().pages[0].children[2].children![1].props.multiple).toEqual(literal(true));
   });
 
   it('creates and binds a numeric array field from the data panel', () => {
     const app = fixture();
-    const node = app.pages[0].children[1].children![1];
+    const node = app.pages[0].children[2].children![1];
     delete node.field;
     node.props.label = literal('独立数字');
     node.props.value = literal([]);

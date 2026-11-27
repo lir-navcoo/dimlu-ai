@@ -92,7 +92,7 @@ describe('052 real default App StrictMode diagnostic, no production or subject m
       [...document.querySelectorAll<HTMLButtonElement>('.tree-select')]
         .find((button) => button.getAttribute('aria-pressed') === 'true')
         ?.getAttribute('aria-label'),
-    ).toMatch(/ui-heading-\d+$/);
+    ).toMatch(/ui-text-\d+$/);
   });
 
   it.each([

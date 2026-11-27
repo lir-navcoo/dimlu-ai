@@ -1,6 +1,6 @@
 import { EditorDocument, findNode, type Selection } from './document';
 import type { Registry } from '../runtime/registry';
-import type { ApplicationSchema } from '../schema/types';
+import type { ApplicationSchema, NodeSchema, Value } from '../schema/types';
 
 export const PROJECT_STORAGE_KEY = 'dimlu.workbench.project.v1';
 export interface ProjectStorageAdapter {
@@ -25,6 +25,87 @@ export interface ProjectStorageSnapshot {
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 const object = (input: unknown): input is Record<string, unknown> =>
   !!input && typeof input === 'object' && !Array.isArray(input);
+
+/** Upgrade known legacy titles when reading local projects, without changing the stored bytes. */
+export function restoreProjectDocument(input: unknown, registry: Registry): EditorDocument {
+  if (
+    registry.components['ui.heading'] ||
+    !registry.components['ui.text'] ||
+    !object(input) ||
+    input.schemaVersion !== '0.1.0' ||
+    !object(input.dependencies) ||
+    !object(input.dependencies.components) ||
+    input.dependencies.components['ui.heading'] !== '1.0.0'
+  )
+    return new EditorDocument(input, registry);
+
+  const schema = structuredClone(input) as unknown as ApplicationSchema;
+  const textVersion = registry.components['ui.text'].version;
+  if (
+    !Array.isArray(schema.pages) ||
+    (Object.hasOwn(schema.dependencies.components, 'ui.text') &&
+      schema.dependencies.components['ui.text'] !== textVersion)
+  )
+    return new EditorDocument(input, registry);
+
+  const literal = (value: string | number): Value => ({ kind: 'literal', value });
+  for (const page of schema.pages) {
+    const ids = new Set<string>();
+    const gather = (nodes: NodeSchema[]) => {
+      for (const node of nodes) {
+        ids.add(node.id);
+        if (node.children) gather(node.children);
+        for (const slot of Object.values(node.slots ?? {})) gather(slot.children);
+      }
+    };
+    const migrate = (nodes: NodeSchema[]): NodeSchema[] =>
+      nodes.flatMap((node) => {
+        if (node.children) node.children = migrate(node.children);
+        for (const slot of Object.values(node.slots ?? {})) slot.children = migrate(slot.children);
+        if (node.component !== 'ui.heading') return [node];
+        if (
+          !object(node.props) ||
+          !Object.hasOwn(node.props, 'title') ||
+          Object.keys(node.props).some((key) => key !== 'title' && key !== 'description') ||
+          node.children !== undefined ||
+          node.slots !== undefined ||
+          node.field !== undefined ||
+          node.formId !== undefined
+        )
+          throw new Error(`无法迁移旧标题组件 ${node.id}`);
+        const { title, description } = node.props;
+        const heading: NodeSchema = {
+          ...node,
+          component: 'ui.text',
+          props: { value: title },
+          style: { fontSize: literal(23), fontWeight: literal(600), ...node.style },
+        };
+        if (description === undefined || (description?.kind === 'literal' && description.value === ''))
+          return [heading];
+        const base = `${node.id}-note`;
+        let noteId = base;
+        for (let i = 2; ids.has(noteId); i++) noteId = `${base}-${i}`;
+        ids.add(noteId);
+        return [
+          heading,
+          {
+            id: noteId,
+            component: 'ui.text',
+            props: { value: description, tone: literal('muted') },
+            ...(node.when !== undefined && { when: node.when }),
+            ...(node.repeat !== undefined && { repeat: node.repeat }),
+            ...(node.hidden !== undefined && { hidden: node.hidden }),
+            ...(node.lock !== undefined && { lock: node.lock }),
+          },
+        ];
+      });
+    gather(page.children);
+    page.children = migrate(page.children);
+  }
+  delete schema.dependencies.components['ui.heading'];
+  schema.dependencies.components['ui.text'] = textVersion;
+  return new EditorDocument(schema, registry);
+}
 
 /** Access localStorage lazily, so denied browser access is handled by the same recovery path. */
 export const browserProjectStorage = (): ProjectStorageAdapter => ({
@@ -65,7 +146,7 @@ export class ProjectStorage {
         if (!object(saved) || saved.storageVersion !== 1)
           throw new Error('不支持的本地项目存储版本');
         // Construct only after full Schema/dependency validation; failures leave the fallback untouched.
-        const candidate = new EditorDocument(saved.schema, registry);
+        const candidate = restoreProjectDocument(saved.schema, registry);
         this.restoreSelection(candidate, saved.selection);
         document = candidate;
         savedAt = typeof saved.savedAt === 'string' ? saved.savedAt : null;

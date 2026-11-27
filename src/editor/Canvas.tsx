@@ -53,6 +53,7 @@ import { SelectionControls } from './SelectionControls';
 import { NodeContextMenu, type NodeContextMenuState } from './NodeContextMenu';
 import {
   isDeleteKey,
+  isDuplicateKeyFamily,
   isHistoryKeyFamily,
   isClipboardKeyFamily,
   useKeyboardDelete,
@@ -61,7 +62,7 @@ import {
   useKeyboardNudge,
   useKeyboardSelectAll,
 } from './keyboard-authoring';
-import { useStandaloneCanvasEscape } from './author-escape';
+import { isSaveKeyFamily, useStandaloneCanvasEscape } from './author-escape';
 import { describeNodeName, displayNodeName } from './node-display-name';
 import { useCanvasStage, useCanvasStageVersion } from './canvas-stage';
 import { RuntimeDomProvider, isDocumentElement } from '../ui/runtime-dom';
@@ -176,7 +177,7 @@ interface Box {
   drop?: 'line' | 'inside';
   valid?: boolean;
   axis?: 'x' | 'y';
-  toolbar?: { left: number; top: number; width: number };
+  toolbar?: { right: number; top: number; width: number };
   resize?: { marker: HTMLElement; bounds: CanvasRect; outline: CanvasRect };
 }
 export function EditorCanvas({
@@ -602,7 +603,7 @@ export function EditorCanvas({
         const top = Math.max(bounds.top + 2, Math.min(preferredTop, bounds.bottom - 30));
         if (width >= 112 && bounds.height >= 30)
           primary.box.toolbar = {
-            left: left - primary.fullRect.left,
+            right: primary.fullRect.right - (left + width),
             top: top - primary.fullRect.top,
             width,
           };
@@ -796,8 +797,13 @@ export function EditorCanvas({
         }
       }}
       onKeyDownCapture={(event) => {
+        if (isSaveKeyFamily(event)) return;
         if (isClipboardKeyFamily(event)) {
           keyboardClipboard.onKeyDown(event);
+          return;
+        }
+        if (isDuplicateKeyFamily(event)) {
+          if (!contextMenu && !marquee.gesture.current) keyboardHistory.onKeyDown(event);
           return;
         }
         if (isHistoryKeyFamily(event)) {
@@ -982,10 +988,10 @@ export function EditorCanvas({
                     className="canvas-selection-toolbar"
                     data-canvas-action="true"
                     style={{
-                      left: box.toolbar.left,
+                      right: box.toolbar.right,
                       top: box.toolbar.top,
-                      width: box.toolbar.width,
-                      right: 'auto',
+                      maxWidth: box.toolbar.width,
+                      left: 'auto',
                       bottom: 'auto',
                     }}
                   >

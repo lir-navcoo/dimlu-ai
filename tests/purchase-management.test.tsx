@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { compileApplication, PageRuntime } from '../packages/runtime/engine';
 import { RuntimeRenderer } from '../packages/react-runtime/Renderer';
 import { registry, materials } from '../src/materials';
@@ -9,7 +9,7 @@ import { TipProvider } from '../src/ui/primitives';
 import { changeControl } from './ui-helpers';
 import App from '../src/App';
 import { PROJECT_STORAGE_KEY } from '../packages/editor/project-storage';
-import { exampleApplication } from '../src/examples';
+import { exampleApplication } from './fixtures/examples';
 
 afterEach(() => {
   cleanup();
@@ -53,7 +53,7 @@ describe('purchase business composition', () => {
   it('uses the new starter only without saved projects, restores legacy v1 unchanged and makes no design requests', () => {
     const query = vi.spyOn(registry.transports!['demo.purchasesQuery'], 'execute');
     const view = render(<App />);
-    expect(screen.getByRole('heading', { name: '采购申请管理' })).toBeTruthy();
+    expect(within(screen.getByLabelText('页面编辑画布')).getByText('采购申请管理')).toBeTruthy();
     expect(screen.getByRole('button', { name: '新建申请' })).toBeTruthy();
     expect(screen.queryByText(/本地计数|需主管审批|成员目录/)).toBeNull();
     expect(document.querySelector('.form-status')).toBeNull();
@@ -67,7 +67,7 @@ describe('purchase business composition', () => {
     localStorage.clear();
     localStorage.setItem(PROJECT_STORAGE_KEY, raw);
     render(<App />);
-    expect(screen.getByRole('heading', { name: '创建采购申请' })).toBeTruthy();
+    expect(within(screen.getByLabelText('页面编辑画布')).getByText('创建采购申请')).toBeTruthy();
     expect(localStorage.getItem(PROJECT_STORAGE_KEY)).toBe(raw);
     expect(query).not.toHaveBeenCalled();
   });

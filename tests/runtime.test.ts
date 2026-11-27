@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { exampleApplication } from '../src/examples';
+import { exampleApplication } from './fixtures/examples';
 import { registry } from '../src/materials';
 import { compileApplication, PageRuntime, type PlannedAction } from '../packages/runtime/engine';
 import { compileValue } from '../packages/runtime/expression';

@@ -12,7 +12,7 @@ import { formEditorApplication } from './form-editor-fixture';
 import App from '../src/App';
 import { seedLegacyProject } from './legacy-project';
 import { changeControl, insertMaterial, showStructure } from './ui-helpers';
-import selectExample from '../public/examples/select.json';
+import { selectExample as selectExample } from './fixtures/example-json';
 
 afterEach(cleanup);
 const literal = (value: Json): Value => ({ kind: 'literal', value });

@@ -3,10 +3,14 @@ import { fieldTypes, type Registry } from '../runtime/registry';
 import { assertValueScope, compileValue, valueScopeReads } from '../runtime/expression';
 import { isStyleProperty, styleValueError, styleValueTypes } from './style';
 import { assertStyleSource } from './style-source';
+import { assertPageStyleSource } from './page-style-source';
 import { rowValues } from './field-data';
 import { prepareFormPatch } from './form-patch';
 import { checkTransportInput } from '../runtime/data-source';
 import { applicationMethodActionId } from '../runtime/application-methods';
+import { compilePageActions } from '../runtime/page-actions';
+import { pageActionName, pageActionPrefix } from '../runtime/page-action-code';
+import { resolveDataSources, sharedSourceMap } from './shared-data-sources';
 import {
   matchesType,
   matchesFieldValue,
@@ -20,6 +24,8 @@ import {
 } from './types';
 
 const reserved = forbiddenObjectKeySet;
+/** 平台内置 transport：应用作者直接使用，无需在 dependencies.transports 声明。 */
+const BUILTIN_TRANSPORTS = new Set(['http.request']);
 
 export interface PageValidationContext {
   app: ApplicationSchema;
@@ -42,21 +48,51 @@ export interface ValueChecker {
 
 /** Entry: validates one page against the registry using the shared issue collector. */
 export function validatePage(page: PageSchema, base: string, context: PageValidationContext): void {
+  if (page.css !== undefined) {
+    try {
+      assertPageStyleSource(page.css);
+    } catch (error) {
+      context.add(
+        `${base}/css`,
+        'page.style.source',
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+  }
   const models: PageModels = {
     states: new Map(page.state.map((s) => [s.id, s])),
     forms: new Map((page.forms ?? []).map((f) => [f.id, f])),
-    sources: new Map((page.dataSources ?? []).map((source) => [source.id, source])),
+    sources: new Map(resolveDataSources(page, sharedSourceMap(context.app)).map((source) => [source.id, source])),
   };
   validateStateDefinitions(page, base, context);
   const checker = createValueChecker(context, models);
   validateDataSources(page, base, context, checker);
   validateForms(page, base, context, checker);
   const actionIds = new Set<string>();
-  const validateCalls = createCallValidator(context, models, checker, actionIds);
+  let pageActions: Registry['actions'] = {};
+  try {
+    pageActions = compilePageActions(page.actionCode);
+  } catch (error) {
+    context.add(`${base}/actionCode/source`, 'page.action.compile', (error as Error).message);
+  }
+  const validateCalls = createCallValidator(context, models, checker, actionIds, pageActions);
   const nodeIds = new Set<string>();
   const validateNodes = createNodeValidator(context, models, checker, validateCalls, nodeIds);
   validateCalls(page.onEnter ?? [], `${base}/onEnter`, false);
   validateCalls(page.onLeave ?? [], `${base}/onLeave`, false);
+  validateCalls(page.didMount ?? [], `${base}/didMount`, false);
+  validateCalls(page.willUnmount ?? [], `${base}/willUnmount`, false);
+  for (const [alias, canonical] of [
+    ['didMount', 'onEnter'],
+    ['willUnmount', 'onLeave'],
+  ] as const) {
+    if (page[alias]?.length && page[canonical]?.length)
+      context.add(
+        `${base}/${alias}`,
+        'page.lifecycle.alias',
+        `${alias} 与 ${canonical} 同时定义，请仅保留一个`,
+      );
+  }
   validateNodes(page.children, `${base}/children`);
 }
 
@@ -144,17 +180,27 @@ function validateDataSources(
 ): void {
   const { app, registry, add } = context;
   const { value, checkReferenceType } = checker;
+  const shared = sharedSourceMap(app);
   const sourceIds = new Set<string>();
   for (const [index, source] of (page.dataSources ?? []).entries()) {
     const at = `${base}/dataSources/${index}`;
     if (sourceIds.has(source.id) || reserved.has(source.id))
       add(at, 'source.id', '重复或保留的数据源 ID');
     sourceIds.add(source.id);
+    if (source.ref && !shared.has(source.ref))
+      add(at, 'source.ref', `引用的共享数据源 ${source.ref} 不存在`);
+  }
+  for (const [index, source] of resolveDataSources(page, shared).entries()) {
+    const at = `${base}/dataSources/${index}`;
     const contract = Object.hasOwn(registry.transports ?? {}, source.transport)
       ? registry.transports![source.transport]
       : undefined;
     if (!contract) add(at, 'transport.missing', `未注册 transport ${source.transport}`);
-    if (!Object.hasOwn(app.dependencies.transports ?? {}, source.transport))
+    // 平台内置 transport 免应用声明依赖。
+    if (
+      !BUILTIN_TRANSPORTS.has(source.transport) &&
+      !Object.hasOwn(app.dependencies.transports ?? {}, source.transport)
+    )
       add(at, 'dependency.undeclared', `transport ${source.transport} 未声明依赖`);
     if (contract) {
       if (!matchesType(source.initial, contract.output))
@@ -214,7 +260,7 @@ function validateForms(
   checker: ValueChecker,
 ): void {
   const { app, registry, add } = context;
-  const { value } = checker;
+  const { value, logicType } = checker;
   const formIds = new Set<string>();
   for (const [fi, form] of (page.forms ?? []).entries()) {
     const at = `${base}/forms/${fi}`;
@@ -222,25 +268,29 @@ function validateForms(
     formIds.add(form.id);
     if (!form.fields.length && !form.arrays?.length)
       add(at, 'form.empty', '表单至少需要一个字段或数组');
-    const check = (v: Value, path: string) => {
+    const check = (v: Value, path: string, topLevelFieldCondition = false) => {
       value(v, path);
+      if (topLevelFieldCondition) logicType(v, ['boolean'], path);
       try {
+        const compiled = compileValue(v);
         if (v.kind === 'formValues') add(path, 'form.rule', '规则不能读取提交载荷');
-        if (compileValue(v).usesSources)
+        if (compiled.usesSources)
           add(path, 'form.rule', '表单规则暂不支持读取数据源，请使用页面状态');
+        if (topLevelFieldCondition && compiled.usesScope)
+          add(path, 'form.rule', '字段条件不能读取循环或插槽作用域');
         if (
-          compileValue(v).dependencies.some(
+          compiled.dependencies.some(
             (d) => d === '*' || (d.startsWith('@form:') && d !== `@form:${form.id}`),
           )
         )
           add(path, 'form.rule', '规则只能读取明确的页面状态和当前表单值');
-        if (v.kind === 'literal' && typeof v.value !== 'boolean')
+        if (!topLevelFieldCondition && v.kind === 'literal' && typeof v.value !== 'boolean')
           add(path, 'form.rule', '条件必须是布尔值');
       } catch {
         /* value reports invalid syntax */
       }
     };
-    const checkFields = (fields: FieldDefinition[], prefix: string) => {
+    const checkFields = (fields: FieldDefinition[], prefix: string, topLevel = false) => {
       checkFieldIdentities(add, fields, prefix);
       for (const [i, field] of fields.entries()) {
         const fp = `${prefix}/${i}`;
@@ -261,8 +311,8 @@ function validateForms(
         if (field.range && !field.format) add(fp, 'field.format', '范围字段需声明日期时间格式');
         const formatError = temporalError(field.initial, field);
         if (formatError) add(fp, 'field.format', formatError);
-        if (field.when) check(field.when, `${fp}/when`);
-        if (field.disabled) check(field.disabled, `${fp}/disabled`);
+        if (field.when) check(field.when, `${fp}/when`, topLevel);
+        if (field.disabled) check(field.disabled, `${fp}/disabled`, topLevel);
         for (const [ri, rule] of (field.rules ?? []).entries()) {
           const rp = `${fp}/rules/${ri}`;
           if (rule.kind === 'expression') check(rule.test, `${rp}/test`);
@@ -291,7 +341,7 @@ function validateForms(
       }
     };
     checkFieldIdentities(add, [...form.fields, ...(form.arrays ?? [])], at + '/fields-and-arrays');
-    checkFields(form.fields, at + '/fields');
+    checkFields(form.fields, at + '/fields', true);
     for (const [i, array] of (form.arrays ?? []).entries()) {
       const ap = `${at}/arrays/${i}`;
       checkFields(array.fields, ap + '/fields');
@@ -334,24 +384,38 @@ function createCallValidator(
   models: PageModels,
   checker: ValueChecker,
   actionIds: Set<string>,
+  pageActions: Registry['actions'],
 ): (list: ActionCall[], path: string, eventAllowed: boolean, scope?: ReadonlySet<string>) => void {
   const { app, registry, add } = context;
   const { states, forms, sources } = models;
   const { value, checkReferenceType } = checker;
-  return (list, path, eventAllowed, scope = new Set()) =>
+  const validateList = (
+    list: ActionCall[],
+    path: string,
+    eventAllowed: boolean,
+    scope: ReadonlySet<string> = new Set(),
+  ) =>
     list.forEach((call, i) => {
       const at = `${path}/${i}`;
       if (actionIds.has(call.id)) add(at, 'id.duplicate', `重复动作调用 ID ${call.id}`);
       actionIds.add(call.id);
-      const contract = Object.hasOwn(registry.actions, call.action)
-        ? registry.actions[call.action]
-        : undefined;
+      const pageAction = call.action.startsWith(pageActionPrefix);
+      const actions = pageAction ? pageActions : registry.actions;
+      const contract = Object.hasOwn(actions, call.action) ? actions[call.action] : undefined;
+      if (pageAction && !contract)
+        add(
+          at,
+          'page.action.missing',
+          `当前页没有动作函数 ${pageActionName(call.action)}，请先调整此调用`,
+        );
       const localMethod = (app.methods ?? []).some(
         (method) => applicationMethodActionId(method.id) === call.action,
       );
       if (
         !localMethod &&
+        !pageAction &&
         call.action !== 'app.navigate' &&
+        call.action !== 'control.branch' &&
         !Object.hasOwn(app.dependencies.actions, call.action)
       )
         add(at, 'dependency.undeclared', `动作 ${call.action} 未声明依赖`);
@@ -373,6 +437,10 @@ function createCallValidator(
       }
       for (const [key, v] of Object.entries(call.input))
         value(v, `${at}/input/${key}`, eventAllowed, scope);
+      if (call.action === 'control.branch') {
+        validateList(call.then ?? [], `${at}/then`, eventAllowed, scope);
+        validateList(call.else ?? [], `${at}/else`, eventAllowed, scope);
+      }
       if (call.action === 'app.navigate') {
         const target = call.input.pageId;
         if (
@@ -467,6 +535,7 @@ function createCallValidator(
         }
       }
     });
+  return validateList;
 }
 
 function createNodeValidator(

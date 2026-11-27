@@ -3,9 +3,11 @@ import {
   useContext,
   useEffect,
   useRef,
+  useState,
   type ComponentType,
   type ReactNode,
 } from 'react';
+import { Dialog } from '@base-ui/react/dialog';
 import type { Setter } from '../../packages/editor/metadata';
 import type { ContractField } from '../../packages/runtime/registry';
 import type { Json } from '../../packages/schema/types';
@@ -15,6 +17,7 @@ import { errorText } from './errors';
 import { SelectOptionsEditor } from './SelectOptionsEditor';
 import { TableColumnsEditor } from './TableColumnsEditor';
 import { CodeEditor } from '../ui/CodeEditor';
+import { RichTextMaterial } from '../materials/rich-text';
 
 /** Literal-only authoring contract. onChange is validated by the document command. */
 export interface ReactSetterProps {
@@ -134,8 +137,60 @@ function ColorSetter(props: ReactSetterProps) {
     </span>
   );
 }
+function RichTextSetter(props: ReactSetterProps) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState('');
+  const saved = typeof props.value === 'string' ? props.value : '';
+  const preview =
+    saved
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim() || '空内容';
+  const editable = props.canEdit?.() ?? true;
+  const openEditor = () => {
+    if (!editable) return;
+    setDraft(saved);
+    setOpen(true);
+  };
+  const save = () => {
+    if (!editable) return;
+    props.onDraftChange(draft);
+    if (props.onChange(draft)) setOpen(false);
+  };
+  return (
+    <>
+      <span className="rich-text-setter">
+        <Button id={props.id} disabled={!editable} onClick={openEditor}>
+          编辑富文本…
+        </Button>
+        <span className="rich-text-setter-preview">{preview}</span>
+        {props.error && <small className="field-error">{props.error}</small>}
+      </span>
+      <Dialog.Root open={open} onOpenChange={setOpen}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="material-modal-backdrop" />
+          <Dialog.Popup className="material-modal rich-text-dialog" aria-label={props.label}>
+            <Dialog.Title className="rich-text-dialog-title">编辑{props.label}</Dialog.Title>
+            <Dialog.Description className="rich-text-dialog-description">
+              直接输入富文本，保存后作为该组件的固定默认值。
+            </Dialog.Description>
+            <RichTextMaterial label={props.label} value={draft} onValueChange={setDraft} />
+            <div className="rich-text-dialog-actions">
+              <Dialog.Close className="ui-button">取消</Dialog.Close>
+              <Button variant="primary" onClick={save}>
+                保存默认值
+              </Button>
+            </div>
+          </Dialog.Popup>
+        </Dialog.Portal>
+      </Dialog.Root>
+    </>
+  );
+}
+
 const builtins: ReactSetterRegistry = Object.freeze({
   text: TextSetter,
+  richText: RichTextSetter,
   number: JsonSetter,
   boolean: BooleanSetter,
   json: JsonSetter,

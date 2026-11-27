@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type FocusEventHandler } from 'react';
+import { useEffect, useId, useState, type FocusEventHandler, type MouseEventHandler } from 'react';
 import { Checkbox } from '@base-ui/react/checkbox';
 import { Switch } from '@base-ui/react/switch';
 import { Check } from 'lucide-react';
@@ -15,7 +15,9 @@ export interface BooleanMaterialProps {
   error?: string;
   required?: boolean;
   disabled?: boolean;
+  readOnly?: boolean;
   name?: string;
+  onClick?: MouseEventHandler<HTMLDivElement>;
 }
 
 function BooleanMaterial({
@@ -28,8 +30,10 @@ function BooleanMaterial({
   error,
   required = false,
   disabled = false,
+  readOnly = false,
   name,
   style,
+  onClick,
 }: BooleanMaterialProps & { variant: 'checkbox' | 'switch' }) {
   const id = useId();
   const controlled = !!onCheckedChange;
@@ -42,6 +46,7 @@ function BooleanMaterial({
     <div
       className="material-field material-boolean-field"
       style={style}
+      onClick={onClick}
       {...materialStyleTarget(style)}
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) onBlur?.(event);
@@ -53,7 +58,7 @@ function BooleanMaterial({
           name={name}
           checked={controlled ? checked : localChecked}
           onCheckedChange={onCheckedChange ?? setLocalChecked}
-          disabled={disabled}
+          disabled={disabled || readOnly}
           required={required}
           className={`material-${variant}`}
           aria-labelledby={`${id}-label`}

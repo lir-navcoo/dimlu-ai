@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import App from '../src/App';
 import {
   ProjectStorage,
@@ -8,8 +8,8 @@ import {
   type ProjectStorageAdapter,
 } from '../packages/editor/project-storage';
 import { EditorDocument } from '../packages/editor/document';
-import { exampleApplication } from '../src/examples';
-import { serverRecordsExample } from '../src/server-records-example';
+import { exampleApplication } from './fixtures/examples';
+import { serverRecordsExample } from './fixtures/server-records-example';
 import { registry } from '../src/materials';
 import { changeControl } from './ui-helpers';
 
@@ -39,10 +39,10 @@ function project(adapter: ProjectStorageAdapter, options = { debounceMs: 5 }) {
   return p;
 }
 function title(document: EditorDocument, value: string) {
-  document.setProp('purchase', 'purchase-heading', 'title', { kind: 'literal', value });
+  document.setProp('purchase', 'purchase-heading', 'value', { kind: 'literal', value });
 }
 const storedTitle = (m: ReturnType<typeof memory>) =>
-  m.read().schema.pages[0].children[0].props.title.value;
+  m.read().schema.pages[0].children[0].props.value.value;
 
 describe('independent N5 project persistence acceptance', () => {
   it.each([
@@ -68,7 +68,7 @@ describe('independent N5 project persistence acceptance', () => {
   it('protects dependency-version-invalid raw bytes through edit, Undo, reset confirmation failure, and retry', () => {
     vi.useFakeTimers();
     const schema = structuredClone(exampleApplication);
-    schema.dependencies.components['ui.heading'] = '999.0.0';
+    schema.dependencies.components['ui.text'] = '999.0.0';
     const raw = ` \n${JSON.stringify({ storageVersion: 1, schema })}\t `;
     const m = memory(raw),
       p = project(m.adapter);
@@ -154,7 +154,7 @@ describe('independent N5 project persistence acceptance', () => {
         <App projectStorage={m.adapter} saveDelayMs={10} />
       </StrictMode>,
     );
-    changeControl(screen.getByRole('textbox', { name: '标题' }), '第一轮待保存');
+    changeControl(screen.getByRole('textbox', { name: '文本内容' }), '第一轮待保存');
     first.unmount();
     expect(storedTitle(m)).toBe('第一轮待保存');
     const second = render(
@@ -162,12 +162,12 @@ describe('independent N5 project persistence acceptance', () => {
         <App projectStorage={m.adapter} saveDelayMs={10} />
       </StrictMode>,
     );
-    changeControl(screen.getByRole('textbox', { name: '标题' }), '第二轮最新');
+    changeControl(screen.getByRole('textbox', { name: '文本内容' }), '第二轮最新');
     await waitFor(() => expect(storedTitle(m)).toBe('第二轮最新'));
     expect(screen.getByLabelText('本地保存状态').textContent).toBe('已保存');
     second.unmount();
     render(<App projectStorage={m.adapter} saveDelayMs={10} />);
-    expect(screen.getByRole('heading', { name: '第二轮最新' })).toBeTruthy();
+    expect(within(screen.getByLabelText('页面编辑画布')).getByText('第二轮最新')).toBeTruthy();
     expect((screen.getByRole('button', { name: /撤销/ }) as HTMLButtonElement).disabled).toBe(true);
   });
 

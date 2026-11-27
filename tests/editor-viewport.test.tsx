@@ -814,7 +814,7 @@ describe('stable viewport host preserves the business tree and editor session', 
         <div className="canvas-scroll">
           <CanvasViewport mode="preview">
             <CanvasSurface>
-              <CodePageCanvas code={code} runtime={runtime} mode="preview" openCode={() => {}} />
+              <CodePageCanvas code={code} runtime={runtime} mode="preview" />
             </CanvasSurface>
           </CanvasViewport>
         </div>

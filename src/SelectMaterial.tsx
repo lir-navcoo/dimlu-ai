@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type FocusEventHandler } from 'react';
+import { useEffect, useId, useRef, useState, type FocusEventHandler, type MouseEventHandler } from 'react';
 import { Select } from '@base-ui/react/select';
 import { Check, ChevronDown, X } from 'lucide-react';
 import { Button, Tip } from './ui/primitives';
@@ -22,10 +22,12 @@ export function SelectMaterial<Multiple extends boolean = false>({
   error,
   required = false,
   disabled = false,
+  readOnly = false,
   clearable = true,
   multiple = false as Multiple,
   name,
   style,
+  onClick,
 }: {
   style?: React.CSSProperties;
   label: string;
@@ -39,8 +41,10 @@ export function SelectMaterial<Multiple extends boolean = false>({
   error?: string;
   required?: boolean;
   disabled?: boolean;
+  readOnly?: boolean;
   clearable?: boolean;
   name?: string;
+  onClick?: MouseEventHandler<HTMLDivElement>;
 }) {
   const id = useId();
   const container = runtimePortalContainer(useRuntimeDomEnvironment());
@@ -79,6 +83,7 @@ export function SelectMaterial<Multiple extends boolean = false>({
     <div
       className="material-field material-select-field"
       style={style}
+      onClick={onClick}
       {...materialStyleTarget(style)}
       onBlur={(event) => {
         const next = event.relatedTarget as Node | null;
@@ -100,7 +105,7 @@ export function SelectMaterial<Multiple extends boolean = false>({
           items={options}
           name={name}
           required={required}
-          disabled={disabled}
+          disabled={disabled || readOnly}
           onValueChange={changeValue}
         >
           <Select.Trigger
@@ -157,7 +162,7 @@ export function SelectMaterial<Multiple extends boolean = false>({
               className="material-select-clear"
               variant="ghost"
               aria-label={`清空${label}`}
-              disabled={disabled}
+              disabled={disabled || readOnly}
               onClick={() => {
                 changeValue(multiple ? [] : null);
                 trigger.current?.focus();

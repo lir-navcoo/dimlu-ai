@@ -15,11 +15,11 @@ describe('history timeline panel', () => {
   it('lists operations with the current step highlighted and jumps on click', () => {
     const document = new EditorDocument(structuredClone(purchaseManagementExample), registry);
     document.select('purchases', 'purchase-heading');
-    document.setProp('purchases', 'purchase-heading', 'title', {
+    document.setProp('purchases', 'purchase-heading', 'value', {
       kind: 'literal',
       value: '第一次修改',
     });
-    document.setProp('purchases', 'purchase-heading', 'title', {
+    document.setProp('purchases', 'purchase-heading', 'value', {
       kind: 'literal',
       value: '第二次修改',
     });
@@ -54,7 +54,7 @@ describe('history timeline panel', () => {
     // Cleanup runs after the assertions below via afterEach + dispose at the end.
     fireEvent.click(screen.getByRole('tab', { name: '操作历史' }));
     const timeline = screen.getByRole('list', { name: '操作历史时间线' });
-    expect(timeline.textContent).toContain('修改属性 title');
+    expect(timeline.textContent).toContain('修改属性 value');
     // Steps: oldest → newest; the current step is not a button.
     const steps = [...timeline.querySelectorAll('button.history-step')];
     expect(steps).toHaveLength(2);
@@ -64,7 +64,7 @@ describe('history timeline panel', () => {
       findNode(
         document.getSnapshot().plan.schema.pages[0],
         'purchase-heading',
-      )!.node.props.title,
+      )!.node.props.value,
     ).toEqual({ kind: 'literal', value: '采购申请管理' });
     // Timeline reflects the jump: one redoable future entry.
     expect(document.getHistory().future).toHaveLength(2);

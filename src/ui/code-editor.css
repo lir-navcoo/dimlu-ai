@@ -17,11 +17,16 @@
   min-height: 0;
 }
 .code-editor-monaco {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
 }
-.code-editor-monaco[hidden] {
-  display: none;
+.code-editor-monaco-pending {
+  position: absolute;
+  inset: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 .code-editor-fallback.ui-textarea {
   display: block;
@@ -54,6 +59,10 @@
   font: inherit;
   box-shadow: none;
 }
+.code-editor .monaco-editor .editorPlaceholder {
+  color: #64748b;
+  white-space: pre-wrap;
+}
 .schema-panel > .code-editor {
   flex: 1;
   min-height: 0;
@@ -85,7 +94,10 @@
 }
 .code-editor-dialog {
   position: fixed;
-  inset: 6vh max(16px, 7vw);
+  inset: clamp(12px, 6dvh, 64px) 0;
+  box-sizing: border-box;
+  width: min(1120px, calc(100% - 32px));
+  margin-inline: auto;
   z-index: var(--layer-modal, 1401);
   display: flex;
   flex-direction: column;

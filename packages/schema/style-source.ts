@@ -168,7 +168,10 @@ const unitless = new Set<StyleProperty>(['flexGrow', 'flexShrink', 'fontWeight',
 const numeric = /^-?(?:\d+(?:\.\d+)?|\.\d+)$/;
 const defaultBlock = ':root {\n}';
 
-function assertLocalValue(value: string) {
+export function assertResourceFreeStyleValue(
+  value: string,
+  additionalFunctions: ReadonlySet<string> = new Set(),
+) {
   // 约束重新序列化的值，避免 CSS 转义、注释或未闭合结构改变分词。
   if (/[\\;{}\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]|\/\*/.test(value))
     throw new Error('CSS 值中不能包含转义、注释、控制字符或声明分隔符');
@@ -178,8 +181,8 @@ function assertLocalValue(value: string) {
     if (token === ')') depth--;
     else if (token.endsWith('(')) {
       const name = token.slice(0, -1).toLowerCase();
-      if (!cssFunctions.has(name))
-        throw new Error(`不支持 CSS 函数 ${name || '('}，组件样式不能加载外部资源`);
+      if (!cssFunctions.has(name) && !additionalFunctions.has(name))
+        throw new Error(`不支持 CSS 函数 ${name || '('}，CSS 不能加载外部资源`);
       depth++;
     } else if (token.length === 1) throw new Error('CSS 值包含未闭合的引号或不支持的符号');
     if (depth < 0) throw new Error('CSS 值的括号不匹配');
@@ -202,7 +205,7 @@ function parseSource(source: string) {
       // 自定义属性可能通过继承改写物料内部变量或宿主的层叠规则。
       if (!localProperties.has(propertyName(entry.prop)))
         throw new Error(`组件源码不支持 CSS 属性 ${entry.prop}`);
-      assertLocalValue(entry.value);
+      assertResourceFreeStyleValue(entry.value);
     }
   }
   return root;

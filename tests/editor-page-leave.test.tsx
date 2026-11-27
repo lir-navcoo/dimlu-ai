@@ -2,7 +2,13 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EditorDocument } from '../packages/editor/document';
 import { PageRuntime } from '../packages/runtime/engine';
-import type { ActionCall, ApplicationSchema, Json, PageSchema, Value } from '../packages/schema/types';
+import type {
+  ActionCall,
+  ApplicationSchema,
+  Json,
+  PageSchema,
+  Value,
+} from '../packages/schema/types';
 import { PageLifecyclePanel } from '../src/editor/PageLifecyclePanel';
 import { EditorSessionProvider } from '../src/editor/session';
 import { registry } from '../src/materials';
@@ -89,9 +95,9 @@ describe('atomic page-leave action commands', () => {
     expect(() =>
       document.setPageLeaveActions('a', [notify('bad-scope', expression('scope'))]),
     ).toThrow('页面离开动作不能访问 event 或 scope');
-    expect(() => document.setPageLeaveActions('a', [notify('bad-scope', expression('event'))])).toThrow(
-      '页面离开动作不能访问 event 或 scope',
-    );
+    expect(() =>
+      document.setPageLeaveActions('a', [notify('bad-scope', expression('event'))]),
+    ).toThrow('页面离开动作不能访问 event 或 scope');
     expect(() => document.setPageLeaveActions('missing', [notify()])).toThrow();
     expect(document.getSnapshot()).toBe(before);
   });

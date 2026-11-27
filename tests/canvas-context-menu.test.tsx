@@ -82,7 +82,7 @@ describe('node context menu', () => {
     await clickMenuItem('粘贴为子级');
     await closeMenu();
     const workspace = findNode(storedSchema().pages[0], 'purchase-workspace')!.node;
-    expect(workspace.children!.filter((child) => child.component === 'ui.heading')).toHaveLength(2);
+    expect(workspace.children!.filter((child) => child.component === 'ui.text')).toHaveLength(3);
   });
 
   it('deletes from the outline context menu', async () => {

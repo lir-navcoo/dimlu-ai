@@ -144,7 +144,7 @@ const codes = (root: Element) =>
     .map((el) => el.textContent)
     .filter((text) => text?.startsWith('scope['));
 const propertyHelp = () => input('文本内容').closest('.property-field')!;
-const styleHelp = () => input('宽度绑定').closest('.style-binding-editor')!;
+const styleHelp = () => input('宽度绑定').closest('.style-field')!;
 const showStyle = () => fireEvent.click(screen.getByRole('tab', { name: '样式' }));
 const expectedLocals = [
   'scope["row"]',
@@ -281,7 +281,7 @@ describe('042 independent actual expression entry contexts', () => {
     expect(document.querySelector('.property-field .editor-note')).toBeNull();
     showStyle();
     fireEvent.click(screen.getByRole('button', { name: '宽度绑定设置' }));
-    expect(document.querySelector('.style-binding-editor .editor-note')).toBeNull();
+    expect(document.querySelector('.style-field .editor-note')).toBeNull();
   });
   it('keeps component event guidance singular, safely scoped, and preserves invalid action draft on provider refresh', () => {
     const doc = make();

@@ -7,7 +7,6 @@ import { DataPanel } from './DataPanel';
 import { CodePanel } from '../code/CodePanel';
 import { InsertPanel } from './InsertPanel';
 import { PagePanel } from './PagePanel';
-import { PageLifecyclePanel } from './PageLifecyclePanel';
 import { editorPanelRoutes, type EditorPanelId } from './panel-routes';
 import type { ReactNode } from 'react';
 export type EditorPanelContext = {
@@ -52,18 +51,13 @@ const renderers: Record<EditorPanelId, (context: EditorPanelContext) => ReactNod
       }
     />
   ),
-  logic: ({ document, snapshot, authoringAllowed, onOpenMethods, pageEntryTarget }) => (
-    <PageLifecyclePanel
+  code: ({ document, snapshot, authoringAllowed }) => (
+    <CodePanel
       key={snapshot.selection.pageId}
       document={document}
       snapshot={snapshot}
-      authoringAllowed={authoringAllowed ?? false}
-      onOpenMethods={onOpenMethods}
-      focusReference={pageEntryTarget}
+      authoringAllowed={authoringAllowed}
     />
-  ),
-  code: ({ document, snapshot }) => (
-    <CodePanel key={snapshot.selection.pageId} document={document} snapshot={snapshot} />
   ),
 };
 export const designPanels = editorPanelRoutes.map((panel) => ({

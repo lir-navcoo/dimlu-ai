@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { exampleApplication } from '../src/examples';
+import { exampleApplication } from './fixtures/examples';
 import { registry } from '../src/materials';
 import { compileApplication, PageRuntime } from '../packages/runtime/engine';
 import { fieldKey, FormSubmissionError } from '../packages/runtime/form';

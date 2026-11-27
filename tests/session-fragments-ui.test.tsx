@@ -64,7 +64,7 @@ describe('named session fragments use the actual material panel and BaseUI confi
         kind === 'no-props' ? { noProps: true } : { partial: true },
       );
       expect(screen.getByRole('textbox', { name: '搜索物料' })).toBeTruthy();
-      expect(screen.getByRole('button', { name: '拖入 标题' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: '拖入 文本' })).toBeTruthy();
       expect(screen.queryByRole('button', { name: '保存所选' })).toBeNull();
       fireEvent.change(screen.getByRole('textbox', { name: '搜索物料' }), {
         target: { value: '不存在物料' },

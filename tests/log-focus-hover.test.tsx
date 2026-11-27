@@ -33,7 +33,7 @@ const schema: ApplicationSchema = {
   id: 'log-hover',
   title: 'Local hover',
   entryPageId: 'page',
-  dependencies: { components: { 'ui.heading': '1.0.0', 'ui.text': '1.0.0' }, actions: {} },
+  dependencies: { components: { 'ui.text': '1.0.0' }, actions: {} },
   pages: [
     {
       id: 'page',
@@ -42,8 +42,8 @@ const schema: ApplicationSchema = {
       children: [
         {
           id: 'other',
-          component: 'ui.heading',
-          props: { title: { kind: 'literal', value: 'Other' } },
+          component: 'ui.text',
+          props: { value: { kind: 'literal', value: 'Other' } },
         },
         {
           id: 'failure',
@@ -255,7 +255,7 @@ describe('044 independent actual App hover after log-owned layout change', () =>
         });
       } else {
         const treeRow = screen
-          .getByRole('button', { name: '选中 标题 other' })
+          .getByRole('button', { name: '选中 文本 other' })
           .closest<HTMLElement>('[data-editor-tree-node]')!;
         fireEvent.pointerEnter(treeRow, {
           pointerType: 'mouse',

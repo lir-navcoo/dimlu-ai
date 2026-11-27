@@ -173,7 +173,8 @@ describe('selection toolbar screen-space placement', () => {
       String(scale),
     );
     expect(toolbar?.closest('.canvas-scaled-surface')).toBeNull();
-    expect(toolbar?.style.width).toBe('218px');
+    expect(toolbar?.style.maxWidth).toBe('218px');
+    expect(toolbar?.style.width).toBe('');
     expect(top).toBeCloseTo(node.bottom + 2);
   });
 

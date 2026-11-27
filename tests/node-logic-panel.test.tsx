@@ -59,7 +59,16 @@ function setup(input = schema) {
 const show = () => fireEvent.click(screen.getByRole('tab', { name: '逻辑' }));
 function binding(label: string, mode: Value['kind'], text: string) {
   changeControl(screen.getByRole('combobox', { name: `${label}取值方式` }), mode);
-  changeControl(screen.getByRole('textbox', { name: label }), text);
+  if (mode === 'literal' && (text === 'true' || text === 'false')) {
+    const checkbox = screen.getByRole('checkbox', { name: label });
+    let guard = 0;
+    while (checkbox.getAttribute('aria-checked') !== text && guard < 2) {
+      fireEvent.click(checkbox);
+      guard += 1;
+    }
+  } else {
+    changeControl(screen.getByRole('textbox', { name: label }), text);
+  }
 }
 
 describe('node logic inspector', () => {
@@ -80,7 +89,7 @@ describe('node logic inspector', () => {
     fireEvent.click(screen.getByRole('button', { name: '恢复循环渲染' }));
     expect(screen.getByRole('alert').textContent).toContain('scope.item');
     expect(doc.getSnapshot()).toBe(before);
-    expect((screen.getByRole('textbox', { name: '显示条件' }) as HTMLTextAreaElement).value).toBe(
+    expect(screen.getByRole('checkbox', { name: '显示条件' }).getAttribute('aria-checked')).toBe(
       'false',
     );
     expect((screen.getByRole('textbox', { name: '记录变量' }) as HTMLInputElement).value).toBe(

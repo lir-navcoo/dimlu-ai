@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type MouseEventHandler, type ReactNode } from 'react';
 import { Dialog } from '@base-ui/react/dialog';
 import { Toast } from '@base-ui/react/toast';
 import { AlertCircle, CheckCircle2, Info, X, PanelsTopLeft, PanelRightOpen } from 'lucide-react';
@@ -45,6 +45,7 @@ type ModalProps = {
   width?: number;
   children?: ReactNode;
   slots?: SlotRenderers;
+  onClick?: MouseEventHandler<HTMLElement>;
 };
 function OverlayMaterial({
   title,
@@ -61,6 +62,7 @@ function OverlayMaterial({
   children,
   slots = {},
   drawer = false,
+  onClick,
   style,
 }: ModalProps & { drawer?: boolean }) {
   const [shown, change] = useMaterialValue(open, onOpenChange),
@@ -80,6 +82,7 @@ function OverlayMaterial({
       className={`material-overlay-host ${design ? 'design' : ''}`}
       data-overlay-presentation={overlayMode}
       data-overlay-node={node?.id}
+      onClick={onClick}
     >
       <Dialog.Root
         open={design ? overlayMode !== 'collapsed' : shown}
@@ -202,6 +205,7 @@ export function AlertMaterial({
   closable = false,
   visible = true,
   onVisibleChange,
+  onClick,
   style,
 }: {
   style?: React.CSSProperties;
@@ -211,6 +215,7 @@ export function AlertMaterial({
   closable?: boolean;
   visible?: boolean;
   onVisibleChange?: (visible: boolean) => void;
+  onClick?: MouseEventHandler<HTMLDivElement>;
 }) {
   const [shown, change] = useMaterialValue(visible, onVisibleChange),
     design = useDesignMode();
@@ -222,6 +227,7 @@ export function AlertMaterial({
       style={style}
       {...materialStyleTarget(style)}
       role={tone === 'error' || tone === 'warning' ? 'alert' : 'status'}
+      onClick={onClick}
     >
       <Icon size={17} />
       <div>
@@ -248,6 +254,7 @@ export function LoadingMaterial({
   label = '正在加载…',
   blocking = true,
   children,
+  onClick,
   style,
 }: {
   style?: React.CSSProperties;
@@ -255,6 +262,7 @@ export function LoadingMaterial({
   label?: string;
   blocking?: boolean;
   children?: ReactNode;
+  onClick?: MouseEventHandler<HTMLElement>;
 }) {
   const design = useDesignMode();
   return (
@@ -263,6 +271,7 @@ export function LoadingMaterial({
       style={style}
       {...materialStyleTarget(style)}
       aria-busy={loading || undefined}
+      onClick={onClick}
     >
       <div
         inert={loading && blocking && !design ? true : undefined}
@@ -356,7 +365,7 @@ const overlayContract: Contracts[string] = {
     showFooter: boolProp,
     width: numberProp,
   },
-  events: ['onOpenChange', 'onConfirm'],
+  events: ['onOpenChange', 'onConfirm', 'onClick'],
   validateProps: (props) =>
     'width' in props && (Number(props.width) < 240 || Number(props.width) > 1200)
       ? ['弹层宽度必须在 240 到 1200 之间']
@@ -374,13 +383,14 @@ export const feedbackContracts: Contracts = {
       closable: boolProp,
       visible: boolProp,
     },
-    events: ['onVisibleChange'],
+    events: ['onVisibleChange', 'onClick'],
     validateProps: (props) => enumErrors(props, { tone: ['info', 'success', 'warning', 'error'] }),
   },
   'ui.loading': {
     version: '1.0.0',
     children: true,
     props: { loading: boolProp, label: textProp, blocking: boolProp },
+    events: ['onClick'],
   },
 };
 export const feedbackActions: Registry['actions'] = {

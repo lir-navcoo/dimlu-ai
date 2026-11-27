@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { PaginationMaterial, TableMaterial } from '../src/materials/data';
 import { registry, materials } from '../src/materials';
 import { createRecordsTransports } from '../src/records-transports';
-import { serverRecordsExample } from '../src/server-records-example';
+import { serverRecordsExample } from './fixtures/server-records-example';
 import { compileApplication, PageRuntime } from '../packages/runtime/engine';
 import { RuntimeRenderer } from '../packages/react-runtime/Renderer';
 import { TipProvider } from '../src/ui/primitives';

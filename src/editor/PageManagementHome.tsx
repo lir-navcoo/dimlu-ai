@@ -5,6 +5,7 @@ import { refreshEditorDocument } from './refresh-document';
 import { registry } from '../materials';
 import { PagePanel } from './PagePanel';
 import { Button } from '../ui/primitives';
+import { BrandLogo } from '../ui/BrandLogo';
 import { editorRoutePath } from './router';
 import './page-management.css';
 
@@ -39,8 +40,7 @@ export function PageManagementHome({
     <main className="page-management-home">
       <header className="page-management-header">
         <div className="brand">
-          <span className="brand-mark">d</span>
-          <strong>dimlu</strong>
+          <BrandLogo className="brand-logo" />
         </div>
         <div>
           <h1>应用页面</h1>

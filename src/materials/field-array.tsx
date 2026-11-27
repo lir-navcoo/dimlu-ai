@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useRef, useSyncExternalStore } from 'react';
+import { useMemo, useEffect, useRef, useSyncExternalStore, type MouseEventHandler } from 'react';
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
 import { materialStyleTarget, useRuntime } from '../../packages/react-runtime/Renderer';
 import { FormRuntime } from '../../packages/runtime/form';
@@ -54,6 +54,8 @@ type ArrayProps = {
   formId?: string;
   arrayId?: string;
   options?: Record<string, SelectOption[]>;
+  onClick?: MouseEventHandler<HTMLElement>;
+  readOnly?: boolean;
 };
 function ArrayCell({
   store,
@@ -61,19 +63,21 @@ function ArrayCell({
   target,
   options,
   commit,
+  readOnly,
 }: {
   store: FormRuntime;
   field: FieldDefinition;
   target: FieldTarget;
   options?: SelectOption[];
   commit: (action: () => void) => void;
+  readOnly?: boolean;
 }) {
   const state = store.getFieldState(target)!;
   if (!state.visible) return null;
   const shared = {
     label: field.label,
     name: store.getFieldName(target),
-    disabled: state.disabled,
+    disabled: state.disabled || !!readOnly,
     error: state.error,
     required: field.rules?.some(
       (r) => r.kind === (field.type === 'boolean' ? 'mustBeTrue' : 'required'),
@@ -136,16 +140,21 @@ function ArrayView({
   options = {},
   onChange,
   style,
+  onClick,
+  readOnly,
 }: {
   style?: React.CSSProperties;
   store: FormRuntime;
   arrayId: string;
   options?: Record<string, SelectOption[]>;
   onChange?: (value: Record<string, Json>[]) => void;
+  onClick?: MouseEventHandler<HTMLElement>;
+  readOnly?: boolean;
 }) {
   const snapshot = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot),
     array = snapshot.arrays[arrayId],
     definition = store.getArrayDefinition(arrayId);
+  const locked = array.disabled || !!readOnly;
   const commit = (action: () => void) => {
     action();
     onChange?.(structuredClone(store.getSnapshot().values[arrayId]) as Record<string, Json>[]);
@@ -157,12 +166,13 @@ function ArrayView({
       style={style}
       {...materialStyleTarget(style)}
       aria-label={definition.label}
+      onClick={onClick}
     >
       <header>
         <strong>{definition.label}</strong>
         <Button
           disabled={
-            array.disabled ||
+            locked ||
             (definition.maxItems !== undefined && array.rows.length >= definition.maxItems)
           }
           onClick={() =>
@@ -195,6 +205,7 @@ function ArrayView({
                 target={{ arrayId, rowId: row.id, fieldId: field.id }}
                 options={options[field.id]}
                 commit={commit}
+                readOnly={readOnly}
               />
             ))}
           </div>
@@ -202,7 +213,7 @@ function ArrayView({
             <Tip content="上移这一行">
               <Button
                 aria-label={`上移第 ${index + 1} 行`}
-                disabled={array.disabled || index === 0}
+                disabled={locked || index === 0}
                 onClick={() => commit(() => store.move(arrayId, row.id, index - 1))}
               >
                 <ArrowUp size={13} />
@@ -211,7 +222,7 @@ function ArrayView({
             <Tip content="下移这一行">
               <Button
                 aria-label={`下移第 ${index + 1} 行`}
-                disabled={array.disabled || index === array.rows.length - 1}
+                disabled={locked || index === array.rows.length - 1}
                 onClick={() => commit(() => store.move(arrayId, row.id, index + 1))}
               >
                 <ArrowDown size={13} />
@@ -220,7 +231,7 @@ function ArrayView({
             <Tip content="删除这一行">
               <Button
                 aria-label={`删除第 ${index + 1} 行`}
-                disabled={array.disabled || array.rows.length <= (definition.minItems ?? 0)}
+                disabled={locked || array.rows.length <= (definition.minItems ?? 0)}
                 onClick={() => commit(() => store.remove(arrayId, row.id))}
               >
                 <Trash2 size={13} />
@@ -237,11 +248,15 @@ function BoundArray({
   arrayId,
   options,
   style,
+  onClick,
+  readOnly,
 }: {
   formId: string;
   style?: React.CSSProperties;
   arrayId: string;
   options?: Record<string, SelectOption[]>;
+  onClick?: MouseEventHandler<HTMLElement>;
+  readOnly?: boolean;
 }) {
   return (
     <ArrayView
@@ -249,6 +264,8 @@ function BoundArray({
       arrayId={arrayId}
       options={options}
       style={style}
+      onClick={onClick}
+      readOnly={readOnly}
     />
   );
 }
@@ -262,6 +279,8 @@ function IndependentArray({
   onValueChange,
   options,
   style,
+  onClick,
+  readOnly,
 }: ArrayProps) {
   const source = JSON.stringify({ label, fields, value, minItems, maxItems, disabled });
   const previous = useRef<{ config: string; store: FormRuntime } | null>(null);
@@ -311,6 +330,8 @@ function IndependentArray({
       options={options}
       onChange={onValueChange}
       style={style}
+      onClick={onClick}
+      readOnly={readOnly}
     />
   );
 }
@@ -321,6 +342,8 @@ export function FieldArrayMaterial(props: ArrayProps) {
       arrayId={props.arrayId}
       options={props.options}
       style={props.style}
+      onClick={props.onClick}
+      readOnly={props.readOnly}
     />
   ) : (
     <IndependentArray {...props} />
@@ -337,11 +360,12 @@ export const fieldArrayContracts: Contracts = {
       minItems: numberProp,
       maxItems: numberProp,
       disabled: boolProp,
+      readOnly: boolProp,
       formId: textProp,
       arrayId: textProp,
       options: { type: 'object' },
     },
-    events: ['onValueChange'],
+    events: ['onValueChange', 'onClick'],
     validateProps: (props, context) => {
       const errors: string[] = [];
       if (!!props.formId !== !!props.arrayId) errors.push('明细绑定需同时指定 formId 和 arrayId');

@@ -6,7 +6,7 @@ const literal = (value: string) => ({ kind: 'literal' as const, value });
 
 const make = () => new EditorDocument(structuredClone(purchaseManagementExample), registry);
 const setTitle = (doc: EditorDocument, value: string, group?: string) =>
-  doc.setProp('purchases', 'purchase-heading', 'title', { kind: 'literal', value }, group);
+  doc.setProp('purchases', 'purchase-heading', 'value', { kind: 'literal', value }, group);
 
 describe('document history timeline', () => {
   it('records operation descriptions in chronological order', () => {
@@ -16,10 +16,10 @@ describe('document history timeline', () => {
     setTitle(doc, 'B');
     const history = doc.getHistory();
     expect(history.past.map((entry) => entry.change)).toEqual([
-      expect.stringContaining('修改属性 title'),
-      expect.stringContaining('修改属性 title'),
+      expect.stringContaining('修改属性 value'),
+      expect.stringContaining('修改属性 value'),
     ]);
-    expect(history.current).toContain('修改属性 title');
+    expect(history.current).toContain('修改属性 value');
     expect(history.future).toHaveLength(0);
   });
 
@@ -30,7 +30,7 @@ describe('document history timeline', () => {
     let history = doc.getHistory();
     expect(history.past).toHaveLength(0);
     expect(history.future).toHaveLength(1);
-    expect(history.future[0].change).toContain('修改属性 title');
+    expect(history.future[0].change).toContain('修改属性 value');
     doc.redo();
     history = doc.getHistory();
     expect(history.past).toHaveLength(1);
@@ -42,19 +42,19 @@ describe('document history timeline', () => {
     setTitle(doc, 'A');
     setTitle(doc, 'B');
     setTitle(doc, 'C');
-    expect(findNode(doc.getSnapshot().plan.schema.pages[0], 'purchase-heading')!.node.props.title).toEqual({
+    expect(findNode(doc.getSnapshot().plan.schema.pages[0], 'purchase-heading')!.node.props.value).toEqual({
       kind: 'literal',
       value: 'C',
     });
     doc.jumpTo(1);
-    expect(findNode(doc.getSnapshot().plan.schema.pages[0], 'purchase-heading')!.node.props.title).toEqual({
+    expect(findNode(doc.getSnapshot().plan.schema.pages[0], 'purchase-heading')!.node.props.value).toEqual({
       kind: 'literal',
       value: 'A',
     });
     expect(doc.getHistory().past).toHaveLength(1);
     expect(doc.getHistory().future).toHaveLength(2);
     doc.jumpTo(3);
-    expect(findNode(doc.getSnapshot().plan.schema.pages[0], 'purchase-heading')!.node.props.title).toEqual({
+    expect(findNode(doc.getSnapshot().plan.schema.pages[0], 'purchase-heading')!.node.props.value).toEqual({
       kind: 'literal',
       value: 'C',
     });

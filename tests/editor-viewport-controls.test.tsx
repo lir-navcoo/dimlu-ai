@@ -230,7 +230,7 @@ describe('visible viewport controls use real Base UI selection and accessible wi
     expect(resolveViewport(viewport.getSnapshot(), 'edit').scale).toBe(1.1);
   });
 
-  it('disables only zoom actions in preview, keeps device selection available, and restores edit fit without replacing content', () => {
+  it('shares viewport width and scale with editing in preview, keeps device selection available, and restores edit fit without replacing content', () => {
     const { view, viewport, setMode } = setup();
     changeControl(device(), 'desktop');
     fireEvent.click(screen.getByRole('button', { name: '适应画布宽度' }));
@@ -241,13 +241,12 @@ describe('visible viewport controls use real Base UI selection and accessible wi
     disabled(screen.getByRole('button', { name: '适应画布宽度' }));
     disabled(screen.getByRole('button', { name: '恢复画布100%' }));
     expect((device() as HTMLButtonElement).disabled).toBe(false);
-    expect(zoom().textContent).toContain('100%');
-    expect(screen.getByText('预览按100%显示')).toBeTruthy();
-    expect(scale(view)).toBe(1);
-    expect(surface.style.transform).toBe('');
+    expect(zoom().textContent).toContain('69.4%');
+    expect(screen.queryByText('预览按100%显示')).toBeNull();
+    expect(scale(view)).toBeCloseTo(1000 / 1440, 10);
     changeControl(device(), 'tablet');
     expect(screen.getByLabelText('实际页面宽度').textContent).toBe('768 px');
-    expect(scale(view)).toBe(1);
+    expect(scale(view)).toBeCloseTo(1000 / 768, 10);
     expect(viewport.getSnapshot().zoom.kind).toBe('fit');
     act(() => setMode('edit'));
     expect(screen.getByLabelText('业务本地值')).toBe(input);

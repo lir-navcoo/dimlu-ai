@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEve
 import { findNode, type EditorDocument, type EditorSnapshot } from '../../packages/editor/document';
 import { selectedNodeIds } from '../../packages/editor/selection';
 import type { StyleCapability } from '../../packages/schema/style';
-import { isAuthorEscape, isEscapeTextTarget } from './author-escape';
+import { isAuthorEscape, isEscapeTextTarget, resizingWindows } from './author-escape';
 import { useCanvasStage } from './canvas-stage';
 import {
   normalizeRect,
@@ -347,6 +347,10 @@ export function CanvasResize(props: Props) {
         if (props.document.getSnapshot() !== props.snapshot) cancel();
       }),
     );
+    for (const win of new Set([mouseWindow, childWindow])) {
+      resizingWindows.add(win);
+      cleanups.push(() => resizingWindows.delete(win));
+    }
     gesture.dispose = () => cleanups.forEach((dispose) => dispose());
     setPreview({});
     props.onActiveChange?.(true);

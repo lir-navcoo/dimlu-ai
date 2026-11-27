@@ -12,7 +12,7 @@ import {
   type ReactSetterProps,
 } from '../src/editor/Setters';
 import { catalog } from '../src/editor/catalog';
-import { exampleApplication } from '../src/examples';
+import { exampleApplication } from './fixtures/examples';
 import { registry } from '../src/materials';
 
 afterEach(cleanup);

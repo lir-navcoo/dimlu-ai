@@ -16,6 +16,7 @@ import {
 import { refreshEditorDocument } from './refresh-document';
 import { registry } from '../materials';
 import { Button, Input, Textarea } from '../ui/primitives';
+import { BrandLogo } from '../ui/BrandLogo';
 import { CodeEditor } from '../ui/CodeEditor';
 import { editorPagesPath } from './router';
 import { executeApplicationMethod } from '../../packages/runtime/application-methods';
@@ -278,8 +279,7 @@ export function ApplicationSettingsHome({
       <header className={`page-management-header ${embedded ? 'embedded-header' : ''}`}>
         {!embedded && (
           <div className="brand">
-            <span className="brand-mark">d</span>
-            <strong>dimlu</strong>
+            <BrandLogo className="brand-logo" />
           </div>
         )}
         <div>
@@ -318,7 +318,9 @@ export function ApplicationSettingsHome({
           {projectSnapshot.error}
         </div>
       )}
-      <section className="application-settings-content">
+      <section
+        className={`application-settings-content${embedded ? ' workbench-dialog-scroll' : ''}`}
+      >
         {!methodsOnly && (
           <>
             <div className="application-settings-heading">
@@ -509,164 +511,172 @@ export function ApplicationSettingsHome({
                 : '配置方法信息、JavaScript 实现和测试输入。'}
             </Dialog.Description>
             {methodEditor ? (
-              <div className="application-method-editor">
-                <div className="application-method-fields">
-                  <label>
-                    方法名称
-                    <Input
-                      value={methodTitle}
-                      onChange={(event) => setMethodTitle(event.target.value)}
+              <>
+                <div className="workbench-dialog-scroll application-method-scroll">
+                  <div className="application-method-editor">
+                    <div className="application-method-fields">
+                      <label>
+                        方法名称
+                        <Input
+                          value={methodTitle}
+                          onChange={(event) => setMethodTitle(event.target.value)}
+                        />
+                      </label>
+                      <label>
+                        输入 payload 类型
+                        <select
+                          value={methodInputType}
+                          onChange={(event) => {
+                            setMethodInputType(event.target.value as typeof methodInputType);
+                            invalidateMethodTest();
+                          }}
+                        >
+                          {['json', 'object', 'array', 'string', 'number', 'boolean', 'null'].map(
+                            (type) => (
+                              <option key={type}>{type}</option>
+                            ),
+                          )}
+                        </select>
+                      </label>
+                      <label>
+                        返回值类型
+                        <select
+                          value={methodOutputType}
+                          onChange={(event) => {
+                            setMethodOutputType(event.target.value as typeof methodOutputType);
+                            invalidateMethodTest();
+                          }}
+                        >
+                          {['json', 'object', 'array', 'string', 'number', 'boolean', 'null'].map(
+                            (type) => (
+                              <option key={type}>{type}</option>
+                            ),
+                          )}
+                        </select>
+                      </label>
+                    </div>
+                    <label className="application-method-description">
+                      方法说明
+                      <Textarea
+                        value={methodDescription}
+                        rows={2}
+                        placeholder="描述用途、输入约定或副作用"
+                        onChange={(event) => setMethodDescription(event.target.value)}
+                      />
+                    </label>
+                    <CodeEditor
+                      label="方法 JavaScript 代码"
+                      language="javascript"
+                      height={300}
+                      value={methodSource}
+                      onChange={(value) => {
+                        setMethodSource(value);
+                        invalidateMethodTest();
+                      }}
                     />
-                  </label>
-                  <label>
-                    输入 payload 类型
-                    <select
-                      value={methodInputType}
-                      onChange={(event) => {
-                        setMethodInputType(event.target.value as typeof methodInputType);
-                        invalidateMethodTest();
-                      }}
-                    >
-                      {['json', 'object', 'array', 'string', 'number', 'boolean', 'null'].map(
-                        (type) => (
-                          <option key={type}>{type}</option>
-                        ),
+                    <p className="application-method-help">
+                      代码通过 <code>input.payload</code> 读取输入，通过 <code>context</code>{' '}
+                      访问当前页面状态、表单和数据源；需返回匹配类型的 JSON
+                      值。代码在当前窗口执行，不是安全沙箱，请仅运行可信代码。
+                    </p>
+                    <div className="application-method-test">
+                      <strong>快速测试</strong>
+                      <p className="editor-note">
+                        使用空白页面状态试跑。表单操作和通知为模拟，数据源调用会报错。
+                      </p>
+                      <CodeEditor
+                        label="测试 payload JSON"
+                        language="json"
+                        height={130}
+                        value={methodPayload}
+                        onChange={(value) => {
+                          setMethodPayload(value);
+                          invalidateMethodTest();
+                        }}
+                        expandable={false}
+                      />
+                      <Button
+                        variant="ghost"
+                        disabled={methodTestState.status === 'running'}
+                        onClick={() => void testMethod()}
+                      >
+                        测试当前方法
+                      </Button>
+                      <div role="status" className="application-method-test-status">
+                        {methodTestState.status === 'running' && '正在试跑…'}
+                        {methodTestState.status === 'stale' && '测试内容已修改，请重新试跑。'}
+                        {methodTestState.status === 'success' && '试跑成功'}
+                      </div>
+                      {methodTestState.status === 'error' && (
+                        <p className="application-settings-error" role="alert">
+                          {methodTestState.text}
+                        </p>
                       )}
-                    </select>
-                  </label>
-                  <label>
-                    返回值类型
-                    <select
-                      value={methodOutputType}
-                      onChange={(event) => {
-                        setMethodOutputType(event.target.value as typeof methodOutputType);
-                        invalidateMethodTest();
-                      }}
-                    >
-                      {['json', 'object', 'array', 'string', 'number', 'boolean', 'null'].map(
-                        (type) => (
-                          <option key={type}>{type}</option>
-                        ),
+                      {methodTestState.status === 'success' && (
+                        <pre className="application-method-result">{methodTestState.text}</pre>
                       )}
-                    </select>
-                  </label>
-                </div>
-                <label className="application-method-description">
-                  方法说明
-                  <Textarea
-                    value={methodDescription}
-                    rows={2}
-                    placeholder="描述用途、输入约定或副作用"
-                    onChange={(event) => setMethodDescription(event.target.value)}
-                  />
-                </label>
-                <CodeEditor
-                  label="方法 JavaScript 代码"
-                  language="javascript"
-                  height={300}
-                  value={methodSource}
-                  onChange={(value) => {
-                    setMethodSource(value);
-                    invalidateMethodTest();
-                  }}
-                />
-                <p className="application-method-help">
-                  代码通过 <code>input.payload</code> 读取输入，通过 <code>context</code>{' '}
-                  访问当前页面状态、表单和数据源；需返回匹配类型的 JSON
-                  值。代码在当前窗口执行，不是安全沙箱，请仅运行可信代码。
-                </p>
-                <div className="application-method-test">
-                  <strong>快速测试</strong>
-                  <p className="editor-note">
-                    使用空白页面状态试跑。表单操作和通知为模拟，数据源调用会报错。
-                  </p>
-                  <CodeEditor
-                    label="测试 payload JSON"
-                    language="json"
-                    height={130}
-                    value={methodPayload}
-                    onChange={(value) => {
-                      setMethodPayload(value);
-                      invalidateMethodTest();
-                    }}
-                    expandable={false}
-                  />
-                  <Button
-                    variant="ghost"
-                    disabled={methodTestState.status === 'running'}
-                    onClick={() => void testMethod()}
-                  >
-                    测试当前方法
-                  </Button>
-                  <div role="status" className="application-method-test-status">
-                    {methodTestState.status === 'running' && '正在试跑…'}
-                    {methodTestState.status === 'stale' && '测试内容已修改，请重新试跑。'}
-                    {methodTestState.status === 'success' && '试跑成功'}
+                    </div>
                   </div>
-                  {methodTestState.status === 'error' && (
-                    <p className="application-settings-error" role="alert">
-                      {methodTestState.text}
+                </div>
+                <div className="workbench-dialog-actions">
+                  {methodError && (
+                    <p role="alert" className="application-settings-error">
+                      {methodError}
                     </p>
                   )}
-                  {methodTestState.status === 'success' && (
-                    <pre className="application-method-result">{methodTestState.text}</pre>
-                  )}
-                </div>
-                {methodError && (
-                  <p role="alert" className="application-settings-error">
-                    {methodError}
-                  </p>
-                )}
-                <div className="application-method-actions">
-                  <Dialog.Close className="ui-button">取消</Dialog.Close>
-                  <Button onClick={saveMethod}>保存方法</Button>
-                  {methodEditor.method && (
-                    <Dialog.Root open={deleteOpen} onOpenChange={setDeleteOpen}>
-                      <Dialog.Trigger
-                        className="ui-button ui-button-danger"
-                        onClick={() => setDeleteError(null)}
+                  <div className="application-method-actions">
+                    <Dialog.Close className="ui-button">取消</Dialog.Close>
+                    <Button onClick={saveMethod}>保存方法</Button>
+                    {methodEditor.method && (
+                      <Button
+                        variant="danger"
+                        onClick={() => {
+                          setDeleteError(null);
+                          setDeleteOpen(true);
+                        }}
                       >
                         <Trash2 size={14} />
                         删除方法
-                      </Dialog.Trigger>
-                      <Dialog.Portal>
-                        <Dialog.Backdrop className="material-modal-backdrop" />
-                        <Dialog.Popup
-                          className="material-modal application-delete-dialog"
-                          initialFocus={cancelDelete}
-                          finalFocus={() => methodReturnFocus.current !== newMethodButton.current}
-                        >
-                          <Dialog.Title>删除方法？</Dialog.Title>
-                          <Dialog.Description>
-                            {references.length
-                              ? `「${methodEditor.method.title}」仍有 ${references.length} 处已保存的调用。请先移除这些调用。`
-                              : `将删除「${methodEditor.method.title}」。`}
-                          </Dialog.Description>
-                          {references.length > 0 && <MethodReferences references={references} />}
-                          {deleteError && (
-                            <p role="alert" className="application-settings-error">
-                              {deleteError}
-                            </p>
-                          )}
-                          <div className="application-delete-actions">
-                            <Dialog.Close ref={cancelDelete} className="ui-button">
-                              取消
-                            </Dialog.Close>
-                            <Button
-                              variant="danger"
-                              onClick={deleteMethod}
-                              disabled={references.length > 0}
-                            >
-                              确认删除
-                            </Button>
-                          </div>
-                        </Dialog.Popup>
-                      </Dialog.Portal>
-                    </Dialog.Root>
-                  )}
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              </div>
+              </>
             ) : null}
+          </Dialog.Popup>
+        </Dialog.Portal>
+      </Dialog.Root>
+      {/* 删除确认弹窗独立于方法编辑弹窗：嵌套时 fixed 定位会相对外层 transform 容器而非视口。 */}
+      <Dialog.Root open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="material-modal-backdrop" />
+          <Dialog.Popup
+            className="material-modal application-delete-dialog"
+            initialFocus={cancelDelete}
+            finalFocus={() => methodReturnFocus.current !== newMethodButton.current}
+          >
+            <Dialog.Title>删除方法？</Dialog.Title>
+            <Dialog.Description>
+              {references.length && methodEditor?.method
+                ? `「${methodEditor.method.title}」仍有 ${references.length} 处已保存的调用。请先移除这些调用。`
+                : methodEditor?.method
+                  ? `将删除「${methodEditor.method.title}」。`
+                  : ''}
+            </Dialog.Description>
+            {references.length > 0 && <MethodReferences references={references} />}
+            {deleteError && (
+              <p role="alert" className="application-settings-error">
+                {deleteError}
+              </p>
+            )}
+            <div className="application-delete-actions">
+              <Dialog.Close ref={cancelDelete} className="ui-button">
+                取消
+              </Dialog.Close>
+              <Button variant="danger" onClick={deleteMethod} disabled={references.length > 0}>
+                确认删除
+              </Button>
+            </div>
           </Dialog.Popup>
         </Dialog.Portal>
       </Dialog.Root>

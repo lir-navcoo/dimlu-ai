@@ -29,7 +29,7 @@
   min-height: 28px;
 }
 .canvas-selection-toolbar .canvas-selection-name {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
 }
 .canvas-selection-toolbar .canvas-action {

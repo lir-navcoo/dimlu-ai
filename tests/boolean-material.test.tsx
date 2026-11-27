@@ -11,7 +11,7 @@ import { formEditorApplication } from './form-editor-fixture';
 import App from '../src/App';
 import { seedLegacyProject } from './legacy-project';
 import { changeControl, insertMaterial, showStructure } from './ui-helpers';
-import booleanExample from '../public/examples/boolean.json';
+import { booleanExample as booleanExample } from './fixtures/example-json';
 
 afterEach(cleanup);
 const literal = (value: Json): Value => ({ kind: 'literal', value });

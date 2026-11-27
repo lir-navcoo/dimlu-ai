@@ -1,4 +1,5 @@
 import { validateApplication } from '../schema/validate';
+import { resolveDataSources, sharedSourceMap } from '../schema/shared-data-sources';
 import {
   isJson,
   matchesType,
@@ -10,11 +11,13 @@ import {
   type Issue,
 } from '../schema/types';
 import { compileValue, type CompiledValue, type EvaluationContext } from './expression';
-import type { Registry } from './registry';
+import type { ActionContext, Registry } from './registry';
 import { FormRuntime, type FormSnapshot } from './form';
 import { abortable, isAbortError } from './abort';
 import { DataSourceRuntime, type DataSourceSnapshot } from './data-source';
 import { withApplicationMethods } from './application-methods';
+import { compilePageActions } from './page-actions';
+import { pageActionId, pageActionPrefix } from './page-action-code';
 
 export class SchemaError extends Error {
   constructor(public readonly issues: Issue[]) {
@@ -26,6 +29,9 @@ import { deepFreeze as freeze } from '../schema/deep-freeze';
 export interface PlannedAction {
   schema: ActionCall;
   input: Record<string, CompiledValue>;
+  /** 条件分支子链（仅 control.branch）。 */
+  then?: PlannedAction[];
+  else?: PlannedAction[];
 }
 export interface PlannedNode {
   schema: NodeSchema;
@@ -41,6 +47,7 @@ export interface PlannedNode {
 export interface PlannedPage {
   schema: PageSchema;
   children: PlannedNode[];
+  actions: Registry['actions'];
   onEnter: PlannedAction[];
   onLeave: PlannedAction[];
 }
@@ -53,6 +60,8 @@ const planActions = (actions: ActionCall[] = []): PlannedAction[] =>
   actions.map((schema) => ({
     schema,
     input: Object.fromEntries(Object.entries(schema.input).map(([k, v]) => [k, compileValue(v)])),
+    ...(schema.then?.length ? { then: planActions(schema.then) } : {}),
+    ...(schema.else?.length ? { else: planActions(schema.else) } : {}),
   }));
 function planNodes(nodes: NodeSchema[]): PlannedNode[] {
   return nodes.map((schema) => {
@@ -95,10 +104,30 @@ function planNodes(nodes: NodeSchema[]): PlannedNode[] {
     };
   });
 }
+
+/**
+ * 宜搭风格生命周期别名归一化：didMount → onEnter、willUnmount → onLeave。
+ * 校验层已保证别名与规范名不同时定义，这里只需择一迁移并删除别名键。
+ */
+function normalizeLifecycleAliases(schema: ApplicationSchema): ApplicationSchema {
+  for (const page of schema.pages) {
+    if (page.didMount !== undefined) {
+      if (page.onEnter === undefined) page.onEnter = page.didMount;
+      delete page.didMount;
+    }
+    if (page.willUnmount !== undefined) {
+      if (page.onLeave === undefined) page.onLeave = page.willUnmount;
+      delete page.willUnmount;
+    }
+  }
+  return schema;
+}
 export function compileApplication(input: unknown, registry: Registry): ApplicationPlan {
   const issues = validateApplication(input, registry);
   if (issues.length) throw new SchemaError(issues);
-  const schema = freeze(structuredClone(input as ApplicationSchema));
+  // 页面数据源的共享引用（ref）保持原样进入 plan，由 PageRuntime 在页面进入时解析；
+  // 校验层已用展开定义验证 transport 依赖、参数与初始值。
+  const schema = freeze(normalizeLifecycleAliases(structuredClone(input as ApplicationSchema)));
   const appRegistry = withApplicationMethods(schema, registry);
   const linkedRegistry: Registry = freeze({
     transports: Object.fromEntries(
@@ -139,15 +168,27 @@ export function compileApplication(input: unknown, registry: Registry): Applicat
     schema,
     registry: linkedRegistry,
     pages: new Map(
-      schema.pages.map((page) => [
-        page.id,
-        {
-          schema: page,
-          children: planNodes(page.children),
-          onEnter: planActions(page.onEnter),
-          onLeave: planActions(page.onLeave),
+      schema.pages.map(
+        (page): [string, PlannedPage] => {
+          const compiled = compilePageActions(page.actionCode);
+          // 宜搭风格生命周期：页面动作导出 didMount/willUnmount 且页面未显式定义
+          // 对应生命周期时，自动挂到页面进入/离开动作链。
+          const lifecycle = (name: 'didMount' | 'willUnmount', calls?: ActionCall[]) =>
+            !calls?.length && Object.hasOwn(compiled, pageActionId(name))
+              ? [{ id: `page.${name}`, action: pageActionId(name), input: {} }]
+              : (calls ?? []);
+          return [
+            page.id,
+            {
+              schema: page,
+              children: planNodes(page.children),
+              actions: freeze(compiled),
+              onEnter: planActions(lifecycle('didMount', page.onEnter)),
+              onLeave: planActions(lifecycle('willUnmount', page.onLeave)),
+            },
+          ];
         },
-      ]),
+      ),
     ),
   };
 }
@@ -226,7 +267,10 @@ export class PageRuntime {
       this.forms.set(definition.id, form);
       this.formUnsubscribers.push(form.subscribe(() => this.notifyKey(`@form:${definition.id}`)));
     }
-    for (const definition of page.schema.dataSources ?? []) {
+    // Shared-source refs resolve here so the plan keeps author intent untouched;
+    // validation has already proven every ref against the registry transports.
+    const definitions = resolveDataSources(page.schema, sharedSourceMap(plan.schema));
+    for (const definition of definitions) {
       const source = new DataSourceRuntime(
         definition,
         plan.registry.transports![definition.transport],
@@ -391,6 +435,27 @@ export class PageRuntime {
     if (!ok)
       throw new Error(form.getSnapshot().submitError ?? `表单 ${formId} 校验失败或提交已取消`);
   }
+  private pageActionField(id: string) {
+    const find = (nodes: PlannedNode[], scoped = false): NodeSchema['field'] => {
+      for (const node of nodes) {
+        const local = scoped || !!node.repeat;
+        if (node.schema.id === id) {
+          if (local || !node.schema.field)
+            throw new Error(`组件 ${id} 不支持按 ID 读写值：仅支持非循环、非插槽中的绑定字段`);
+          return node.schema.field;
+        }
+        const child = find(node.children, local);
+        if (child) return child;
+        for (const slot of Object.values(node.slots)) {
+          const field = find(slot.children, true);
+          if (field) return field;
+        }
+      }
+    };
+    const field = find(this.page.children);
+    if (!field) throw new Error(`当前页没有组件 ${id}`);
+    return { form: this.getForm(field.formId), fieldId: field.fieldId };
+  }
   async run(
     actions: PlannedAction[],
     scope: Readonly<Record<string, unknown>>,
@@ -413,7 +478,12 @@ export class PageRuntime {
     try {
       for (const action of actions) {
         if (!active()) return false;
-        const contract = this.plan.registry.actions[action.schema.action];
+        const local = action.schema.action.startsWith(pageActionPrefix);
+        const contracts = local ? this.page.actions : this.plan.registry.actions;
+        const contract = Object.hasOwn(contracts, action.schema.action)
+          ? contracts[action.schema.action]
+          : undefined;
+        if (!contract) throw new Error(`当前页面未注册动作 ${action.schema.action}`);
         const resultTarget = action.schema.resultTo;
         const resultRevision = resultTarget ? (this.resultRevisions.get(resultTarget) ?? 0) + 1 : 0;
         if (resultTarget) this.resultRevisions.set(resultTarget, resultRevision);
@@ -424,11 +494,88 @@ export class PageRuntime {
             throw new Error(`动作 ${action.schema.action} 参数 ${key} 类型错误`);
           input[key] = structuredClone(v);
         }
+        // 条件分支：运行时直接解释 then/else 子链，不经 contract.execute。
+        if (action.schema.action === 'control.branch') {
+          this.report('action.start', action.schema.action, nodeId);
+          const branch = input.when === true ? action.then : action.else;
+          if (branch?.length) {
+            try {
+              // 子链用派生 lane，避免递归 run 中止父链控制器；外层 signal 透传保证级联中止。
+              const ok = await this.run(branch, scope, event, `${lane}:${action.schema.id}`, nodeId, {
+                signal: controller.signal,
+                throwOnError: true,
+                formStack: options.formStack,
+              });
+              if (!ok) return false;
+            } catch {
+              // 子链已上报错误；与线性动作失败一致，终止整条链。
+              return false;
+            }
+          }
+          if (!active()) return false;
+          this.report('action.success', action.schema.action, nodeId);
+          continue;
+        }
         this.report('action.start', action.schema.action, nodeId);
-        const output = await abortable(controller.signal, () =>
-          contract.execute(input, {
-            signal: controller.signal,
-            getState: this.getState,
+        const actionContext: ActionContext = {
+          signal: controller.signal,
+          getState: this.getState,
+          invokeApplication: async (methodId: string, payload?: unknown) => {
+            if (!active() || this.designMode) throw new Error('动作已取消或当前为编辑模式');
+            const method = this.plan.registry.actions[`app.method.${methodId}`];
+            if (!method) throw new Error(`未知应用方法 ${methodId}`);
+            const output = await method.execute(
+              { payload: structuredClone(payload as Json) },
+              actionContext,
+            );
+            if (!matchesType(output, method.output ?? 'json'))
+              throw new Error(`应用方法 ${methodId} 返回类型错误`);
+            return structuredClone(output as Json);
+          },
+          ...(local && {
+            pageActions: {
+                setState: (patch: unknown) => {
+                  if (!active()) return;
+                  if (!matchesType(patch, 'object'))
+                    throw new Error('this.setState 需要 JSON 对象');
+                  const entries = Object.entries(patch as Record<string, Json>);
+                  for (const [id, value] of entries) {
+                    const state = this.page.schema.state.find((item) => item.id === id);
+                    if (!state || !matchesType(value, state.type))
+                      throw new Error(`状态 ${id} 不存在或类型不匹配`);
+                  }
+                  for (const [id, value] of entries) if (active()) this.setState(id, value);
+                },
+                getValue: (id: string) => {
+                  if (!active()) throw new Error('动作已取消');
+                  const { form, fieldId } = this.pageActionField(id);
+                  return form.getFieldState(fieldId)!.value;
+                },
+                setValue: (id: string, value: unknown) => {
+                  if (!active()) return;
+                  const { form, fieldId } = this.pageActionField(id);
+                  const field = form.getFieldState(fieldId);
+                  if (!field || field.disabled || !field.visible)
+                    throw new Error(`组件 ${id} 对应的字段不可写`);
+                  form.setValue(fieldId, value);
+                },
+                validateField: (id: string) => {
+                  if (!active()) throw new Error('动作已取消');
+                  const { form, fieldId } = this.pageActionField(id);
+                  return !form.getFieldState(fieldId)?.error;
+                },
+                resetField: (id: string) => {
+                  if (!active()) return;
+                  const { form, fieldId } = this.pageActionField(id);
+                  const definition = form.getFieldDefinition(fieldId);
+                  form.setValue(fieldId, structuredClone(definition.initial));
+                },
+                validateForm: (formId: string) => {
+                  if (!active()) throw new Error('动作已取消');
+                  return this.getForm(formId).validate();
+                },
+            },
+          }),
             emitEffect: (effect) => {
               if (!active()) return;
               if (effect.type === 'app.navigate') {
@@ -458,7 +605,9 @@ export class PageRuntime {
               if (!active() || this.designMode) throw new Error('动作已取消或当前为编辑模式');
               return this.getDataSource(id).execute(input, { signal: controller.signal });
             },
-          }),
+        };
+        const output = await abortable(controller.signal, () =>
+          contract.execute(input, actionContext),
         );
         if (!active()) return false;
         if (contract.output && !matchesType(output, contract.output))

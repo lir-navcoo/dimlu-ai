@@ -30,6 +30,7 @@ import { describeNodeName, displayNodeName } from './node-display-name';
 import { NodeNameEditor } from './NodeNameEditor';
 import { nodeScopeNames } from '../../packages/editor/scope';
 import { ExpressionContext } from './ExpressionContext';
+import { PageSettingsPanel } from './PageSettingsPanel';
 type Props = {
   document: EditorDocument;
   snapshot: EditorSnapshot;
@@ -481,11 +482,17 @@ export function PropertyPanel({
   onOpenMethods,
   eventTarget,
   propertyRequest,
+  authoringAllowed = false,
+  focusReference,
+  pageLogicRequest,
 }: Props & {
   materialCatalog?: MaterialCatalog;
   onOpenMethods?: OpenApplicationMethods;
   eventTarget?: ApplicationMethodReference;
   propertyRequest?: number;
+  authoringAllowed?: boolean;
+  focusReference?: ApplicationMethodReference;
+  pageLogicRequest?: object;
 }) {
   const [tab, setTab] = useState(eventTarget ? 'events' : 'properties');
   useLayoutEffect(() => {
@@ -523,7 +530,17 @@ export function PropertyPanel({
     }) ?? [];
   return (
     <div className="property-panel">
-      {selectedNodeIds(snapshot.selection).length > 1 ? (
+      {page.code?.enabled ? (
+        <PageSettingsPanel
+          key={pageId}
+          document={document}
+          snapshot={snapshot}
+          authoringAllowed={authoringAllowed}
+          onOpenMethods={onOpenMethods ?? (() => {})}
+          focusReference={focusReference}
+          pageLogicRequest={pageLogicRequest}
+        />
+      ) : selectedNodeIds(snapshot.selection).length > 1 ? (
         <p className="multi-selection-note">
           已选 {selectedNodeIds(snapshot.selection).length} 项，选择一个组件编辑属性。
         </p>
@@ -639,9 +656,18 @@ export function PropertyPanel({
           </Tabs.Root>
         </>
       ) : (
-        <div className="inspector-empty">
-          <MousePointer2 size={18} aria-hidden="true" />
-          <strong>选择组件后配置</strong>
+        <div className="page-settings-landing">
+          <p className="page-settings-hint">选择组件后配置</p>
+          <PageSettingsPanel
+            document={document}
+            snapshot={snapshot}
+            authoringAllowed={authoringAllowed}
+            // 预览模式下仍渲染禁用的「应用自定义方法」按钮；PageLifecyclePanel
+            // 内部用 authoringAllowed/canOpenMethods 守卫实际调用。
+            onOpenMethods={onOpenMethods ?? (() => {})}
+            focusReference={focusReference}
+            pageLogicRequest={pageLogicRequest}
+          />
         </div>
       )}
     </div>
@@ -680,7 +706,10 @@ export function EditorToolbar({
         </Tip>
       </div>
       <Menu.Root>
-        <Menu.Trigger className="ui-button ui-button-ghost editor-file-button" aria-label="文件菜单">
+        <Menu.Trigger
+          className="ui-button ui-button-ghost editor-file-button"
+          aria-label="文件菜单"
+        >
           <FileJson size={14} aria-hidden="true" />
           <span>文件</span>
           <ChevronDown size={11} aria-hidden="true" />

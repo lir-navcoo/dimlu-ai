@@ -28,6 +28,8 @@ import type { CompiledPageCode } from './compiler';
 import { materials } from '../materials';
 import { Button } from '../ui/primitives';
 import { errorText } from '../editor/errors';
+import { ReactCodePanel } from './CodePanel';
+import type { EditorDocument, EditorSnapshot } from '../../packages/editor/document';
 
 const runtimeExports = Object.freeze({
   useRuntime,
@@ -166,21 +168,31 @@ export function CodePageCanvas({
   code,
   runtime,
   mode,
-  openCode,
+  document,
+  snapshot,
 }: {
   code: PageCode;
-  runtime: PageRuntime;
+  runtime?: PageRuntime;
   mode: 'edit' | 'preview';
-  openCode: () => void;
+  /** 编辑态直编 Monaco：宿主提供文档上下文时，画布内直接编辑源码。 */
+  document?: EditorDocument;
+  snapshot?: EditorSnapshot;
 }) {
-  if (mode === 'edit')
+  if (mode === 'edit') {
+    if (document && snapshot)
+      return (
+        <div className="page-code-canvas-editor">
+          <ReactCodePanel document={document} snapshot={snapshot} variant="workspace" />
+        </div>
+      );
     return (
       <section className="page-code-placeholder">
         <strong>React 代码页面</strong>
         <p>编辑模式保留页面结构，不执行作者代码。切换预览运行页面。</p>
-        <Button onClick={openCode}>打开页面代码</Button>
       </section>
     );
+  }
+  if (!runtime) return <p role="status">页面运行实例已结束。</p>;
   return (
     <RuntimeRenderer runtime={runtime} materials={materials}>
       <ActiveCode

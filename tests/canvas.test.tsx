@@ -12,6 +12,8 @@ afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
 });
+const canvasScope = () => within(screen.getByLabelText('页面编辑画布'));
+const canvasText = (name: string) => canvasScope().getByText(name);
 const preview = () => fireEvent.click(screen.getByRole('button', { name: '预览模式' }));
 const edit = () => fireEvent.click(screen.getByRole('button', { name: '编辑模式' }));
 const schema = () => {
@@ -34,8 +36,8 @@ describe('canvas selection and structural authoring', () => {
       'true',
     );
     expect(screen.getByLabelText('运行调试').className).toContain('open');
-    fireEvent.click(screen.getByRole('heading', { name: '创建采购申请' }));
-    expect(screen.getByRole('textbox', { name: '标题' })).toBeTruthy();
+    fireEvent.click(canvasText('创建采购申请'));
+    expect(screen.getByRole('textbox', { name: '文本内容' })).toBeTruthy();
     fireEvent.keyDown(screen.getByLabelText('页面编辑画布'), { key: 'Escape' });
     expect(screen.getByText('选择组件后配置')).toBeTruthy();
   });
@@ -91,25 +93,25 @@ describe('canvas selection and structural authoring', () => {
   it('copies a selected heading, edits it, moves it into a container, undoes and roundtrips JSON', async () => {
     seedLegacyProject();
     render(<App />);
-    fireEvent.click(screen.getByRole('heading', { name: '创建采购申请' }));
+    fireEvent.click(canvasText('创建采购申请'));
     const copy = await screen.findByRole('button', { name: '复制选中组件' });
     copy.focus();
     expect(document.activeElement).toBe(copy);
     fireEvent.pointerDown(copy);
     fireEvent.click(copy);
-    expect(screen.getAllByRole('heading', { name: '创建采购申请' })).toHaveLength(2);
-    changeControl(screen.getByRole('textbox', { name: '标题' }), '副本标题');
-    const copyId = screen
-      .getByRole('heading', { name: '副本标题' })
+    expect(canvasScope().getAllByText('创建采购申请', { exact: true })).toHaveLength(2);
+    changeControl(screen.getByRole('textbox', { name: '文本内容' }), '副本标题');
+    const copyId = canvasScope()
+      .getByText('副本标题')
       .closest('[data-editor-node]')!
       .getAttribute('data-editor-node')!;
     moveNode(copyId, { kind: 'inside', parentId: 'purchase-note' });
     expect(
-      screen.getByRole('heading', { name: '副本标题' }).closest('.material-layout.row'),
+      canvasText('副本标题').closest('.material-layout.row'),
     ).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /撤销/ }));
     expect(
-      screen.getByRole('heading', { name: '副本标题' }).closest('.material-layout.row'),
+      canvasText('副本标题').closest('.material-layout.row'),
     ).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /重做/ }));
     const exported = schema();
@@ -117,7 +119,7 @@ describe('canvas selection and structural authoring', () => {
     changeControl(screen.getByLabelText('应用定义 · JSON'), exported);
     fireEvent.click(screen.getByRole('button', { name: /校验并应用/ }));
     expect(
-      screen.getByRole('heading', { name: '副本标题' }).closest('.material-layout.row'),
+      canvasText('副本标题').closest('.material-layout.row'),
     ).toBeTruthy();
     expect((screen.getByLabelText('应用定义 · JSON') as HTMLTextAreaElement).value).toBe(exported);
   }, 15000);
@@ -127,6 +129,7 @@ describe('canvas selection and structural authoring', () => {
     moveNode('purchase-heading', { kind: 'after', nodeId: 'purchase-form' });
     const page = JSON.parse(schema()).pages[0];
     expect(page.children.map((n: { id: string }) => n.id)).toEqual([
+      'purchase-heading-note',
       'purchase-form',
       'purchase-heading',
     ]);
@@ -135,11 +138,11 @@ describe('canvas selection and structural authoring', () => {
     seedLegacyProject();
     render(<App />);
     selectPage('composition');
-    fireEvent.click(screen.getByRole('heading', { name: '林知远' }));
-    fireEvent.keyDown(screen.getByRole('button', { name: '拖动 标题 card-heading' }), { key: ' ' });
+    fireEvent.click(canvasText('林知远'));
+    fireEvent.keyDown(screen.getByRole('button', { name: '拖动 文本 card-heading' }), { key: ' ' });
     expect(screen.getByText(/scope.record/, { selector: '.drag-feedback small' })).toBeTruthy();
     expect(
-      screen.getByRole('heading', { name: '林知远' }).closest('.material-card header'),
+      canvasText('林知远').closest('.material-card header'),
     ).toBeTruthy();
     changeControl(
       screen.getByLabelText('拖放位置'),
@@ -148,7 +151,7 @@ describe('canvas selection and structural authoring', () => {
     fireEvent.click(screen.getByRole('button', { name: '确认放置' }));
     expect(screen.queryByRole('alert')).toBeNull();
     expect(
-      screen.getByRole('heading', { name: '林知远' }).closest('.material-card footer'),
+      canvasText('林知远').closest('.material-card footer'),
     ).toBeTruthy();
   });
   it('keeps an empty repeated definition selectable without business requests in design mode', () => {
@@ -180,6 +183,6 @@ describe('canvas selection and structural authoring', () => {
     expect(
       screen.getByRole('button', { name: `选中 成员行 ${id}` }).getAttribute('aria-pressed'),
     ).toBe('true');
-    expect(within(canvas).getAllByText('查看资料 ↗')).toHaveLength(4);
+    expect(within(canvas).getAllByText('查看资料')).toHaveLength(4);
   });
 });

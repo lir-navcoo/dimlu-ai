@@ -6,8 +6,8 @@ import { ActionPanel } from '../src/editor/ActionPanel';
 import { EditorSessionProvider } from '../src/editor/session';
 import { TipProvider } from '../src/ui/primitives';
 import { registry } from '../src/materials';
-import { actionExample } from '../src/action-example';
-import { changeControl, closeActionConfig, openActionConfig } from './ui-helpers';
+import { actionExample } from './fixtures/action-example';
+import { actionOperation, changeControl, closeActionConfig, openActionConfig } from './ui-helpers';
 afterEach(cleanup);
 function Harness({ document }: { document: EditorDocument }) {
   const snapshot = useSyncExternalStore(document.subscribe, document.getSnapshot);
@@ -16,6 +16,61 @@ function Harness({ document }: { document: EditorDocument }) {
   return <ActionPanel document={document} snapshot={snapshot} node={node} />;
 }
 describe('action authoring drafts', () => {
+  it('duplicates a call only in the draft and applies the edited copy directly from the dialog', () => {
+    const doc = new EditorDocument(actionExample, registry);
+    doc.setEventActions('records', 'external-submit', 'onClick', [
+      {
+        id: 'original-notice',
+        action: 'ui.notify',
+        input: { title: { kind: 'literal', value: '原消息' } },
+      },
+      {
+        id: 'last-notice',
+        action: 'ui.notify',
+        input: { title: { kind: 'literal', value: '末尾消息' } },
+      },
+    ]);
+    doc.select('records', 'external-submit');
+    const getCalls = () =>
+      findNode(doc.getSnapshot().plan.pages.get('records')!.schema, 'external-submit')!.node.on!
+        .onClick;
+    const initial = getCalls();
+    render(
+      <TipProvider>
+        <EditorSessionProvider>
+          <Harness document={doc} />
+        </EditorSessionProvider>
+      </TipProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '动作 1 操作菜单' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '复制动作' }));
+    expect(getCalls()).toBe(initial);
+    openActionConfig(2);
+    const dialog = within(screen.getByRole('dialog'));
+    const title = dialog.getByRole('textbox', { name: 'title' }) as HTMLInputElement;
+    expect(title.value).toBe('原消息');
+    changeControl(dialog.getByLabelText('title取值方式'), 'expression');
+    changeControl(dialog.getByRole('textbox', { name: 'title' }), 'state.');
+    fireEvent.click(dialog.getByRole('button', { name: '应用并关闭' }));
+    expect(dialog.getByRole('alert')).toBeTruthy();
+    expect(getCalls()).toBe(initial);
+    changeControl(dialog.getByRole('textbox', { name: 'title' }), '"副本消息"');
+    fireEvent.click(dialog.getByRole('button', { name: '应用并关闭' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    const [original, copy, last] = getCalls();
+    expect(original).toEqual(initial[0]);
+    expect(last).toEqual(initial[1]);
+    expect(copy.id).toMatch(/^action-/);
+    expect(copy.id).not.toBe(original.id);
+    expect(copy.action).toBe(original.action);
+    expect(copy.input.title).toEqual({
+      kind: 'expression',
+      language: 'javascript',
+      source: '"副本消息"',
+    });
+  });
+
   it('groups application methods and shows the selected method description', async () => {
     const schema = structuredClone(actionExample);
     schema.methods = [
@@ -50,7 +105,7 @@ describe('action authoring drafts', () => {
     expect(action.queryByText('将输入文本转换为大写。')).toBeNull();
   });
 
-  it('keeps unsaved event actions editable when their application method is deleted', () => {
+  it('keeps unsaved event actions editable when their application method is deleted', async () => {
     const document = new EditorDocument(actionExample, registry);
     const methodId = document.createApplicationMethod('整理名称');
     document.setEventActions('records', 'external-submit', 'onClick', []);
@@ -82,7 +137,7 @@ describe('action authoring drafts', () => {
     expect(missingAction.getByRole('status').textContent).toContain('此动作已不可用');
     closeActionConfig();
     expect(save.matches(':disabled')).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: '删除动作 1' }));
+    await actionOperation(1, 'delete');
     expect(save.matches(':disabled')).toBe(false);
     fireEvent.click(save);
     const page = document.getSnapshot().plan.pages.get('records')!.schema;

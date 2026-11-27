@@ -62,6 +62,40 @@
       "items": {
         "$ref": "#/$defs/page"
       }
+    },
+    "sharedDataSources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind",
+          "transport",
+          "input",
+          "initial"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "kind": {
+            "enum": [
+              "query",
+              "mutation"
+            ]
+          },
+          "transport": {
+            "$ref": "#/$defs/id"
+          },
+          "input": {
+            "$ref": "#/$defs/values"
+          },
+          "initial": {
+            "$ref": "#/$defs/json"
+          }
+        }
+      }
     }
   },
   "$defs": {
@@ -309,6 +343,18 @@
         },
         "resultTo": {
           "$ref": "#/$defs/id"
+        },
+        "then": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/action"
+          }
+        },
+        "else": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/action"
+          }
         }
       }
     },
@@ -944,6 +990,10 @@
         "description": {
           "type": "string"
         },
+        "css": {
+          "type": "string",
+          "maxLength": 12000
+        },
         "code": {
           "type": "object",
           "additionalProperties": false,
@@ -968,6 +1018,19 @@
             },
             "css": {
               "type": "string"
+            }
+          }
+        },
+        "actionCode": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source"
+          ],
+          "properties": {
+            "source": {
+              "type": "string",
+              "maxLength": 32768
             }
           }
         },
@@ -1022,41 +1085,74 @@
         "onLeave": {
           "$ref": "#/$defs/actions"
         },
+        "didMount": {
+          "$ref": "#/$defs/actions"
+        },
+        "willUnmount": {
+          "$ref": "#/$defs/actions"
+        },
         "extensions": {
           "$ref": "#/$defs/extensions"
         }
       }
     },
     "dataSource": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "id",
-        "kind",
-        "transport",
-        "input",
-        "initial"
-      ],
-      "properties": {
-        "id": {
-          "$ref": "#/$defs/id"
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "kind",
+            "transport",
+            "input",
+            "initial"
+          ],
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/id"
+            },
+            "kind": {
+              "enum": [
+                "query",
+                "mutation"
+              ]
+            },
+            "transport": {
+              "$ref": "#/$defs/id"
+            },
+            "input": {
+              "$ref": "#/$defs/values"
+            },
+            "initial": {
+              "$ref": "#/$defs/json"
+            },
+            "ref": {
+              "not": {}
+            }
+          }
         },
-        "kind": {
-          "enum": [
-            "query",
-            "mutation"
-          ]
-        },
-        "transport": {
-          "$ref": "#/$defs/id"
-        },
-        "input": {
-          "$ref": "#/$defs/values"
-        },
-        "initial": {
-          "$ref": "#/$defs/json"
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "ref",
+            "input"
+          ],
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/id"
+            },
+            "ref": {
+              "$ref": "#/$defs/id"
+            },
+            "input": {
+              "$ref": "#/$defs/values"
+            }
+          }
         }
-      }
+      ]
     }
   }
 }

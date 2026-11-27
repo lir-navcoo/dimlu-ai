@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { EditorDocument, findNode } from '../packages/editor/document';
 import type { NodeSchema } from '../packages/schema/types';
-import { exampleApplication } from '../src/examples';
+import { exampleApplication } from './fixtures/examples';
 import { registry } from '../src/materials';
 
 const make = () => new EditorDocument(exampleApplication, registry);
@@ -12,7 +12,11 @@ describe('structure commands', () => {
     doc.select('purchase', 'purchase-name');
     const original = doc.exportJson();
     doc.moveNode('purchase', 'purchase-heading', { index: 1 });
-    expect(page(doc).children.map((n) => n.id)).toEqual(['purchase-form', 'purchase-heading']);
+    expect(page(doc).children.map((n) => n.id)).toEqual([
+      'purchase-heading-note',
+      'purchase-heading',
+      'purchase-form',
+    ]);
     expect(doc.getSnapshot().selection.nodeId).toBe('purchase-heading');
     const moved = doc.getSnapshot();
     expect(doc.moveNode('purchase', 'purchase-heading', { index: 1 })).toBe(false);
@@ -57,7 +61,7 @@ describe('structure commands', () => {
       { parentId: 'purchase-heading' },
       { parentId: 'purchase-note', slot: 'missing' },
       { slot: 'header' },
-      { index: 2 },
+      { index: 3 },
       { index: -1 },
       { index: 0.5 },
     ])
@@ -70,7 +74,12 @@ describe('structure commands', () => {
     const id = doc.duplicateNode('purchase', 'purchase-form');
     const source = findNode(page(doc), 'purchase-form')!.node,
       copy = findNode(page(doc), id)!.node;
-    expect(page(doc).children.map((n) => n.id)).toEqual(['purchase-heading', 'purchase-form', id]);
+    expect(page(doc).children.map((n) => n.id)).toEqual([
+      'purchase-heading',
+      'purchase-heading-note',
+      'purchase-form',
+      id,
+    ]);
     const ids = (node: NodeSchema): string[] => [
       node.id,
       ...Object.values(node.on ?? {}).flatMap((calls) => calls.map((call) => call.id)),
@@ -143,7 +152,7 @@ describe('structure commands', () => {
   });
   it('checks computed scope references without confusing literal text or unrelated property names', () => {
     const app = structuredClone(exampleApplication);
-    app.pages[2].children[1].slots!.body.children.push({
+    app.pages[2].children[2].slots!.body.children.push({
       id: 'dynamic-scope',
       component: 'ui.text',
       props: {
@@ -174,9 +183,9 @@ describe('structure commands', () => {
       children: [
         {
           id: 'repeated-title',
-          component: 'ui.heading',
+          component: 'ui.text',
           props: {
-            title: { kind: 'expression', language: 'javascript', source: 'scope.person.name' },
+            value: { kind: 'expression', language: 'javascript', source: 'scope.person.name' },
           },
         },
       ],

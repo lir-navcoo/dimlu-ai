@@ -14,15 +14,15 @@ describe('Base UI workbench', () => {
   it('selects a portaled option with the keyboard and restores focus to its trigger', async () => {
     seedLegacyProject();
     render(<App />);
-    const trigger = screen.getByRole('combobox', { name: '标题绑定方式' });
+    const trigger = screen.getByRole('combobox', { name: '文本内容绑定方式' });
     fireEvent.click(trigger);
     const expression = screen.getByRole('option', { name: '表达式' });
     fireEvent.keyDown(expression, { key: 'Enter' });
     expect(trigger.getAttribute('data-value')).toBe('expression');
     expect(screen.queryByRole('listbox')).toBeNull();
     await waitFor(() => expect(document.activeElement).toBe(trigger));
-    changeControl(screen.getByRole('textbox', { name: '标题' }), '"键盘编辑"');
-    expect(screen.getByRole('heading', { name: '键盘编辑' })).toBeTruthy();
+    changeControl(screen.getByRole('textbox', { name: '文本内容' }), '键盘编辑');
+    expect(screen.getByText('键盘编辑')).toBeTruthy();
   });
 
   it('preserves React local state when switching design and inspector tabs', () => {

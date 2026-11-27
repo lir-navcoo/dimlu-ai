@@ -1,6 +1,7 @@
 import { EditorDocument } from './document';
 import {
   PROJECT_STORAGE_KEY,
+  restoreProjectDocument,
   type ProjectStorageAdapter,
   type SavedProject,
 } from './project-storage';
@@ -68,8 +69,7 @@ export class ApplicationDirectory {
     const stored: unknown = JSON.parse(raw);
     if (!parseObject(stored) || stored.storageVersion !== 1)
       throw new Error(`应用目录损坏：应用 ${appId} 的项目版本无效`);
-    const schema = stored.schema as ApplicationSchema;
-    const document = new EditorDocument(schema, this.registry);
+    const document = restoreProjectDocument(stored.schema, this.registry);
     return document.getSnapshot().plan.schema;
   }
 
@@ -110,7 +110,7 @@ export class ApplicationDirectory {
       try {
         const saved: unknown = JSON.parse(legacyRaw);
         if (!parseObject(saved) || saved.storageVersion !== 1) throw new Error('存储版本无效');
-        appId = new EditorDocument(saved.schema, this.registry).getSnapshot().plan.schema.id;
+        appId = restoreProjectDocument(saved.schema, this.registry).getSnapshot().plan.schema.id;
       } catch {
         appId = fallback.id;
       }

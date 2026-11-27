@@ -1,4 +1,4 @@
-import { forbiddenObjectKeySet, matchesType, type Json } from '../schema/types';
+import { forbiddenObjectKeySet, isPlainObjectRealmSafe, matchesType, type Json } from '../schema/types';
 import type { Registry } from '../runtime/registry';
 
 /** Editor metadata only. Runtime Schema receives ordinary nodes and literal Values. */
@@ -19,7 +19,7 @@ export function cloneLiteralJson(input: unknown): Json {
       throw new Error(path + ' 必须是有限的 JSON 值');
     if (ancestors.has(value)) throw new Error(path + ' 包含循环引用');
     const array = Array.isArray(value);
-    if (!array && Object.getPrototypeOf(value) !== Object.prototype)
+    if (!array && !isPlainObjectRealmSafe(value))
       throw new Error(path + ' 必须是普通 JSON 对象');
     ancestors.add(value);
     try {

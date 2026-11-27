@@ -1,6 +1,6 @@
 /* One compact text control. Calendar and time surfaces are owned by Base UI. */
 .material-field .material-temporal-control {
-  --temporal-background: #fff;
+  --temporal-background: var(--material-surface);
   display: flex;
   align-items: center;
   width: 100%;
@@ -8,9 +8,9 @@
   min-height: 32px;
   box-sizing: border-box;
   border: 1px solid #dbe1ea;
-  border-radius: 6px;
+  border-radius: var(--material-radius-md);
   background: var(--temporal-background);
-  color: #334155;
+  color: var(--material-text);
   transition:
     border-color 120ms,
     box-shadow 120ms;
@@ -29,7 +29,7 @@
 .material-field .material-temporal-control[data-disabled] {
   --temporal-background: #f5f7fa;
   border-color: #e2e7ef;
-  color: #94a3b8;
+  color: var(--material-text-faint);
 }
 .material-temporal-values,
 .material-temporal-part {
@@ -42,8 +42,8 @@
   flex: 0 0 20px;
   width: 20px;
   text-align: center;
-  color: #94a3b8;
-  font-size: 11px;
+  color: var(--material-text-faint);
+  font-size: var(--material-font-xs);
 }
 .material-field .material-temporal-input.ui-input,
 .material-field .material-temporal-input.ui-input:is(:focus, :disabled) {
@@ -61,7 +61,7 @@
   background: transparent;
   box-shadow: none;
   color: inherit;
-  font-size: 12px;
+  font-size: var(--material-font-sm);
   font-family: inherit;
   line-height: normal;
   font-variant-numeric: tabular-nums;
@@ -81,7 +81,7 @@
   margin: 0;
   padding: 0;
   border: 0;
-  border-radius: 4px;
+  border-radius: var(--material-radius-sm);
   background: transparent;
   color: #7c889b;
   box-shadow: none;
@@ -95,12 +95,12 @@
 }
 .material-field .material-temporal-picker.ui-button:hover:not(:disabled),
 .material-field .material-temporal-control-clear.ui-button:hover:not(:disabled) {
-  background: #eef2ff;
-  color: #4f46e5;
+  background: var(--material-accent-soft);
+  color: var(--material-accent);
 }
 .material-field .material-temporal-picker.ui-button:focus-visible,
 .material-field .material-temporal-control-clear.ui-button:focus-visible {
-  outline: 2px solid #a5b4fc;
+  outline: 2px solid var(--material-accent-border);
   outline-offset: -2px;
 }
 .material-field .material-temporal-control[data-disabled] .ui-button {
@@ -120,7 +120,7 @@
   padding: 12px;
   border: 1px solid #dce3ee;
   border-radius: 9px;
-  background: #fff;
+  background: var(--material-surface);
   color: #344054;
   box-shadow:
     0 10px 35px #10182824,
@@ -138,7 +138,7 @@
 }
 .temporal-popup-title {
   margin: 0 0 8px;
-  font-size: 12px;
+  font-size: var(--material-font-sm);
   font-weight: 600;
   color: #344054;
 }
@@ -174,21 +174,21 @@
   height: 26px;
   padding: 0 4px;
   text-align: center;
-  font-size: 12px;
+  font-size: var(--material-font-sm);
   border-color: transparent;
   background: #f7f8fb;
 }
 .temporal-year-suffix {
   margin-right: 3px;
   color: #667085;
-  font-size: 11px;
+  font-size: var(--material-font-xs);
 }
 .temporal-month.ui-select {
   min-height: 26px;
   height: 26px;
   width: 64px;
   padding: 0 5px;
-  font-size: 12px;
+  font-size: var(--material-font-sm);
   gap: 3px;
 }
 .temporal-month-popup {
@@ -204,7 +204,7 @@
 }
 .temporal-week {
   color: #98a2b3;
-  font-size: 11px;
+  font-size: var(--material-font-xs);
   margin-bottom: 3px;
 }
 .temporal-week > span {
@@ -220,8 +220,8 @@
   height: 30px;
   padding: 0;
   border: 0;
-  border-radius: 5px;
-  font-size: 12px;
+  border-radius: var(--material-radius);
+  font-size: var(--material-font-sm);
   color: #344054;
   background: transparent;
   box-shadow: none;
@@ -230,19 +230,19 @@
   color: #b3bdcb;
 }
 .temporal-day[data-in-range].ui-button {
-  background: #eef2ff;
-  color: #4f46e5;
+  background: var(--material-accent-soft);
+  color: var(--material-accent);
   border-radius: 2px;
 }
 .temporal-day[data-today].ui-button {
-  box-shadow: inset 0 0 0 1px #c7d2fe;
+  box-shadow: inset 0 0 0 1px var(--material-accent-faint);
 }
 .temporal-day.ui-button:hover {
   background: #edf0ff;
-  color: #4f46e5;
+  color: var(--material-accent);
 }
 .temporal-day[data-selected].ui-button {
-  background: #4f46e5;
+  background: var(--material-accent);
   color: #fff;
   box-shadow: none;
 }
@@ -262,11 +262,11 @@
   gap: 2px;
   min-height: 34px;
   margin-bottom: 6px;
-  font-size: 11px;
+  font-size: var(--material-font-xs);
   color: #667085;
 }
 .temporal-range-prompt > span {
-  color: #4f46e5;
+  color: var(--material-accent);
   min-height: 16px;
 }
 .temporal-boundaries {
@@ -282,12 +282,12 @@
   padding: 4px 6px;
   flex-direction: column;
   align-items: flex-start;
-  font-size: 11px;
+  font-size: var(--material-font-xs);
   gap: 0;
 }
 .temporal-boundaries > .ui-button[aria-pressed='true'] {
-  color: #4f46e5;
-  border-color: #c7d2fe;
+  color: var(--material-accent);
+  border-color: var(--material-accent-faint);
   background: #f5f6ff;
 }
 .temporal-boundaries > .ui-button > span {
@@ -296,7 +296,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
-  font-size: 11px;
+  font-size: var(--material-font-xs);
 }
 .temporal-time {
   display: flex;
@@ -307,7 +307,7 @@
 .with-time .temporal-time {
   flex: 0 0 148px;
   padding-left: 10px;
-  border-left: 1px solid #edf0f5;
+  border-left: 1px solid var(--material-border-soft);
 }
 .temporal-time-column {
   flex: 1;
@@ -318,7 +318,7 @@
   display: block;
   height: 26px;
   color: #98a2b3;
-  font-size: 11px;
+  font-size: var(--material-font-xs);
 }
 .temporal-time-options {
   height: 208px;
@@ -333,24 +333,24 @@
   height: 28px;
   padding: 0;
   justify-content: center;
-  font-size: 12px;
+  font-size: var(--material-font-sm);
   border: 0;
   box-shadow: none;
   background: transparent;
 }
 .temporal-time-options .ui-button:hover {
   background: #f0f2ff;
-  color: #4f46e5;
+  color: var(--material-accent);
 }
 .temporal-time-options .ui-button[aria-selected='true'] {
-  color: #4f46e5;
-  background: #eef2ff;
+  color: var(--material-accent);
+  background: var(--material-accent-soft);
   font-weight: 600;
 }
 .temporal-picker-error {
   margin: 7px 0 0;
   color: #c2414b;
-  font-size: 11px;
+  font-size: var(--material-font-xs);
 }
 .temporal-picker-footer {
   display: flex;
@@ -358,7 +358,7 @@
   gap: 5px;
   padding-top: 9px;
   margin-top: 9px;
-  border-top: 1px solid #edf0f5;
+  border-top: 1px solid var(--material-border-soft);
 }
 .temporal-picker-footer > span {
   flex: 1;
@@ -367,7 +367,7 @@
   min-height: 26px;
   height: 26px;
   padding: 0 9px;
-  font-size: 11px;
+  font-size: var(--material-font-xs);
 }
 
 @container (max-width: 440px) {
@@ -378,7 +378,7 @@
   .material-temporal-values[data-range][data-mode='datetime-local']
     > .material-temporal-part
     + .material-temporal-part {
-    border-top: 1px solid #edf0f5;
+    border-top: 1px solid var(--material-border-soft);
   }
 }
 @container (max-width: 300px) {
@@ -387,7 +387,7 @@
     align-items: stretch;
   }
   .material-temporal-values[data-range] > .material-temporal-part + .material-temporal-part {
-    border-top: 1px solid #edf0f5;
+    border-top: 1px solid var(--material-border-soft);
   }
   .material-temporal-divider {
     flex-basis: 20px;
@@ -406,7 +406,7 @@
     flex-basis: auto;
     padding: 8px 0 0;
     border-left: 0;
-    border-top: 1px solid #edf0f5;
+    border-top: 1px solid var(--material-border-soft);
   }
   .with-time .temporal-time-options {
     height: 140px;

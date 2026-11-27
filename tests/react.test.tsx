@@ -2,7 +2,7 @@ import { selectPage } from './ui-helpers';
 import { StrictMode, act } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { exampleApplication } from '../src/examples';
+import { exampleApplication } from './fixtures/examples';
 import { registry, materials } from '../src/materials';
 import { compileApplication, PageRuntime } from '../packages/runtime/engine';
 import { RuntimeRenderer, useField, useForm } from '../packages/react-runtime/Renderer';

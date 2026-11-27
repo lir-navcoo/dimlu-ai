@@ -1,5 +1,6 @@
 import { assertMethodCapabilities, shadowedCapabilityNames } from './method-sandbox';
 import type { Json } from '../schema/types';
+import { compilePageActionCode, invokePageAction, type PageActionHost } from './page-action-code';
 
 /**
  * Inside the realm every capability call is awaitable (fire-and-forget still works
@@ -32,6 +33,7 @@ export interface MethodRunRequest {
   input: Record<string, Json>;
   /** Snapshot of engine state taken when the run was launched. */
   state: Record<string, Json>;
+  pageAction?: string;
 }
 
 export interface MethodContextReply {
@@ -118,6 +120,7 @@ export function handleWorkerMessage(
   runs.set(runId, run);
   const state: Record<string, Json> = structuredClone(message.state);
   let nextCallId = 1;
+  const pageCalls: Promise<unknown>[] = [];
 
   const rpc = (method: string, args: readonly unknown[]): Promise<unknown> => {
     if (run.closed) return Promise.reject(new Error('方法执行已结束'));
@@ -127,7 +130,17 @@ export function handleWorkerMessage(
       settle = { resolve, reject };
     });
     run.calls.set(callId, { promise, ...settle });
-    post({ kind: 'ctx-call', runId, callId, method, args });
+    if (message.pageAction !== undefined) {
+      pageCalls.push(promise);
+      // An unawaited capability call still participates in the action result.
+      void promise.catch(() => {});
+    }
+    try {
+      post({ kind: 'ctx-call', runId, callId, method, args });
+    } catch (error) {
+      run.calls.delete(callId);
+      settle.reject(error);
+    }
     return promise;
   };
 
@@ -141,19 +154,40 @@ export function handleWorkerMessage(
     setFormValues: (formId, values) => rpc('setFormValues', [formId, values]) as Promise<void>,
     resetForm: (formId) => rpc('resetForm', [formId]) as Promise<void>,
     submitForm: (formId) => rpc('submitForm', [formId]),
-    executeDataSource: (sourceId, sourceInput) =>
-      rpc('executeDataSource', [sourceId, sourceInput]),
+    executeDataSource: (sourceId, sourceInput) => rpc('executeDataSource', [sourceId, sourceInput]),
     emitEffect: (effect) => rpc('emitEffect', [effect]) as Promise<void>,
   };
 
   void (async () => {
     try {
-      const result = await compileMethod(source)(input, context);
+      let result: unknown;
+      if (message.pageAction !== undefined) {
+        const host: PageActionHost = {
+          getState: () => state,
+          setState: (patch) => rpc('page.setState', [patch]),
+          getValue: (id) => rpc('page.getValue', [id]),
+          setValue: (id, value) => rpc('page.setValue', [id, value]),
+          emitEffect: (effect) => rpc('emitEffect', [effect]),
+          loadDataSource: (sourceId, sourceInput) =>
+            rpc('page.loadDataSource', [sourceId, sourceInput]) as Promise<Json>,
+          invokeApplication: (methodId, payload) =>
+            rpc('page.invokeApplication', [methodId, payload]) as Promise<Json>,
+          validateField: (id) => rpc('page.validateField', [id]),
+          resetField: (id) => rpc('page.resetField', [id]),
+          validateForm: (formId) => rpc('page.validateForm', [formId]),
+          applyLocal,
+        };
+        result = await invokePageAction(
+          compilePageActionCode({ source }).instantiate(),
+          message.pageAction,
+          input.payload,
+          host,
+        );
+        for (let i = 0; i < pageCalls.length; i++) await pageCalls[i];
+      } else result = await compileMethod(source)(input, context);
       // Settle the run only after every capability call has settled, so fire-and-forget
       // writes/errors are never lost between the method body and the result message.
-      const settled = await Promise.allSettled(
-        [...run.calls.values()].map((call) => call.promise),
-      );
+      const settled = await Promise.allSettled([...run.calls.values()].map((call) => call.promise));
       run.closed = true;
       const failure = settled.find((entry) => entry.status === 'rejected');
       if (failure && failure.status === 'rejected') {

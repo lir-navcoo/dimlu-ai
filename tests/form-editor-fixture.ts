@@ -38,7 +38,7 @@ export const formEditorApplication: ApplicationSchema = {
     {
       id: 'page',
       title: '空白表单',
-      state: [],
+      state: [{ id: 'enabled', type: 'boolean', initial: true }],
       children: [
         {
           id: 'form',

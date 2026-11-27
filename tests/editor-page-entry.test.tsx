@@ -17,7 +17,13 @@ import { PageLifecyclePanel } from '../src/editor/PageLifecyclePanel';
 import { EditorSessionProvider } from '../src/editor/session';
 import { registry } from '../src/materials';
 import { TipProvider } from '../src/ui/primitives';
-import { changeControl, closeActionConfig, openActionConfig, selectPage } from './ui-helpers';
+import {
+  actionOperation,
+  changeControl,
+  closeActionConfig,
+  openActionConfig,
+  selectPage,
+} from './ui-helpers';
 
 const literal = (value: Json): Value => ({ kind: 'literal', value });
 const expression = (source: string): Value => ({
@@ -326,7 +332,7 @@ const saveEntry = () => screen.getByRole('button', { name: '保存进入动作' 
 const titleInput = () => screen.getByRole('textbox', { name: 'title' }) as HTMLInputElement;
 
 describe('page-entry authoring isolation and permissions', () => {
-  it('exposes a page-safe panel on an empty unselected page and saves whole-chain reorder/remove', () => {
+  it('exposes a page-safe panel on an empty unselected page and saves whole-chain reorder/remove', async () => {
     const schema = application();
     schema.pages[0].children = [];
     const document = new EditorDocument(schema, registry);
@@ -348,17 +354,17 @@ describe('page-entry authoring isolation and permissions', () => {
     addNotice('第一条');
     addNotice('第二条');
     expect(document.getSnapshot()).toBe(before);
-    fireEvent.click(screen.getByRole('button', { name: '上移动作 2' }));
+    await actionOperation(2, 'up');
     fireEvent.click(saveEntry());
     expect(saved(document)?.map((call) => call.input.title)).toEqual([
       literal('第二条'),
       literal('第一条'),
     ]);
     expect(document.getSnapshot().selection).toEqual({ pageId: 'a', nodeId: null });
-    fireEvent.click(screen.getByRole('button', { name: '删除动作 2' }));
+    await actionOperation(2, 'delete');
     fireEvent.click(saveEntry());
     expect(saved(document)).toHaveLength(1);
-    fireEvent.click(screen.getByRole('button', { name: '删除动作 1' }));
+    await actionOperation(1, 'delete');
     fireEvent.click(saveEntry());
     expect(saved(document)).toBeUndefined();
   });
@@ -446,9 +452,9 @@ describe('page-entry authoring isolation and permissions', () => {
     const before = document.getSnapshot();
     fireEvent.click(screen.getByRole('button', { name: '测试切换权限' }));
     expect((saveEntry() as HTMLButtonElement).disabled).toBe(true);
-    expect(within(enterRegion()).getByRole('button', { name: '添加动作' }).matches(':disabled')).toBe(
-      true,
-    );
+    expect(
+      within(enterRegion()).getByRole('button', { name: '添加动作' }).matches(':disabled'),
+    ).toBe(true);
     fireEvent.click(saveEntry());
     expect(document.getSnapshot()).toBe(before);
     fireEvent.click(screen.getByRole('button', { name: '测试切换权限' }));
@@ -583,17 +589,14 @@ describe('page-entry execution boundaries', () => {
     expect(query).not.toHaveBeenCalled();
     expect(mutation).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('tab', { name: '数据' }));
-    expect(screen.queryByRole('region', { name: '页面生命周期配置', hidden: true })).toBeNull();
+    // 页面逻辑迁移到右侧页面设置后，生命周期配置在未选中组件时常驻可见。
+    const lifecycle = screen.getByRole('region', { name: '页面生命周期配置' });
     expect(screen.queryByRole('tab', { name: '生命周期' })).toBeNull();
-    const logicTab = screen.getByRole('tab', { name: '页面逻辑' });
-    fireEvent.click(logicTab);
-    expect(window.location.search).toBe('?panel=logic');
     openActionConfig(3);
     changeControl(titleInput(), '已保存进入动作');
     closeActionConfig();
     fireEvent.click(screen.getByRole('tab', { name: '数据' }));
-    expect(screen.queryByRole('region', { name: '页面生命周期配置' })).toBeNull();
-    fireEvent.click(logicTab);
+    expect(screen.getByRole('region', { name: '页面生命周期配置' })).toBe(lifecycle);
     openActionConfig(3);
     expect(titleInput().value).toBe('已保存进入动作');
     closeActionConfig();

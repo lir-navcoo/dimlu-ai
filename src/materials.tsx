@@ -2,13 +2,15 @@ import { extendedMaterials, extendedContracts } from './materials/index';
 import { textStyle, withMaterialStyles } from './materials/style';
 import { feedbackActions } from './materials/feedback';
 import { demoTransports } from './data-transports';
-import { Button, Input as UiInput } from './ui/primitives';
+import { httpRequestTransport } from '../packages/runtime/http-transport';
+import { Button, Input as UiInput, Tip } from './ui/primitives';
 import {
   useEffect,
   useId,
   useState,
   type ChangeEventHandler,
   type InputHTMLAttributes,
+  type MouseEventHandler,
 } from 'react';
 import { createRegistry } from '../packages/runtime/registry';
 import {
@@ -28,32 +30,25 @@ import { CheckboxMaterial, SwitchMaterial } from './BooleanMaterial';
 function Text({
   value,
   tone = 'default',
+  ellipsis,
   style,
+  onClick,
 }: {
   value: unknown;
   tone?: string;
+  ellipsis?: boolean;
   style?: React.CSSProperties;
+  onClick?: MouseEventHandler<HTMLParagraphElement>;
 }) {
   return (
-    <p className={`material-text ${tone}`} style={style} {...materialStyleTarget(style)}>
+    <p
+      className={`material-text ${tone}${ellipsis ? ' ellipsis' : ''}`}
+      style={style}
+      onClick={onClick}
+      {...materialStyleTarget(style)}
+    >
       {typeof value === 'object' ? JSON.stringify(value) : String(value ?? '')}
     </p>
-  );
-}
-function Heading({
-  title,
-  description,
-  style,
-}: {
-  title: string;
-  description?: string;
-  style?: React.CSSProperties;
-}) {
-  return (
-    <div className="material-heading" style={style} {...materialStyleTarget(style)}>
-      <h2 style={textStyle(style)}>{title}</h2>
-      {description && <p>{description}</p>}
-    </div>
   );
 }
 function Input({
@@ -62,7 +57,10 @@ function Input({
   error,
   multiline = false,
   rows = 4,
-  type,
+  type = 'text',
+  clearable = false,
+  showCount = false,
+  autoSize = false,
   style,
   ...props
 }: {
@@ -72,12 +70,24 @@ function Input({
   value?: string | number;
   placeholder?: string;
   required?: boolean;
+  disabled?: boolean;
+  readOnly?: boolean;
+  minLength?: number;
+  maxLength?: number;
   multiline?: boolean;
   rows?: number;
+  clearable?: boolean;
+  showCount?: boolean;
+  autoSize?: boolean;
   onChange?: ChangeEventHandler<HTMLInputElement | HTMLTextAreaElement>;
 } & Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'>) {
   const id = useId();
+  const text = props.value === undefined || props.value === null ? '' : String(props.value);
   const lineCount = Number.isFinite(rows) ? Math.max(1, Math.min(20, Math.floor(rows))) : 4;
+  const autoRows = autoSize
+    ? Math.max(1, Math.min(20, text ? text.split('\n').length : 1))
+    : undefined;
+  const canClear = clearable && !props.disabled && !props.readOnly && !!props.onChange && !!text;
   return (
     <div className="material-field" style={style} {...materialStyleTarget(style)}>
       <label htmlFor={id} style={textStyle(style)}>
@@ -88,8 +98,10 @@ function Input({
         {...props}
         style={textStyle(style)}
         type={multiline ? undefined : type}
-        render={multiline ? <textarea rows={lineCount} /> : undefined}
+        render={multiline ? <textarea rows={autoRows ?? lineCount} /> : undefined}
         readOnly={props.readOnly ?? !props.onChange}
+        minLength={props.minLength}
+        maxLength={props.maxLength}
         id={id}
         aria-invalid={!!error}
         aria-describedby={
@@ -97,6 +109,27 @@ function Input({
           undefined
         }
       />
+      {canClear && (
+        <Tip content="清空输入">
+          <Button
+            className="material-input-clear"
+            variant="ghost"
+            aria-label={`清空${label}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              props.onChange?.({ target: { value: '' } } as unknown as React.ChangeEvent<HTMLInputElement>);
+            }}
+          >
+            ×
+          </Button>
+        </Tip>
+      )}
+      {showCount && (
+        <small className="field-count" aria-hidden="true">
+          {text.length}
+          {props.maxLength !== undefined ? `/${props.maxLength}` : ''}
+        </small>
+      )}
       {hint && <small id={`${id}-hint`}>{hint}</small>}
       {error && (
         <small className="field-error" id={`${id}-error`} role="alert">
@@ -106,13 +139,37 @@ function Input({
     </div>
   );
 }
-function NumberInput(props: Omit<Parameters<typeof Input>[0], 'multiline' | 'rows'>) {
-  return <Input {...props} multiline={false} type="number" step="any" />;
+function NumberInput({
+  step = 'any',
+  precision,
+  unit,
+  ...props
+}: Omit<Parameters<typeof Input>[0], 'multiline' | 'rows'> & {
+  step?: string | number;
+  precision?: number;
+  unit?: string;
+}) {
+  const input = (
+    <Input
+      {...props}
+      multiline={false}
+      type="number"
+      step={precision !== undefined && Number.isFinite(precision) && precision > 0 ? 1 / 10 ** Math.floor(precision) : step}
+    />
+  );
+  if (!unit) return input;
+  return (
+    <span className="material-number">
+      {input}
+      <span className="material-number-unit">{unit}</span>
+    </span>
+  );
 }
 function MaterialButton({
   label,
   variant = 'primary',
   type = 'button',
+  block,
   onClick,
   disabled,
   style,
@@ -120,13 +177,14 @@ function MaterialButton({
   label: string;
   variant?: string;
   type?: 'button' | 'submit' | 'reset';
+  block?: boolean;
   disabled?: boolean;
   style?: React.CSSProperties;
   onClick?: React.MouseEventHandler<HTMLButtonElement>;
 }) {
   return (
     <Button
-      className={`material-button ${variant}`}
+      className={`material-button ${variant}${block ? ' block' : ''}`}
       type={type}
       onClick={onClick}
       disabled={disabled}
@@ -134,12 +192,11 @@ function MaterialButton({
       {...materialStyleTarget(style)}
     >
       {label}
-      <span aria-hidden="true">{variant === 'primary' ? '↗' : '→'}</span>
     </Button>
   );
 }
 // Normal React hook usage; no separate state or event DSL for code extensions.
-function FormStatus({ formId }: { formId: string }) {
+function FormStatus({ formId, onClick }: { formId: string; onClick?: MouseEventHandler<HTMLDivElement> }) {
   const form = useForm(formId);
   const dirtyCount = [
     ...Object.values(form.fields),
@@ -149,7 +206,7 @@ function FormStatus({ formId }: { formId: string }) {
   ].filter((field) => field.dirty).length;
   const arrayDirty = Object.values(form.arrays).some((array) => array.dirty);
   return (
-    <div className="form-status" aria-live="polite">
+    <div className="form-status" aria-live="polite" onClick={onClick}>
       {form.formErrors.map((message) => (
         <p className="field-error" role="alert" key={message}>
           {message}
@@ -200,12 +257,20 @@ function ArrayCell({
     />
   );
 }
-function PurchaseItems({ formId, arrayId }: { formId: string; arrayId: string }) {
+function PurchaseItems({
+  formId,
+  arrayId,
+  onClick,
+}: {
+  formId: string;
+  arrayId: string;
+  onClick?: MouseEventHandler<HTMLElement>;
+}) {
   const array = useFieldArray(formId, arrayId);
   const definition = useRuntime().getForm(formId).getArrayDefinition(arrayId);
   if (!array.visible) return null;
   return (
-    <section className="purchase-items" aria-label={array.label}>
+    <section className="purchase-items" aria-label={array.label} onClick={onClick}>
       <header className="items-heading">
         <div>
           <h3>{array.label}</h3>
@@ -279,9 +344,17 @@ function PurchaseItems({ formId, arrayId }: { formId: string; arrayId: string })
     </section>
   );
 }
-function Summary({ label, value }: { label: string; value: string }) {
+function Summary({
+  label,
+  value,
+  onClick,
+}: {
+  label: string;
+  value: string;
+  onClick?: MouseEventHandler<HTMLDivElement>;
+}) {
   return (
-    <div className="material-summary">
+    <div className="material-summary" onClick={onClick}>
       <span>{label}</span>
       <strong>{value}</strong>
     </div>
@@ -291,13 +364,20 @@ function Badge({
   value,
   tone = 'green',
   style,
+  onClick,
 }: {
   value: string;
   tone?: string;
   style?: React.CSSProperties;
+  onClick?: MouseEventHandler<HTMLSpanElement>;
 }) {
   return (
-    <span className={`material-badge ${tone}`} style={style} {...materialStyleTarget(style)}>
+    <span
+      className={`material-badge ${tone}`}
+      style={style}
+      onClick={onClick}
+      {...materialStyleTarget(style)}
+    >
       {value}
     </span>
   );
@@ -320,23 +400,46 @@ function RecordRow({
       </div>
       <span className="record-status">在职</span>
       <Button onClick={onClick} type="button">
-        查看资料 ↗
+        查看资料
       </Button>
     </article>
   );
 }
-function Empty({ title, style }: { title: string; style?: React.CSSProperties }) {
+function Empty({
+  title,
+  description = '暂无匹配的内容',
+  style,
+  onClick,
+}: {
+  title: string;
+  description?: string;
+  style?: React.CSSProperties;
+  onClick?: MouseEventHandler<HTMLDivElement>;
+}) {
   return (
-    <div className="material-empty" style={style} {...materialStyleTarget(style)}>
+    <div
+      className="material-empty"
+      style={style}
+      onClick={onClick}
+      {...materialStyleTarget(style)}
+    >
       <span aria-hidden="true">⌕</span>
       <strong style={textStyle(style)}>{title}</strong>
-      <p>试试其他姓名或部门关键词</p>
+      {description && <p>{description}</p>}
     </div>
   );
 }
-function RecordCard({ record, slots }: { record: Record<string, unknown>; slots: SlotRenderers }) {
+function RecordCard({
+  record,
+  slots,
+  onClick,
+}: {
+  record: Record<string, unknown>;
+  slots: SlotRenderers;
+  onClick?: MouseEventHandler<HTMLElement>;
+}) {
   return (
-    <article className="material-card">
+    <article className="material-card" onClick={onClick}>
       <header>{slots.header?.({ record })}</header>
       <section>{slots.body?.({ record })}</section>
       <footer>{slots.footer?.({ record })}</footer>
@@ -344,7 +447,13 @@ function RecordCard({ record, slots }: { record: Record<string, unknown>; slots:
   );
 }
 // A code extension is an ordinary React component: normal JSX, hooks and events.
-export function NativeReactCounter({ label }: { label: string }) {
+export function NativeReactCounter({
+  label,
+  onClick,
+}: {
+  label: string;
+  onClick?: MouseEventHandler<HTMLDivElement>;
+}) {
   const [count, setCount] = useState(0);
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -354,7 +463,7 @@ export function NativeReactCounter({ label }: { label: string }) {
     };
   }, []);
   return (
-    <div className="native-counter">
+    <div className="native-counter" onClick={onClick}>
       <div>
         <span className="eyebrow">REACT COMPONENT</span>
         <strong>{label}</strong>
@@ -369,7 +478,6 @@ export function NativeReactCounter({ label }: { label: string }) {
 }
 export const materials: ReactMaterials = {
   'ui.text': Text,
-  'ui.heading': Heading,
   'ui.input': Input,
   'ui.select': SelectMaterial,
   'ui.checkbox': CheckboxMaterial,
@@ -397,9 +505,10 @@ const booleanContract = {
     checked: { type: 'boolean', required: true },
     hint: string,
     disabled: { type: 'boolean' },
+    readOnly: { type: 'boolean' },
     required: { type: 'boolean' },
   },
-  events: ['onCheckedChange', 'onBlur'],
+  events: ['onCheckedChange', 'onBlur', 'onClick'],
 } satisfies import('../packages/runtime/registry').ComponentContract;
 const people = [
   { id: 'u1', name: '陈嘉宁', department: '产品设计部', role: '产品设计师' },
@@ -426,22 +535,55 @@ export const registry = createRegistry(
     'ui.layout': { version: '1.0.0', props: { variant: string }, children: true },
     'ui.text': {
       version: '1.0.0',
-      props: { value: { type: 'json', required: true }, tone: string },
+      props: {
+        value: { type: 'json', required: true },
+        tone: string,
+        ellipsis: { type: 'boolean' },
+      },
+      events: ['onClick'],
     },
-    'ui.heading': { version: '1.0.0', props: { title: requiredString, description: string } },
     'ui.input': {
       version: '1.0.0',
       field: { type: 'string', valueProp: 'value' },
       props: {
         label: requiredString,
         value: requiredString,
+        type: string,
         hint: string,
         placeholder: string,
         multiline: { type: 'boolean' },
         rows: number,
+        clearable: { type: 'boolean' },
+        showCount: { type: 'boolean' },
+        autoSize: { type: 'boolean' },
+        minLength: number,
+        maxLength: number,
+        disabled: { type: 'boolean' },
+        readOnly: { type: 'boolean' },
         required: { type: 'boolean' },
       },
-      events: ['onChange', 'onBlur'],
+      events: ['onChange', 'onBlur', 'onClick'],
+      validateProps: (props) => {
+        const errors: string[] = [];
+        const allowedTypes = ['text', 'email', 'url', 'password', 'search', 'tel'];
+        if (props.type !== undefined && !allowedTypes.includes(String(props.type)))
+          errors.push('type 的值无效');
+        if (props.multiline === true && props.type !== undefined && props.type !== 'text')
+          errors.push('多行输入的 type 必须为 text');
+        for (const key of ['minLength', 'maxLength']) {
+          if (props[key] !== undefined && (!Number.isInteger(props[key]) || Number(props[key]) < 0))
+            errors.push(`${key} 必须为非负整数`);
+        }
+        if (props.rows !== undefined && (!Number.isInteger(props.rows) || Number(props.rows) < 1))
+          errors.push('rows 必须为正整数');
+        if (
+          typeof props.minLength === 'number' &&
+          typeof props.maxLength === 'number' &&
+          props.minLength > props.maxLength
+        )
+          errors.push('minLength 不能大于 maxLength');
+        return errors;
+      },
     },
     'ui.select': {
       version: '1.0.0',
@@ -459,9 +601,10 @@ export const registry = createRegistry(
         clearable: { type: 'boolean' },
         multiple: { type: 'boolean' },
         disabled: { type: 'boolean' },
+        readOnly: { type: 'boolean' },
         required: { type: 'boolean' },
       },
-      events: ['onValueChange', 'onBlur'],
+      events: ['onValueChange', 'onBlur', 'onClick'],
       validateProps: validateSelectProps,
     },
     'ui.number': {
@@ -472,8 +615,37 @@ export const registry = createRegistry(
         value: { ...number, required: true },
         min: number,
         max: number,
+        step: { type: 'json' },
+        precision: number,
+        unit: string,
+        placeholder: string,
+        hint: string,
+        disabled: { type: 'boolean' },
+        readOnly: { type: 'boolean' },
+        required: { type: 'boolean' },
       },
-      events: ['onChange', 'onBlur'],
+      events: ['onChange', 'onBlur', 'onClick'],
+      validateProps: (props) => {
+        const errors: string[] = [];
+        if (typeof props.min === 'number' && typeof props.max === 'number' && props.min > props.max)
+          errors.push('min 不能大于 max');
+        if (
+          props.step !== undefined &&
+          typeof props.step !== 'number' &&
+          !(typeof props.step === 'string' && props.step === 'any')
+        )
+          errors.push('step 必须为数字或 any');
+        if (typeof props.step === 'number' && props.step <= 0) errors.push('step 必须大于 0');
+        if (
+          props.precision !== undefined &&
+          (typeof props.precision !== 'number' ||
+            !Number.isInteger(props.precision) ||
+            props.precision < 0 ||
+            props.precision > 8)
+        )
+          errors.push('precision 必须为 0 到 8 的整数');
+        return errors;
+      },
     },
     'ui.checkbox': booleanContract,
     'ui.switch': booleanContract,
@@ -483,6 +655,7 @@ export const registry = createRegistry(
         label: requiredString,
         variant: string,
         type: string,
+        block: { type: 'boolean' },
         disabled: { type: 'boolean' },
       },
       events: ['onClick'],
@@ -492,27 +665,45 @@ export const registry = createRegistry(
       props: {},
       children: true,
       form: true,
-      events: ['onSubmit', 'onReset'],
+      events: ['onSubmit', 'onReset', 'onClick'],
     },
-    'ui.formStatus': { version: '1.0.0', props: { formId: requiredString } },
+    'ui.formStatus': { version: '1.0.0', props: { formId: requiredString }, events: ['onClick'] },
     'react.purchaseItems': {
       version: '1.0.0',
       props: { formId: requiredString, arrayId: requiredString },
+      events: ['onClick'],
     },
-    'ui.summary': { version: '1.0.0', props: { label: requiredString, value: requiredString } },
-    'ui.badge': { version: '1.0.0', props: { value: requiredString, tone: string } },
+    'ui.summary': {
+      version: '1.0.0',
+      props: { label: requiredString, value: requiredString },
+      events: ['onClick'],
+    },
+    'ui.badge': {
+      version: '1.0.0',
+      props: { value: requiredString, tone: string },
+      events: ['onClick'],
+    },
     'ui.record': {
       version: '1.0.0',
       props: { record: { type: 'object', required: true } },
       events: ['onClick'],
     },
-    'ui.empty': { version: '1.0.0', props: { title: requiredString } },
+    'ui.empty': {
+      version: '1.0.0',
+      props: { title: requiredString, description: string },
+      events: ['onClick'],
+    },
     'ui.recordCard': {
       version: '1.0.0',
       props: { record: { type: 'object', required: true } },
+      events: ['onClick'],
       slots: { header: ['record'], body: ['record'], footer: ['record'] },
     },
-    'react.counter': { version: '1.0.0', props: { label: requiredString } },
+    'react.counter': {
+      version: '1.0.0',
+      props: { label: requiredString },
+      events: ['onClick'],
+    },
     ...extendedContracts,
   }),
   {
@@ -613,5 +804,5 @@ export const registry = createRegistry(
     },
   },
   { 'purchase.total': { version: '1.0.0', compute: purchaseTotal } },
-  demoTransports,
+  { 'http.request': httpRequestTransport, ...demoTransports },
 );

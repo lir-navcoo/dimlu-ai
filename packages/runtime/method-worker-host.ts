@@ -13,6 +13,7 @@ export interface MethodRunPayload {
   source: string;
   input: Record<string, Json>;
   state: Record<string, Json>;
+  pageAction?: string;
 }
 
 export interface MethodRunOptions {
@@ -83,6 +84,7 @@ export class MethodWorkerHost {
         source: payload.source,
         input: payload.input,
         state: payload.state,
+        pageAction: payload.pageAction,
       });
     });
   }
@@ -129,9 +131,7 @@ export class MethodWorkerHost {
     if (message.ok) run.resolve(message.result);
     else
       run.reject(
-        message.name === 'AbortError'
-          ? abortError(message.message)
-          : new Error(message.message),
+        message.name === 'AbortError' ? abortError(message.message) : new Error(message.message),
       );
   }
 
@@ -170,6 +170,37 @@ export class MethodWorkerHost {
   ): unknown {
     const [first, second] = args;
     switch (method) {
+      case 'page.setState':
+        if (context.pageActions) return context.pageActions.setState(first);
+        break;
+      case 'page.getValue':
+        if (context.pageActions && typeof first === 'string')
+          return context.pageActions.getValue(first);
+        break;
+      case 'page.setValue':
+        if (context.pageActions && typeof first === 'string')
+          return context.pageActions.setValue(first, second);
+        break;
+      case 'page.loadDataSource':
+        if (typeof first === 'string')
+          return context.executeDataSource(first, second as Record<string, Json> | undefined);
+        break;
+      case 'page.invokeApplication':
+        if (typeof first === 'string')
+          return context.invokeApplication?.(first, second) ?? Promise.reject(new Error('方法调用不可用'));
+        break;
+      case 'page.validateField':
+        if (context.pageActions && typeof first === 'string')
+          return context.pageActions.validateField(first);
+        break;
+      case 'page.resetField':
+        if (context.pageActions && typeof first === 'string')
+          return context.pageActions.resetField(first);
+        break;
+      case 'page.validateForm':
+        if (context.pageActions && typeof first === 'string')
+          return context.pageActions.validateForm(first);
+        break;
       case 'setState':
         return context.setState(String(first), second);
       case 'setFormValues':
@@ -179,17 +210,11 @@ export class MethodWorkerHost {
       case 'submitForm':
         return context.submitForm(String(first));
       case 'executeDataSource':
-        return context.executeDataSource(
-          String(first),
-          second as Record<string, Json> | undefined,
-        );
+        return context.executeDataSource(String(first), second as Record<string, Json> | undefined);
       case 'emitEffect':
-        return context.emitEffect(
-          first as { type: string; data: Record<string, Json> },
-        );
-      default:
-        throw new Error(`方法域调用了未知能力 ${method}`);
+        return context.emitEffect(first as { type: string; data: Record<string, Json> });
     }
+    throw new Error(`方法域调用了未知能力 ${method}`);
   }
 }
 

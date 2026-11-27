@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import type { ApplicationPlan } from '../packages/runtime/engine';
 import { PageRuntime as Runtime } from '../packages/runtime/engine';
@@ -32,11 +32,19 @@ function RuntimePage({
   pageId: string;
   onNavigate: (pageId: string, replace: boolean) => void;
 }) {
-  const [runtime] = useState(() => new Runtime(plan, pageId));
+  // StrictMode double-invokes effects; the first cleanup disposes the runtime
+  // while enter() is still in flight, so a disposed instance is rebuilt here.
+  const [runtime, setRuntime] = useState(() => new Runtime(plan, pageId));
+  const navigateRef = useRef(onNavigate);
+  navigateRef.current = onNavigate;
   useEffect(() => {
+    if (runtime.disposed) {
+      setRuntime(new Runtime(plan, pageId));
+      return;
+    }
     const unsubscribe = runtime.subscribeEffects((effect) => {
       if (effect.type === 'app.navigate' && typeof effect.data.pageId === 'string')
-        onNavigate(effect.data.pageId, effect.data.replace === true);
+        navigateRef.current(effect.data.pageId, effect.data.replace === true);
     });
     void runtime.enter();
     return () => {
@@ -46,12 +54,12 @@ function RuntimePage({
       if (runtime.willRunLeaveActions()) void runtime.leave().finally(() => runtime.dispose());
       else runtime.dispose();
     };
-  }, [runtime, onNavigate]);
+  }, [runtime, plan, pageId]);
   const page = runtime.page.schema;
   return (
     <RuntimeRenderer runtime={runtime} materials={materials}>
       {page.code?.enabled ? (
-        <CodePageCanvas code={page.code} runtime={runtime} mode="preview" openCode={() => {}} />
+        <CodePageCanvas code={page.code} runtime={runtime} mode="preview" />
       ) : undefined}
     </RuntimeRenderer>
   );

@@ -87,17 +87,9 @@
   border-radius: 4px;
   font-size: 11px;
 }
-.style-binding-editor {
-  display: grid;
-  gap: 6px;
-  margin-top: 6px;
-  padding: 7px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 5px;
-}
 .style-binding-actions {
   flex-wrap: wrap;
+  margin-top: 6px;
 }
 .style-field .draft-notice {
   font-size: 10px;
@@ -152,26 +144,114 @@
   gap: 12px;
   min-width: 0;
 }
-.data-model-heading,
-.data-model-picker {
+.data-model-heading {
   display: flex;
   align-items: center;
-  gap: 6px;
   justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
 }
 .data-model-heading strong {
+  min-width: 0;
+  color: #334155;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.data-model-heading .ui-button {
+  flex: 0 0 28px;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+}
+.data-model-panel .data-source-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.data-model-heading.shared-heading {
+  padding-top: 12px;
+  border-top: 1px solid var(--border, #e2e8f0);
+}
+.material-modal.data-source-dialog.drawer {
+  inset: 0 0 0 auto;
+  width: min(var(--modal-width, 640px), 100vw);
+  max-height: 100dvh;
+  height: 100dvh;
+  transform: none;
+  border-block: 0;
+  border-right: 0;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: clip;
+}
+.material-modal.data-source-dialog .data-definition {
+  flex: 1 1 0;
+}
+.data-source-dialog-head {
+  align-items: center;
+}
+.data-source-dialog .data-source-toolbar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+}
+.data-source-dialog .data-source-toolbar .ui-button {
+  white-space: nowrap;
+}
+.data-source-dialog .data-definition-dialog-head {
+  align-items: center;
+}
+.data-source-dialog .data-source-toolbar {
+  display: flex;
+  flex: none;
+  gap: 8px;
+}
+.data-source-dialog .data-definition-fields {
+  flex: 1 1 0;
+  gap: 0;
+  padding: 0;
+  scrollbar-gutter: auto;
+}
+.data-source-config-section {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+  padding: 16px 20px;
+}
+.data-source-config-section + .data-source-config-section {
+  border-top: 1px solid var(--border, #e2e8f0);
+}
+.data-source-config-section > h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 600;
+}
+.data-source-config-section label.data-source-config-field {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+  color: #475569;
   font-size: 12px;
 }
-.data-model-heading .ui-button,
-.data-model-picker > .ui-button {
-  flex-shrink: 0;
-  padding: 0;
-  width: 26px;
-  min-width: 26px;
+.data-source-config-field > .ui-select {
+  width: 100%;
 }
-.data-model-picker > .ui-select {
+.data-source-transport-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 12px;
+}
+.data-source-dialog .data-source-diagnostic {
+  flex: none;
+  margin: 10px 20px 0;
+}
+.data-source-dialog .action-parameter {
   min-width: 0;
-  flex: 1;
 }
 .data-definition > label {
   display: grid;
@@ -186,6 +266,58 @@
 }
 .data-definition .editor-note {
   margin: 0;
+}
+.http-request-line {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+.http-request-line > .ui-input,
+.http-request-line > .ui-select {
+  min-width: 0;
+  width: 100%;
+}
+.http-request-designer > .data-source-config-field {
+  padding-top: 4px;
+}
+.http-params-field {
+  display: grid;
+  gap: 7px;
+}
+.http-param-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 32px;
+  gap: 6px;
+  align-items: center;
+}
+.http-param-row > .ui-input {
+  min-width: 0;
+  width: 100%;
+}
+.http-response {
+  display: grid;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border, #e2e8f0);
+}
+.http-response-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #475569;
+  font-size: 12px;
+}
+.http-response-heading strong {
+  color: #0f172a;
+}
+@media (max-width: 520px) {
+  .http-request-line {
+    grid-template-columns: 96px minmax(0, 1fr);
+  }
+  .http-request-line > .ui-button {
+    grid-column: 1 / -1;
+  }
 }
 .action-panel .editor-note {
   margin: 0;

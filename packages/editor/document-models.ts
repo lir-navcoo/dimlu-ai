@@ -56,6 +56,14 @@ export class DocumentModels {
     const { schema, page } = this.host.draft(pageId);
     if (page.dataSources?.some((source) => source.id === input.id))
       throw new Error('数据源 ID 已存在');
+    if (!input.ref && schema.sharedDataSources?.some((source) => source.id === input.id))
+      throw new Error('数据源 ID 与共享数据源冲突');
+    if (input.ref) {
+      if (!schema.sharedDataSources?.some((source) => source.id === input.ref))
+        throw new Error('引用的共享数据源不存在 ' + input.ref);
+      (page.dataSources ??= []).push(structuredClone(input));
+      return this.host.commit(schema, `创建数据源 ${input.id}（引用 ${input.ref}）`);
+    }
     const transport = this.host.registry().transports?.[input.transport];
     if (!transport) throw new Error('未注册 transport ' + input.transport);
     (schema.dependencies.transports ??= {})[input.transport] ??= transport.version;
@@ -85,6 +93,42 @@ export class DocumentModels {
     if (refs.length) throw new Error('数据源仍被引用：' + refs.join('；'));
     page.dataSources = page.dataSources.filter((source) => source.id !== id);
     return this.host.commit(schema, '删除数据源 ' + id);
+  };
+
+  createSharedDataSource = (input: DataSourceDefinition) => {
+    const { schema } = this.host.draft(this.host.plan().schema.entryPageId);
+    if (schema.sharedDataSources?.some((source) => source.id === input.id))
+      throw new Error('共享数据源 ID 已存在');
+    const transport = this.host.registry().transports?.[input.transport];
+    if (!transport) throw new Error('未注册 transport ' + input.transport);
+    (schema.dependencies.transports ??= {})[input.transport] ??= transport.version;
+    (schema.sharedDataSources ??= []).push(structuredClone(input));
+    return this.host.commit(schema, '创建共享数据源 ' + input.id);
+  };
+
+  updateSharedDataSource = (id: string, input: Omit<DataSourceDefinition, 'id'>) => {
+    const { schema } = this.host.draft(this.host.plan().schema.entryPageId);
+    const source = schema.sharedDataSources?.find((source) => source.id === id);
+    if (!source) throw new Error('共享数据源不存在 ' + id);
+    const transport = this.host.registry().transports?.[input.transport];
+    if (!transport) throw new Error('未注册 transport ' + input.transport);
+    (schema.dependencies.transports ??= {})[input.transport] ??= transport.version;
+    Object.assign(source, structuredClone(input), { id });
+    return this.host.commit(schema, '保存共享数据源 ' + id);
+  };
+
+  removeSharedDataSource = (id: string) => {
+    const { schema } = this.host.draft(this.host.plan().schema.entryPageId);
+    if (!schema.sharedDataSources?.some((source) => source.id === id))
+      throw new Error('共享数据源不存在 ' + id);
+    const refs = schema.pages.flatMap((page) =>
+      (page.dataSources ?? [])
+        .filter((source) => source.ref === id)
+        .map((source) => `${page.title}/${source.id}`),
+    );
+    if (refs.length) throw new Error('共享数据源仍被页面引用：' + refs.join('；'));
+    schema.sharedDataSources = schema.sharedDataSources.filter((source) => source.id !== id);
+    return this.host.commit(schema, '删除共享数据源 ' + id);
   };
 
   private bindFieldDraft(page: PageSchema, nodeId: string, formId: string, fieldId: string) {
@@ -260,12 +304,23 @@ export class DocumentModels {
     pageId: string,
     formId: string,
     fieldId: string,
-    input: Pick<FieldDefinition, 'label' | 'initial' | 'rules'>,
+    input: Pick<FieldDefinition, 'label' | 'initial' | 'rules'> &
+      Partial<Pick<FieldDefinition, 'when' | 'disabled'>>,
   ) => {
     const { schema, page } = this.host.draft(pageId);
     const field = this.form(page, formId).fields.find((f) => f.id === fieldId);
     if (!field) throw new Error('字段不存在 ' + fieldId);
-    Object.assign(field, structuredClone(input));
+    const { when, disabled, ...settings } = structuredClone(input);
+    Object.assign(field, settings);
+    // Omitted conditions preserve the existing value; explicit undefined clears it.
+    if (Object.hasOwn(input, 'when')) {
+      if (when === undefined) delete field.when;
+      else field.when = when;
+    }
+    if (Object.hasOwn(input, 'disabled')) {
+      if (disabled === undefined) delete field.disabled;
+      else field.disabled = disabled;
+    }
     assertFieldRange(field);
     return this.host.commit(schema, '修改字段 ' + fieldId);
   };

@@ -5,7 +5,7 @@ import { useEditorViewport } from './session';
 import { useDragDrop } from './DragDrop';
 import { resolveViewport, type ViewportPreset } from './viewport';
 const percentages = [50, 67, 75, 80, 90, 100, 110, 125, 150];
-export function ViewportControls({ mode }: { mode: 'edit' | 'preview' }) {
+export function ViewportControls({ mode, inert }: { mode: 'edit' | 'preview'; inert?: boolean }) {
   const { viewport, state } = useEditorViewport();
   const metrics = resolveViewport(state, mode);
   const dragging = !!useDragDrop()?.isInteracting || state.interacting;
@@ -32,13 +32,14 @@ export function ViewportControls({ mode }: { mode: 'edit' | 'preview' }) {
   const width = Number(metrics.width.toFixed(1));
   const manualPercent =
     state.zoom.kind === 'manual' ? Number((state.zoom.scale * 100).toFixed(6)) : 100;
-  const zoomValue = preview ? '100' : state.zoom.kind === 'fit' ? 'fit' : String(manualPercent);
+  const zoomValue = state.zoom.kind === 'fit' ? 'fit' : String(manualPercent);
   const options = percentages.includes(manualPercent)
     ? percentages
     : [...percentages, manualPercent].sort((a, b) => a - b);
-  const DeviceIcon = state.preset === 'phone' ? Smartphone : state.preset === 'tablet' ? Tablet : Monitor;
+  const DeviceIcon =
+    state.preset === 'phone' ? Smartphone : state.preset === 'tablet' ? Tablet : Monitor;
   return (
-    <div className="viewport-controls" role="group" aria-label="画布视口">
+    <div className="viewport-controls" role="group" aria-label="画布视口" inert={inert}>
       <div className="viewport-device-group" role="group" aria-label="页面布局宽度">
         <DeviceIcon size={14} aria-hidden="true" />
         <Tip content="页面布局宽度" side="bottom" disabled={dragging}>
@@ -93,11 +94,7 @@ export function ViewportControls({ mode }: { mode: 'edit' | 'preview' }) {
       </div>
       <div className="viewport-zoom-group">
         <Tip
-          content={
-            preview
-              ? '预览按100%显示，返回编辑恢复原倍率'
-              : '画布显示比例，选择百分比将退出适应宽度'
-          }
+          content="画布显示比例，与预览态保持一致；选择百分比将退出适应宽度"
           side="bottom"
           disabled={dragging}
         >
@@ -111,7 +108,7 @@ export function ViewportControls({ mode }: { mode: 'edit' | 'preview' }) {
               }
             >
               <option value="fit">
-                {state.zoom.kind === 'fit' && !preview ? '适应 · ' + percentage + '%' : '适应宽度'}
+                {state.zoom.kind === 'fit' ? '适应 · ' + percentage + '%' : '适应宽度'}
               </option>
               {options.map((value) => (
                 <option key={value} value={String(value)}>
@@ -144,9 +141,7 @@ export function ViewportControls({ mode }: { mode: 'edit' | 'preview' }) {
           </Button>
         </Tip>
       </div>
-      {preview ? (
-        <span className="viewport-feedback">预览按100%显示</span>
-      ) : metrics.fitClamped ? (
+      {metrics.fitClamped ? (
         <span className="viewport-feedback" role="status">
           已达{metrics.scale === 0.5 ? '50%下限' : '150%上限'}，当前 {percentage}%
         </span>

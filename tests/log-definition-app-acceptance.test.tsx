@@ -46,7 +46,6 @@ const fixture: ApplicationSchema = {
       'ui.layout': '1.0.0',
       'ui.card': '1.0.0',
       'ui.text': '1.0.0',
-      'ui.heading': '1.0.0',
     },
     actions: {},
   },
@@ -56,7 +55,7 @@ const fixture: ApplicationSchema = {
       title: 'Local page',
       state: [{ id: 'invalidDisplay', type: 'string', initial: 'invalid-local-display' }],
       children: [
-        { id: 'draft', component: 'ui.heading', props: { title: lit('Draft owner') } },
+        { id: 'draft', component: 'ui.text', props: { value: lit('Draft owner') } },
         {
           id: 'root',
           component: 'ui.layout',
@@ -344,8 +343,8 @@ describe('043 independent real App log to visible definition integration', () =>
 
   it('keeps dirty property and application Schema text across location and returning to their existing owner', async () => {
     mount();
-    changeControl(screen.getByRole('combobox', { name: '标题绑定方式' }), 'expression');
-    changeControl(screen.getByRole('textbox', { name: '标题' }), 'state.');
+    changeControl(screen.getByRole('combobox', { name: '文本内容绑定方式' }), 'expression');
+    changeControl(screen.getByRole('textbox', { name: '文本内容' }), 'state.');
     fireEvent.click(screen.getByRole('tab', { name: 'Schema' }));
     const schemaInput = screen.getByRole('textbox', {
       name: '应用定义 · JSON',
@@ -357,8 +356,8 @@ describe('043 independent real App log to visible definition integration', () =>
     fireEvent.click(locator());
     await flushFrames();
     expect(document.activeElement).toBe(target());
-    fireEvent.click(screen.getByRole('button', { name: '选中 标题 draft' }));
-    expect((screen.getByRole('textbox', { name: '标题' }) as HTMLTextAreaElement).value).toBe(
+    fireEvent.click(screen.getByRole('button', { name: '选中 文本 draft' }));
+    expect((screen.getByRole('textbox', { name: '文本内容' }) as HTMLTextAreaElement).value).toBe(
       'state.',
     );
     fireEvent.click(screen.getByRole('tab', { name: 'Schema' }));
@@ -367,7 +366,7 @@ describe('043 independent real App log to visible definition integration', () =>
     ).toBe(draft);
   });
 
-  it('keeps dirty style binding and disabled-page React code drafts through an already-selected definition locator', async () => {
+  it('keeps dirty style binding and page action code drafts through an already-selected definition locator', async () => {
     const app = mount();
     fireEvent.click(target());
     fireEvent.click(screen.getByRole('tab', { name: '样式' }));
@@ -376,8 +375,10 @@ describe('043 independent real App log to visible definition integration', () =>
     await flushFrames();
     changeControl(screen.getByRole('textbox', { name: '宽度绑定' }), 'state.');
     fireEvent.click(screen.getByRole('tab', { name: '代码' }));
-    const editor = screen.getByRole('textbox', { name: '页面 React 代码' }) as HTMLTextAreaElement;
-    changeControl(editor, 'export default () => <');
+    const editor = screen.getByRole('textbox', {
+      name: '页面动作源码',
+    }) as HTMLTextAreaElement;
+    changeControl(editor, 'export function pending() { return 1; }');
     openLogs();
     configureScroll();
     fireEvent.click(locator());
@@ -387,8 +388,8 @@ describe('043 independent real App log to visible definition integration', () =>
       'state.',
     );
     fireEvent.click(screen.getByRole('tab', { name: '代码' }));
-    expect(screen.getByRole('textbox', { name: '页面 React 代码' })).toBe(editor);
-    expect(editor.value).toBe('export default () => <');
+    const retained = screen.getByRole('textbox', { name: '页面动作源码' }) as HTMLTextAreaElement;
+    expect(retained.value).toBe('export function pending() { return 1; }');
     expect(app.savedProject().schema).toEqual(fixture);
   });
 

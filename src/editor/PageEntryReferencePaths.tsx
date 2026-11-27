@@ -176,7 +176,9 @@ export function PageEntryReferencePaths({
     const expected = captured.context;
     const actual = expected.document.getSnapshot();
     const livePage = actual.plan.pages.get(actual.selection.pageId)?.schema;
-    const action = actual.plan.registry.actions[expected.action];
+    const action =
+      actual.plan.pages.get(actual.selection.pageId)?.actions[expected.action] ??
+      actual.plan.registry.actions[expected.action];
     const call = expected.draft.calls[expected.index];
     return (
       mounted.current &&

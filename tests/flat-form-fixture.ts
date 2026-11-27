@@ -1,4 +1,4 @@
-import { exampleApplication } from '../src/examples';
+import { exampleApplication } from './fixtures/examples';
 import type { Value } from '../packages/schema/types';
 const expr = (source: string): Value => ({ kind: 'expression', language: 'javascript', source });
 /** Explicit v0.1 fixture keeps compatibility tests independent of the evolving procurement demo. */
@@ -63,6 +63,6 @@ flatFormApplication.pages[0].forms = [
     ],
   },
 ];
-flatFormApplication.pages[0].children[1].children = [
-  flatFormApplication.pages[0].children[1].children![0],
+flatFormApplication.pages[0].children[2].children = [
+  flatFormApplication.pages[0].children[2].children![0],
 ];

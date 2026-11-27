@@ -22,7 +22,7 @@ export function showMaterials() {
 export function showStructure() {
   fireEvent.click(screen.getByRole('tab', { name: '大纲' }));
 }
-export function insertMaterial(title = '标题', intent: object = { kind: 'inside' }) {
+export function insertMaterial(title = '文本', intent: object = { kind: 'inside' }) {
   showMaterials();
   fireEvent.keyDown(screen.getByRole('button', { name: `拖入 ${title}` }), { key: ' ' });
   changeControl(screen.getByLabelText('拖放位置'), JSON.stringify(intent));
@@ -59,6 +59,20 @@ export function openActionConfig(n: number) {
  * the panel is aria-hidden, so panel-level controls (保存事件 etc.) are only
  * reachable after closing. No-op when the dialog is not open.
  */
+/**
+ * Open the per-action operations menu (compact rows keep only a drag handle and
+ * this overflow menu), then run one operation by its label.
+ */
+export async function actionOperation(n: number, kind: 'edit' | 'up' | 'down' | 'delete') {
+  const trigger = screen.getByRole('button', { name: `动作 ${n} 操作菜单` });
+  fireEvent.click(trigger);
+  const scope = trigger.parentElement!;
+  const labels = { edit: '编辑动作', up: '上移', down: '下移', delete: '删除动作' };
+  const target = [...scope.querySelectorAll('[role="menuitem"]')].find((el) =>
+    el.textContent?.trim().includes(labels[kind]),
+  ) as HTMLElement;
+  fireEvent.click(target);
+}
 export function closeActionConfig() {
   const done = screen.queryByRole('button', { name: '完成' });
   if (done) fireEvent.click(done);

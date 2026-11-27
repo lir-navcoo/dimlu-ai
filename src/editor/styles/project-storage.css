@@ -8,6 +8,10 @@
   margin: 5px 8px;
   white-space: normal;
 }
+.project-drafts-indicator {
+  color: #92400e;
+  font-size: 12px;
+}
 .project-error {
   color: #b45309;
   font-size: 12px;

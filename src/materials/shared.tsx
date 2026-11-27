@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type ReactNode, type FocusEventHandler } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode, type FocusEventHandler, type MouseEventHandler } from 'react';
 import type { ComponentContract } from '../../packages/runtime/registry';
 import { textStyle } from './style';
 import { materialStyleTarget } from '../../packages/react-runtime/Renderer';
@@ -30,8 +30,10 @@ export interface FieldPresentation {
   error?: string;
   required?: boolean;
   disabled?: boolean;
+  readOnly?: boolean;
   name?: string;
   onBlur?: FocusEventHandler<HTMLElement>;
+  onClick?: MouseEventHandler<HTMLElement>;
 }
 export function FieldFrame({
   label,
@@ -39,6 +41,7 @@ export function FieldFrame({
   error,
   required,
   onBlur,
+  onClick,
   children,
   style,
 }: FieldPresentation & {
@@ -56,6 +59,7 @@ export function FieldFrame({
       className="material-field"
       style={style}
       {...materialStyleTarget(style)}
+      onClick={onClick}
       onBlur={(event) => {
         if (
           isDocumentNode(event.relatedTarget, event.currentTarget.ownerDocument) &&

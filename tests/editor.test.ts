@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { EditorDocument, findNode } from '../packages/editor/document';
 import { validateCatalog } from '../packages/editor/metadata';
-import { exampleApplication } from '../src/examples';
+import { exampleApplication } from './fixtures/examples';
 import { registry } from '../src/materials';
 import { catalog } from '../src/editor/catalog';
 
@@ -9,7 +9,7 @@ const literal = (value: string) => ({ kind: 'literal' as const, value });
 const make = (limit = 100) => new EditorDocument(exampleApplication, registry, limit);
 const title = (doc: EditorDocument) =>
   findNode(doc.getSnapshot().plan.pages.get('purchase')!.schema, 'purchase-heading')!.node.props
-    .title;
+    .value;
 describe('validated editor document', () => {
   it('keeps selection changes outside document history and runtime plans', () => {
     const doc = make(),
@@ -27,12 +27,12 @@ describe('validated editor document', () => {
   });
   it('rejects invalid edits atomically and preserves redo through failures and no-ops', () => {
     const doc = make();
-    doc.setProp('purchase', 'purchase-heading', 'title', literal('changed'));
+    doc.setProp('purchase', 'purchase-heading', 'value', literal('changed'));
     doc.undo();
     const snapshot = doc.getSnapshot();
-    expect(() => doc.setProp('purchase', 'purchase-heading', 'title', undefined)).toThrow();
+    expect(() => doc.setProp('purchase', 'purchase-heading', 'value', undefined)).toThrow();
     expect(() =>
-      doc.setProp('purchase', 'purchase-heading', 'title', {
+      doc.setProp('purchase', 'purchase-heading', 'value', {
         kind: 'expression',
         language: 'javascript',
         source: 'state.',
@@ -46,19 +46,19 @@ describe('validated editor document', () => {
   });
   it('coalesces a focus session, bounds history and discards redo after branching', () => {
     const doc = make(2);
-    doc.setProp('purchase', 'purchase-heading', 'title', literal('A'), 'focus1');
-    doc.setProp('purchase', 'purchase-heading', 'title', literal('AB'), 'focus1');
+    doc.setProp('purchase', 'purchase-heading', 'value', literal('A'), 'focus1');
+    doc.setProp('purchase', 'purchase-heading', 'value', literal('AB'), 'focus1');
     doc.undo();
     expect(title(doc)).toEqual(literal('创建采购申请'));
     doc.redo();
     doc.endGroup();
-    doc.setProp('purchase', 'purchase-heading', 'title', literal('B'), 'focus1');
-    doc.setProp('purchase', 'purchase-heading', 'title', literal('C'), 'focus2');
+    doc.setProp('purchase', 'purchase-heading', 'value', literal('B'), 'focus1');
+    doc.setProp('purchase', 'purchase-heading', 'value', literal('C'), 'focus2');
     doc.undo();
     doc.undo();
     expect(title(doc)).toEqual(literal('AB'));
     expect(doc.getSnapshot().canUndo).toBe(false);
-    doc.setProp('purchase', 'purchase-heading', 'title', literal('branch'));
+    doc.setProp('purchase', 'purchase-heading', 'value', literal('branch'));
     expect(doc.getSnapshot().canRedo).toBe(false);
   });
   it('inserts unique IDs, dependencies and slot children, and restores deleted subtree selection', () => {
@@ -69,7 +69,7 @@ describe('validated editor document', () => {
     });
     const b = doc.insertNode(
       'composition',
-      { component: 'ui.heading', props: { title: literal('inside') } },
+      { component: 'ui.text', props: { value: literal('inside') } },
       { parentId: a, slot: 'header' },
     );
     expect(findNode(doc.getSnapshot().plan.pages.get('composition')!.schema, b)?.slot).toBe(
@@ -80,19 +80,19 @@ describe('validated editor document', () => {
     doc.undo();
     expect(doc.getSnapshot().selection.nodeId).toBe(b);
     expect(
-      findNode(doc.getSnapshot().plan.pages.get('composition')!.schema, b)?.node.props.title,
+      findNode(doc.getSnapshot().plan.pages.get('composition')!.schema, b)?.node.props.value,
     ).toEqual(literal('inside'));
     const c = doc.insertNode('composition', {
-      component: 'ui.heading',
-      props: { title: literal('sibling') },
+      component: 'ui.text',
+      props: { value: literal('sibling') },
     });
     expect(c).not.toBe(b);
-    expect(doc.getSnapshot().plan.schema.dependencies.components['ui.heading']).toBe('1.0.0');
+    expect(doc.getSnapshot().plan.schema.dependencies.components['ui.text']).toBe('1.0.0');
   });
   it('validates insertion capabilities and duplicate IDs before publishing', () => {
     const doc = make(),
       snapshot = doc.getSnapshot(),
-      node = { component: 'ui.heading', props: { title: literal('x') } };
+      node = { component: 'ui.text', props: { value: literal('x') } };
     for (const target of [
       { parentId: 'purchase-heading' },
       { parentId: 'purchase-heading', slot: 'body' },
@@ -111,7 +111,7 @@ describe('validated editor document', () => {
     const input = structuredClone(exampleApplication);
     input.extensions = { 'test:editor': { enabled: true } };
     const doc = new EditorDocument(input, registry);
-    doc.setProp('purchase', 'purchase-heading', 'title', {
+    doc.setProp('purchase', 'purchase-heading', 'value', {
       kind: 'expression',
       language: 'javascript',
       source: '"标题：" + forms.purchase.values.name',
@@ -129,15 +129,15 @@ describe('validated editor document', () => {
   it('checks host metadata against runtime contracts', () => {
     expect(validateCatalog(catalog, registry)).toEqual([]);
     const invalid = structuredClone(catalog);
-    invalid['ui.heading'].properties[0].setter = { kind: 'number' };
-    delete invalid['ui.heading'].defaultProps.title;
+    invalid['ui.text'].properties[1].setter = { kind: 'number' };
+    delete invalid['ui.text'].defaultProps.value;
     expect(validateCatalog(invalid, registry)).toEqual(
       expect.arrayContaining([
         expect.stringContaining('类型不匹配'),
         expect.stringContaining('缺少默认属性'),
       ]),
     );
-    invalid['ui.heading'].defaultProps.title = 5;
+    invalid['ui.text'].defaultProps.tone = 5;
     expect(validateCatalog(invalid, registry).some((e) => e.includes('默认属性无效'))).toBe(true);
   });
 });

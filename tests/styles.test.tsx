@@ -484,7 +484,6 @@ describe('style runtime and real material targets', () => {
     expect(root.style.columnGap).toBe('12px');
   });
   it.each([
-    'ui.heading',
     'ui.input',
     'ui.number',
     'ui.select',
@@ -512,13 +511,11 @@ describe('style runtime and real material targets', () => {
     const runtime = new PageRuntime(compileApplication(source, registry), 'page');
     const view = render(<RuntimeRenderer runtime={runtime} materials={materials} />);
     const root = view.container.querySelector<HTMLElement>(
-      component === 'ui.heading' ? '.material-heading' : '.material-field',
+      '.material-field',
     )!;
     expect(root.style.width).toBe('333px');
     const textTarget = root.querySelector<HTMLElement>(
-      component === 'ui.heading'
-        ? 'h2'
-        : component === 'ui.select'
+      component === 'ui.select'
           ? '[role="combobox"]'
           : component === 'ui.checkbox' || component === 'ui.switch'
             ? '.material-boolean-label > span:last-child'

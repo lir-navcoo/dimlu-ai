@@ -3,22 +3,22 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import App from '../src/App';
 import { PROJECT_STORAGE_KEY } from '../packages/editor/project-storage';
-import { serverRecordsExample } from '../src/server-records-example';
+import { serverRecordsExample } from './fixtures/server-records-example';
 import { registry } from '../src/materials';
-import { exampleApplication } from '../src/examples';
+import { exampleApplication } from './fixtures/examples';
 import { changeControl } from './ui-helpers';
 import { seedLegacyProject } from './legacy-project';
 import { findNode } from '../packages/editor/document';
 
 function selectHeading() {
-  fireEvent.click(screen.getByRole('button', { name: '选中 标题 purchase-heading' }));
+  fireEvent.click(screen.getByRole('button', { name: '选中 文本 purchase-heading' }));
 }
 const undoButton = () =>
   within(screen.getByLabelText('文档操作')).getByRole('button', {
     name: '↶ 撤销',
   });
 const savedHeading = (raw: string) =>
-  findNode(JSON.parse(raw).schema.pages[0], 'purchase-heading')!.node.props.title;
+  findNode(JSON.parse(raw).schema.pages[0], 'purchase-heading')!.node.props.value;
 
 afterEach(() => {
   cleanup();
@@ -26,6 +26,56 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 describe('workbench saved project recovery', () => {
+  it('flushes committed work immediately with Ctrl/Cmd+S but keeps Schema drafts separate', () => {
+    seedLegacyProject();
+    const original = localStorage.getItem(PROJECT_STORAGE_KEY)!;
+    render(<App saveDelayMs={60_000} />);
+    const shortcut = (target: Element, init: KeyboardEventInit = { ctrlKey: true }) => {
+      const event = new KeyboardEvent('keydown', {
+        key: 's',
+        bubbles: true,
+        cancelable: true,
+        ...init,
+      });
+      fireEvent(target, event);
+      return event.defaultPrevented;
+    };
+    const heading = screen.getByRole('textbox', { name: '文本内容' });
+    changeControl(heading, '快捷保存的项目');
+    heading.focus();
+    expect(shortcut(heading)).toBe(false);
+    expect(localStorage.getItem(PROJECT_STORAGE_KEY)).toBe(original);
+
+    const schemaTab = screen.getByRole('tab', { name: 'Schema' });
+    fireEvent.click(schemaTab);
+    const json = screen.getByLabelText('应用定义 · JSON');
+    changeControl(json, '{"unapplied":true}');
+    expect(screen.getByRole('img', { name: '1 项未应用草稿' })).toBeTruthy();
+    json.focus();
+    expect(shortcut(json, { metaKey: true })).toBe(false);
+    schemaTab.focus();
+    fireEvent.compositionStart(schemaTab);
+    expect(shortcut(schemaTab)).toBe(false);
+    fireEvent.compositionEnd(schemaTab);
+    expect(localStorage.getItem(PROJECT_STORAGE_KEY)).toBe(original);
+
+    const canvas = screen.getByLabelText('页面编辑画布');
+    canvas.focus();
+    expect(shortcut(canvas, { metaKey: true })).toBe(true);
+    const saved = localStorage.getItem(PROJECT_STORAGE_KEY)!;
+    expect(savedHeading(saved)).toEqual({ kind: 'literal', value: '快捷保存的项目' });
+    expect(saved).not.toContain('unapplied');
+    expect(screen.getByLabelText('本地保存状态').textContent).toBe('已保存');
+    expect(screen.getByRole('img', { name: '1 项未应用草稿' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '放弃草稿' }));
+    expect(screen.queryByRole('img', { name: '1 项未应用草稿' })).toBeNull();
+
+    const preview = screen.getByRole('button', { name: '预览模式' });
+    fireEvent.click(preview);
+    preview.focus();
+    expect(shortcut(preview)).toBe(false);
+  });
+
   it('persists committed edits/Undo on pagehide and rebuilds in edit mode without preview values or history', async () => {
     seedLegacyProject();
     const view = render(
@@ -33,7 +83,7 @@ describe('workbench saved project recovery', () => {
         <App saveDelayMs={10} />
       </StrictMode>,
     );
-    const title = screen.getByRole('textbox', { name: '标题' });
+    const title = screen.getByRole('textbox', { name: '文本内容' });
     fireEvent.focus(title);
     changeControl(title, '本地项目');
     fireEvent.blur(title);
@@ -51,7 +101,7 @@ describe('workbench saved project recovery', () => {
     expect(screen.getByRole('button', { name: '编辑模式' }).getAttribute('aria-pressed')).toBe(
       'true',
     );
-    expect(screen.getByRole('heading', { name: '本地项目' })).toBeTruthy();
+    expect(within(screen.getByLabelText('页面编辑画布')).getByText('本地项目')).toBeTruthy();
     expect((screen.getByRole('textbox', { name: '申请名称' }) as HTMLInputElement).value).toBe('');
     expect((undoButton() as HTMLButtonElement).disabled).toBe(true);
     expect(
@@ -74,7 +124,7 @@ describe('workbench saved project recovery', () => {
     localStorage.setItem('dimlu.workbench.layout.v1', 'null');
     const query = vi.spyOn(registry.transports!['demo.recordsQuery'], 'execute');
     render(<App />);
-    expect(screen.getByRole('heading', { name: '服务端记录管理' })).toBeTruthy();
+    expect(within(screen.getByLabelText('页面编辑画布')).getByText('服务端记录管理')).toBeTruthy();
     expect(screen.getByRole('button', { name: '编辑模式' }).getAttribute('aria-pressed')).toBe(
       'true',
     );
@@ -86,7 +136,7 @@ describe('workbench saved project recovery', () => {
     const view = render(<App saveDelayMs={1} />);
     expect(screen.getByRole('alert').textContent).toContain('本地副本已保护');
     selectHeading();
-    changeControl(screen.getByRole('textbox', { name: '标题' }), '覆盖前内存');
+    changeControl(screen.getByRole('textbox', { name: '文本内容' }), '覆盖前内存');
     fireEvent.click(screen.getByRole('button', { name: '选中 文本输入 purchase-applicant' }));
     fireEvent.click(screen.getByRole('button', { name: '收起左侧面板' }));
     fireEvent(window, new Event('pagehide'));
@@ -111,13 +161,13 @@ describe('workbench saved project recovery', () => {
   it('requires explicit reset and rebuilds the document/session', async () => {
     seedLegacyProject();
     render(<App />);
-    changeControl(screen.getByRole('textbox', { name: '标题' }), '已修改项目');
+    changeControl(screen.getByRole('textbox', { name: '文本内容' }), '已修改项目');
     fireEvent.click(screen.getByRole('button', { name: '本地项目菜单' }));
     fireEvent.click(screen.getByRole('menuitem', { name: '重置项目…' }));
     expect(await screen.findByRole('dialog', { name: '重置本地项目？' })).toBeTruthy();
-    expect(screen.getByRole('heading', { name: '已修改项目', hidden: true })).toBeTruthy();
+    expect(within(screen.getByLabelText('页面编辑画布')).getByText('已修改项目')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '确认重置' }));
-    expect(screen.getByRole('heading', { name: '采购申请管理' })).toBeTruthy();
+    expect(within(screen.getByLabelText('页面编辑画布')).getByText('采购申请管理')).toBeTruthy();
     expect((undoButton() as HTMLButtonElement).disabled).toBe(true);
     expect(savedHeading(localStorage.getItem(PROJECT_STORAGE_KEY)!)).toEqual({
       kind: 'literal',
@@ -137,9 +187,11 @@ describe('workbench saved project recovery', () => {
     render(<App projectStorage={storage} saveDelayMs={1} />);
     await waitFor(() => expect(screen.getByLabelText('本地保存状态').textContent).toBe('保存失败'));
     selectHeading();
-    changeControl(screen.getByRole('textbox', { name: '标题' }), '失败后的最新定义');
+    changeControl(screen.getByRole('textbox', { name: '文本内容' }), '失败后的最新定义');
     fireEvent(window, new Event('pagehide'));
-    expect(screen.getByRole('heading', { name: '失败后的最新定义' })).toBeTruthy();
+    expect(
+      within(screen.getByLabelText('页面编辑画布')).getByText('失败后的最新定义'),
+    ).toBeTruthy();
     expect(screen.getByRole('alert').textContent).toContain('当前修改仍保留在内存');
     expect(saved).toBeNull();
     fail = false;
@@ -186,7 +238,7 @@ describe('workbench saved project recovery', () => {
     fireEvent(window, new Event('pagehide'));
     next.unmount();
     render(<App />);
-    expect(screen.getByRole('heading', { name: '创建采购申请' })).toBeTruthy();
+    expect(within(screen.getByLabelText('页面编辑画布')).getByText('创建采购申请')).toBeTruthy();
     fireEvent.click(screen.getByRole('tab', { name: 'Schema' }));
     expect((screen.getByLabelText('应用定义 · JSON') as HTMLTextAreaElement).value).not.toContain(
       'unapplied',

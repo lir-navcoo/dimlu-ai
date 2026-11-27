@@ -25,15 +25,86 @@ const groupProps = [
   prop('hint', '辅助说明'),
   bool('required', '必填'),
   bool('disabled', '禁用'),
+  bool('readOnly', '只读'),
+];
+const radioGroupProps = [
+  ...groupProps,
+  prop('optionType', '选项样式', choice({ default: '常规', button: '按钮组' }), '外观'),
 ];
 const temporalProps = [
   prop('label', '标签'),
   json('value', '日期时间值'),
+  prop('placeholder', '占位提示'),
   bool('range', '范围选择'),
   bool('clearable', '允许清空'),
   prop('hint', '辅助说明'),
   bool('required', '必填'),
   bool('disabled', '禁用'),
+  bool('readOnly', '只读'),
+];
+const rateProps = [
+  prop('label', '标签'),
+  num('value', '评分值'),
+  num('count', '最大分值'),
+  bool('allowHalf', '允许半星'),
+  bool('allowClear', '点击已选分值清零'),
+  bool('showGrade', '显示分数'),
+  prop('hint', '辅助说明'),
+  bool('required', '必填'),
+  bool('disabled', '禁用'),
+  bool('readOnly', '只读'),
+];
+const sliderProps = [
+  prop('label', '标签'),
+  num('value', '当前值'),
+  num('min', '最小值'),
+  num('max', '最大值'),
+  num('step', '步进'),
+  bool('showValue', '显示当前值'),
+  prop('hint', '辅助说明'),
+  bool('required', '必填'),
+  bool('disabled', '禁用'),
+  bool('readOnly', '只读'),
+];
+const colorPickerProps = [
+  prop('label', '标签'),
+  prop('value', '颜色值', { kind: 'color' }),
+  bool('showText', '显示颜色值'),
+  prop('hint', '辅助说明'),
+  bool('required', '必填'),
+  bool('disabled', '禁用'),
+  bool('readOnly', '只读'),
+];
+const cascaderProps = [
+  prop('label', '标签'),
+  json('value', '选中路径'),
+  json('options', '选项数据'),
+  prop('placeholder', '占位提示'),
+  bool('changeOnSelect', '选中任意级即提交'),
+  prop('hint', '辅助说明'),
+  bool('required', '必填'),
+  bool('disabled', '禁用'),
+  bool('readOnly', '只读'),
+];
+const uploadProps = [
+  prop('label', '标签'),
+  json('value', '附件列表'),
+  prop('accept', '允许类型'),
+  bool('multiple', '多选'),
+  num('maxCount', '最大数量'),
+  prop('hint', '辅助说明'),
+  bool('required', '必填'),
+  bool('disabled', '禁用'),
+  bool('readOnly', '只读'),
+];
+const richTextProps = [
+  prop('label', '标签'),
+  prop('value', '内容', { kind: 'richText' }),
+  prop('placeholder', '占位提示'),
+  prop('hint', '辅助说明'),
+  bool('required', '必填'),
+  bool('disabled', '禁用'),
+  bool('readOnly', '只读'),
 ];
 const dataProps = [
   json('data', '数据'),
@@ -76,6 +147,13 @@ const sampleData = [
   { id: 'item-3', name: '项目三', status: '已完成', amount: 260 },
 ];
 export const extendedCatalog: MaterialCatalog = {
+  'ui.container': {
+    title: '容器',
+    icon: 'container',
+    category: '布局',
+    properties: [num('minHeight', '最小高度')],
+    defaultProps: {},
+  },
   'ui.layout': {
     title: '布局容器',
     icon: 'layout',
@@ -132,7 +210,7 @@ export const extendedCatalog: MaterialCatalog = {
     title: '单选组',
     icon: 'radio',
     category: '输入',
-    properties: groupProps,
+    properties: radioGroupProps,
     defaultProps: { label: '单选组', value: null, options, orientation: 'horizontal' },
   },
   'ui.checkboxGroup': {
@@ -163,6 +241,94 @@ export const extendedCatalog: MaterialCatalog = {
     properties: temporalProps,
     defaultProps: { label: '时间', value: '', range: false, clearable: true },
   },
+  'ui.rate': {
+    title: '评分',
+    icon: 'star',
+    category: '输入',
+    properties: rateProps,
+    defaultProps: {
+      label: '评分',
+      value: 0,
+      count: 5,
+      allowHalf: false,
+      showGrade: true,
+    },
+  },
+  'ui.slider': {
+    title: '滑块',
+    icon: 'slider',
+    category: '输入',
+    properties: sliderProps,
+    defaultProps: {
+      label: '滑块',
+      value: 0,
+      min: 0,
+      max: 100,
+      step: 1,
+      showValue: true,
+    },
+  },
+  'ui.colorPicker': {
+    title: '颜色选择',
+    icon: 'color',
+    category: '输入',
+    properties: colorPickerProps,
+    defaultProps: { label: '颜色', value: '#4f46e5', showText: true },
+  },
+  'ui.cascader': {
+    title: '级联选择',
+    icon: 'cascader',
+    category: '输入',
+    properties: cascaderProps,
+    defaultProps: {
+      label: '级联选择',
+      value: [],
+      options: [
+        {
+          label: '华东',
+          value: 'east',
+          children: [
+            { label: '上海', value: 'shanghai' },
+            { label: '杭州', value: 'hangzhou' },
+          ],
+        },
+        {
+          label: '华南',
+          value: 'south',
+          children: [
+            { label: '广州', value: 'guangzhou' },
+            { label: '深圳', value: 'shenzhen' },
+          ],
+        },
+      ],
+      placeholder: '请选择',
+    },
+  },
+  'ui.upload': {
+    title: '附件上传',
+    icon: 'upload',
+    category: '输入',
+    properties: uploadProps,
+    defaultProps: { label: '附件', value: [], multiple: true, maxCount: 9 },
+  },
+  'ui.richText': {
+    title: '富文本',
+    icon: 'richText',
+    category: '输入',
+    properties: richTextProps,
+    defaultProps: { label: '内容', value: '', placeholder: '请输入内容' },
+  },
+  'ui.richTextDisplay': {
+    title: '图文展示',
+    icon: 'richText',
+    category: '展示',
+    properties: [
+      prop('label', '标签'),
+      prop('value', '内容', { kind: 'richText' }),
+      prop('hint', '辅助说明'),
+    ],
+    defaultProps: { label: '内容', value: '' },
+  },
   'ui.fieldArray': {
     title: '动态明细',
     icon: 'items',
@@ -175,6 +341,7 @@ export const extendedCatalog: MaterialCatalog = {
       num('minItems', '最少行数'),
       num('maxItems', '最多行数'),
       bool('disabled', '禁用'),
+      bool('readOnly', '只读'),
     ],
     defaultProps: {
       label: '动态明细',

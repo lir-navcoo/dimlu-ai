@@ -14,7 +14,7 @@ import { FormSubmissionError } from '../packages/runtime/form';
 import { ActionPanel } from '../src/editor/ActionPanel';
 import { EditorSessionProvider } from '../src/editor/session';
 import { TipProvider } from '../src/ui/primitives';
-import actionExample from '../public/examples/actions.json';
+import { actionsExample as actionExample } from './fixtures/example-json';
 import type {
   ActionCall,
   ApplicationSchema,

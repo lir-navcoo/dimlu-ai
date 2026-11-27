@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MobilePreviewDialog } from '../src/editor/MobilePreviewDialog';
-import { exampleApplication } from '../src/examples';
+import { exampleApplication } from './fixtures/examples';
 
 const { toDataURL } = vi.hoisted(() => ({ toDataURL: vi.fn() }));
 vi.mock('qrcode', () => ({ toDataURL }));

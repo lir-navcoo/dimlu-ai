@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import type { editor } from 'monaco-editor/editor/editor.api.js';
 import { Dialog } from '@base-ui/react/dialog';
 import { Maximize2, X } from 'lucide-react';
@@ -18,6 +18,8 @@ export interface CodeEditorProps {
   expandable?: boolean;
   /** 醒目的展开入口文案（如宜搭的「源码编辑」）；缺省仍是角落图标。 */
   expandLabel?: string;
+  /** 跳转请求；每次传入新对象时定位到源码中的对应位置。 */
+  revealPosition?: { lineNumber: number; column: number };
 }
 
 /** Controlled text is owned by the caller's draft, never by a shared Monaco model. */
@@ -28,6 +30,8 @@ export function CodeEditor(props: CodeEditorProps) {
   const latest = useRef(props);
   latest.current = props;
   const instance = useRef<editor.IStandaloneCodeEditor | null>(null);
+  const failRef = useRef<(reason: unknown) => void>(() => {});
+  const fallbackFocused = useRef(false);
   const applying = useRef(false);
   const [state, setState] = useState<'loading' | 'ready' | 'fallback'>(
     typeof Worker === 'undefined' ? 'fallback' : 'loading',
@@ -38,85 +42,147 @@ export function CodeEditor(props: CodeEditorProps) {
   const [visible, setVisible] = useState(typeof IntersectionObserver === 'undefined');
   useEffect(() => {
     if (visible || !frame.current || typeof IntersectionObserver === 'undefined') return;
-    const observer = new IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) {
-        setVisible(true);
-        observer.disconnect();
-      }
-    });
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '300px 0px' },
+    );
     observer.observe(frame.current);
     return () => observer.disconnect();
   }, [visible]);
   useEffect(() => {
     if (!visible || typeof Worker === 'undefined') return;
     let alive = true;
+    let resizeObserver: ResizeObserver | undefined;
     let model: editor.ITextModel | undefined;
     let subscription: { dispose(): void } | undefined;
     let control: editor.IStandaloneCodeEditor | undefined;
+    let loadedMonaco: typeof import('./monaco').monaco | undefined;
+    const fail = (reason: unknown) => {
+      if (!alive) return;
+      alive = false;
+      resizeObserver?.disconnect();
+      resizeObserver = undefined;
+      subscription?.dispose();
+      control?.dispose();
+      model?.dispose();
+      control = undefined;
+      model = undefined;
+      subscription = undefined;
+      instance.current = null;
+      setError(reason instanceof Error ? reason.message : String(reason));
+      setState('fallback');
+    };
+    failRef.current = fail;
+    const createEditor = () => {
+      const element = host.current;
+      if (!alive || !element || !loadedMonaco || control) return;
+      try {
+        const { width, height } = element.getBoundingClientRect();
+        if (width <= 0 || height <= 0) {
+          if (!resizeObserver) fail(new Error('代码编辑器容器尚无可用尺寸'));
+          return;
+        }
+        createEditorAtSize(element, loadedMonaco);
+      } catch (reason) {
+        fail(reason);
+      }
+    };
+    const createEditorAtSize = (
+      element: HTMLDivElement,
+      monaco: typeof import('./monaco').monaco,
+    ) => {
+      const initial = latest.current;
+      const extension = { javascript: 'jsx', typescript: 'tsx', json: 'json', css: 'css' }[
+        initial.language
+      ];
+      model = monaco.editor.createModel(
+        initial.value,
+        initial.language,
+        monaco.Uri.parse(`inmemory://dimlu/${encodeURIComponent(uid)}.${extension}`),
+      );
+      control = monaco.editor.create(element, {
+        model,
+        automaticLayout: false,
+        fontSize: 12,
+        lineHeight: 19,
+        fontFamily: "Consolas, 'SFMono-Regular', monospace",
+        minimap: { enabled: false },
+        scrollBeyondLastLine: false,
+        wordWrap: 'on',
+        lineNumbers: 'on',
+        lineNumbersMinChars: 3,
+        folding: true,
+        glyphMargin: false,
+        tabSize: 2,
+        padding: { top: 8, bottom: 8 },
+        overviewRulerLanes: 0,
+        renderLineHighlight: 'line',
+        readOnly: initial.readOnly,
+        ariaLabel: initial.label,
+        placeholder: initial.placeholder,
+        fixedOverflowWidgets: true,
+        // Keep a native textarea for label focus and assistive input compatibility.
+        editContext: false,
+        scrollbar: { verticalScrollbarSize: 8, horizontalScrollbarSize: 8 },
+      });
+      instance.current = control;
+      const input = control.getDomNode()?.querySelector<HTMLTextAreaElement>('textarea.inputarea');
+      if (input && initial.id) input.id = initial.id;
+      subscription = control.onDidChangeModelContent(() => {
+        if (alive && !applying.current) latest.current.onChange(control!.getValue());
+      });
+      setState('ready');
+    };
+    if (typeof ResizeObserver !== 'undefined' && host.current) {
+      try {
+        resizeObserver = new ResizeObserver(() => {
+          if (!alive) return;
+          try {
+            if (!control) createEditor();
+            else control.layout();
+          } catch (reason) {
+            fail(reason);
+          }
+        });
+        resizeObserver.observe(host.current);
+      } catch (reason) {
+        fail(reason);
+        return;
+      }
+    }
     void import('./monaco')
       .then(({ monaco }) => {
-        if (!alive || !host.current) return;
-        const initial = latest.current;
-        const extension = { javascript: 'jsx', typescript: 'tsx', json: 'json', css: 'css' }[
-          initial.language
-        ];
-        model = monaco.editor.createModel(
-          initial.value,
-          initial.language,
-          monaco.Uri.parse(`inmemory://dimlu/${encodeURIComponent(uid)}.${extension}`),
-        );
-        control = monaco.editor.create(host.current, {
-          model,
-          automaticLayout: true,
-          fontSize: 12,
-          lineHeight: 19,
-          fontFamily: "Consolas, 'SFMono-Regular', monospace",
-          minimap: { enabled: false },
-          scrollBeyondLastLine: false,
-          wordWrap: 'on',
-          lineNumbers: 'on',
-          lineNumbersMinChars: 3,
-          folding: true,
-          glyphMargin: false,
-          tabSize: 2,
-          padding: { top: 8, bottom: 8 },
-          overviewRulerLanes: 0,
-          renderLineHighlight: 'line',
-          readOnly: initial.readOnly,
-          ariaLabel: initial.label,
-          fixedOverflowWidgets: true,
-          // Keep a native textarea for label focus and assistive input compatibility.
-          editContext: false,
-          scrollbar: { verticalScrollbarSize: 8, horizontalScrollbarSize: 8 },
-        });
-        instance.current = control;
-        const input = control
-          .getDomNode()
-          ?.querySelector<HTMLTextAreaElement>('textarea.inputarea');
-        if (input && initial.id) input.id = initial.id;
-        subscription = control.onDidChangeModelContent(() => {
-          if (alive && !applying.current) latest.current.onChange(control!.getValue());
-        });
-        setState('ready');
+        loadedMonaco = monaco;
+        createEditor();
       })
-      .catch((reason: unknown) => {
-        control?.dispose();
-        model?.dispose();
-        subscription?.dispose();
-        if (alive) {
-          instance.current = null;
-          setError(reason instanceof Error ? reason.message : String(reason));
-          setState('fallback');
-        }
-      });
+      .catch(fail);
     return () => {
       alive = false;
+      resizeObserver?.disconnect();
       subscription?.dispose();
       control?.dispose();
       model?.dispose();
       instance.current = null;
     };
   }, [uid, visible]);
+  useLayoutEffect(() => {
+    const control = instance.current;
+    if (!control || state !== 'ready') return;
+    try {
+      control.layout();
+      if (fallbackFocused.current) {
+        fallbackFocused.current = false;
+        control.focus();
+      }
+    } catch (reason) {
+      failRef.current(reason);
+    }
+  }, [state]);
   useEffect(() => {
     const control = instance.current;
     if (!control) return;
@@ -128,12 +194,29 @@ export function CodeEditor(props: CodeEditorProps) {
         applying.current = false;
       }
     }
-    control.updateOptions({ readOnly: props.readOnly, ariaLabel: props.label });
+    control.updateOptions({
+      readOnly: props.readOnly,
+      ariaLabel: props.label,
+      placeholder: props.placeholder,
+    });
+    if (props.revealPosition) {
+      control.revealPositionInCenter(props.revealPosition);
+      control.setPosition(props.revealPosition);
+      control.focus();
+    }
     void import('./monaco').then(({ monaco }) => {
       if (instance.current === control && control.getModel())
         monaco.editor.setModelLanguage(control.getModel()!, latest.current.language);
     });
-  }, [props.value, props.language, props.readOnly, props.label, state]);
+  }, [
+    props.value,
+    props.language,
+    props.readOnly,
+    props.label,
+    props.placeholder,
+    props.revealPosition,
+    state,
+  ]);
   return (
     <div
       ref={frame}
@@ -141,7 +224,10 @@ export function CodeEditor(props: CodeEditorProps) {
       style={props.fill ? undefined : { height: props.height ?? 144 }}
       data-code-language={props.language}
     >
-      <div className="code-editor-monaco" ref={host} hidden={state !== 'ready'} />
+      <div
+        className={`code-editor-monaco${state !== 'ready' ? ' code-editor-monaco-pending' : ''}`}
+        ref={host}
+      />
       {state !== 'ready' && (
         <textarea
           id={props.id}
@@ -149,6 +235,13 @@ export function CodeEditor(props: CodeEditorProps) {
           className="code-editor-fallback ui-textarea"
           value={props.value}
           onChange={(event) => props.onChange(event.target.value)}
+          onFocus={() => {
+            fallbackFocused.current = true;
+            setVisible(true);
+          }}
+          onBlur={() => {
+            fallbackFocused.current = false;
+          }}
           readOnly={props.readOnly}
           placeholder={props.placeholder}
           spellCheck={false}

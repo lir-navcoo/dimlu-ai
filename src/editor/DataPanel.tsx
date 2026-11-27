@@ -17,13 +17,15 @@ import { bindingDraft, parseBinding, ValueInput, type BindingDraft } from './Val
 import { errorText } from './errors';
 import { FormPanel } from './FormPanel';
 import { useDragDrop } from './DragDrop';
+import { buildHttpRequest, performHttpRequest } from '../../packages/runtime/http-transport';
 type Props = { document: EditorDocument; snapshot: EditorSnapshot };
 type DefinitionProps = Props & {
   lock: DefinitionLock;
   authoringAllowed: boolean;
 };
-type DefinitionKind = 'state' | 'source';
+type DefinitionKind = 'state' | 'source' | 'shared-source';
 type DefinitionLock = { current: object | null };
+type HttpParamDraft = { id: string; key: string; value: string };
 type OwnedEntry = {
   key: string;
   source: string;
@@ -164,10 +166,13 @@ function useDefinitionOwner(input: Omit<DefinitionContext, 'drag' | 'enabled' | 
         rendered.plan === receipt.candidate.plan &&
         rendered.selection === receipt.candidate.selection);
     const page = rendered.plan.pages.get(initial.selection.pageId)?.schema;
-    const definition =
+    const definitions =
       captured.kind === 'state'
-        ? page?.state.find((item) => item.id === captured.chosen)
-        : page?.dataSources?.find((item) => item.id === captured.chosen);
+        ? page?.state
+        : captured.kind === 'shared-source'
+          ? rendered.plan.schema.sharedDataSources
+          : page?.dataSources;
+    const definition = definitions?.find((item) => item.id === captured.chosen);
     if (
       !knownRender ||
       latest.definition !== definition ||
@@ -287,7 +292,11 @@ function useDefinitionOwner(input: Omit<DefinitionContext, 'drag' | 'enabled' | 
           const schema = structuredClone(receipt.before.plan.schema);
           const page = schema.pages.find((item) => item.id === receipt.before.selection.pageId)!;
           const list: (StateDefinition | DataSourceDefinition)[] =
-            context.kind === 'state' ? page.state : (page.dataSources ??= []);
+            context.kind === 'state'
+              ? page.state
+              : context.kind === 'shared-source'
+                ? (schema.sharedDataSources ??= [])
+                : (page.dataSources ??= []);
           if (mode === '创建') list.push(structuredClone(input!));
           else if (mode === '保存')
             Object.assign(
@@ -300,13 +309,20 @@ function useDefinitionOwner(input: Omit<DefinitionContext, 'drag' | 'enabled' | 
               list.findIndex((item) => item.id === id),
               1,
             );
-          if (context.kind === 'source' && mode !== '删除') {
-            const transport = (input as DataSourceDefinition).transport;
-            (schema.dependencies.transports ??= {})[transport] ??=
-              receipt.before.plan.registry.transports![transport].version;
+          const data = context.kind !== 'state' ? (input as DataSourceDefinition) : undefined;
+          if (data?.transport && !data.ref) {
+            (schema.dependencies.transports ??= {})[data.transport] ??=
+              receipt.before.plan.registry.transports![data.transport].version;
           }
+          const label =
+            context.kind === 'state'
+              ? '页面状态'
+              : context.kind === 'source'
+                ? '数据源'
+                : '共享数据源';
+          const refSuffix = mode === '创建' && data?.ref ? `（引用 ${data.ref}）` : '';
           receipt.schema = JSON.stringify(schema);
-          receipt.change = `${mode}${context.kind === 'state' ? '页面状态 ' : '数据源 '}${id}`;
+          receipt.change = `${mode}${label} ${id}${refSuffix}`;
           const changed = invoke();
           return (
             ready() &&
@@ -431,69 +447,75 @@ function StateEditor({
         );
       }}
     >
-      {status.dirty && (
-        <fieldset className="action-chain-controls" disabled={!owner.allowed}>
-          <DraftNotice
-            {...status}
-            reset={() => owner.change(status.reset)}
-            rebase={() => owner.change(status.rebase)}
+      <div className="workbench-dialog-scroll data-definition-fields">
+        {status.dirty && (
+          <fieldset className="action-chain-controls" disabled={!owner.allowed}>
+            <DraftNotice
+              {...status}
+              reset={() => owner.change(status.reset)}
+              rebase={() => owner.change(status.rebase)}
+            />
+          </fieldset>
+        )}
+        <label>
+          状态 ID
+          <Input
+            aria-label="状态 ID"
+            value={draft.id}
+            disabled={!!state || !owner.allowed}
+            onChange={(event) =>
+              owner.change(() => setDraft((d) => ({ ...d, id: event.target.value, error: '' })))
+            }
           />
-        </fieldset>
-      )}
-      <label>
-        状态 ID
-        <Input
-          aria-label="状态 ID"
-          value={draft.id}
-          disabled={!!state || !owner.allowed}
-          onChange={(event) =>
-            owner.change(() => setDraft((d) => ({ ...d, id: event.target.value, error: '' })))
-          }
-        />
-      </label>
-      <label>
-        状态类型
-        <Select
-          aria-label="状态类型"
-          value={draft.type}
-          disabled={!owner.allowed}
-          onValueChange={(type) =>
-            owner.change(() => setDraft((d) => ({ ...d, type: type as DataType, error: '' })))
-          }
-        >
-          {types.map((type) => (
-            <option key={type} value={type}>
-              {type}
-            </option>
-          ))}
-        </Select>
-      </label>
-      <label>
-        初始值（JSON）
-        <CodeEditor
-          label="状态初始值"
-          language="json"
-          readOnly={!owner.allowed}
-          value={draft.initial}
-          height={132}
-          onChange={(initial) =>
-            owner.change(() => setDraft((d) => ({ ...d, initial, error: '' })))
-          }
-        />
-      </label>
-      {draft.error && (
-        <p role="alert" className="field-error action-error">
-          {draft.error}
+        </label>
+        <label>
+          状态类型
+          <Select
+            aria-label="状态类型"
+            value={draft.type}
+            disabled={!owner.allowed}
+            onValueChange={(type) =>
+              owner.change(() => setDraft((d) => ({ ...d, type: type as DataType, error: '' })))
+            }
+          >
+            {types.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </Select>
+        </label>
+        <label>
+          初始值（JSON）
+          <CodeEditor
+            label="状态初始值"
+            language="json"
+            readOnly={!owner.allowed}
+            value={draft.initial}
+            height={132}
+            onChange={(initial) =>
+              owner.change(() => setDraft((d) => ({ ...d, initial, error: '' })))
+            }
+          />
+        </label>
+        <p className="editor-note">
+          ID 创建后保持稳定。初始值必须符合状态类型，修改会重置预览数据。
         </p>
-      )}
-      <Button
-        type="submit"
-        variant="primary"
-        disabled={!owner.allowed || status.stale || (!!state && !status.dirty)}
-      >
-        {state ? '保存状态' : '创建状态'}
-      </Button>
-      <p className="editor-note">ID 创建后保持稳定。初始值必须符合状态类型，修改会重置预览数据。</p>
+      </div>
+      <div className="workbench-dialog-actions data-definition-actions">
+        {draft.error && (
+          <p role="alert" className="field-error action-error">
+            {draft.error}
+          </p>
+        )}
+        <Button
+          type="submit"
+          variant="primary"
+          disabled={!owner.allowed || status.stale || (!!state && !status.dirty)}
+        >
+          {state ? '保存状态' : '创建状态'}
+        </Button>
+      </div>
     </form>
   );
 }
@@ -566,9 +588,7 @@ function StatesPanel({ document, snapshot, lock, authoringAllowed }: DefinitionP
                   aria-label={`删除状态 ${item.id}`}
                   onClick={() => {
                     owner.run((operation) =>
-                      operation.finish(() =>
-                        setDeleteTarget({ id: item.id, plan: snapshot.plan }),
-                      ),
+                      operation.finish(() => setDeleteTarget({ id: item.id, plan: snapshot.plan })),
                     );
                   }}
                 >
@@ -579,24 +599,22 @@ function StatesPanel({ document, snapshot, lock, authoringAllowed }: DefinitionP
           ))}
         </ul>
       )}
-      {!page.state.length && (
-        <p className="editor-note">尚无状态。点右上角「+」创建。</p>
-      )}
+      {!page.state.length && <p className="editor-note">尚无状态。点右上角「+」创建。</p>}
       <Dialog.Root open={editorOpen} onOpenChange={setEditorOpen}>
         <Dialog.Portal>
           <Dialog.Backdrop className="material-modal-backdrop" />
-          <Dialog.Popup className="material-modal data-source-dialog">
-            <div className="data-source-dialog-head">
-              <Dialog.Title className="project-confirmation-title">
-                {state ? `编辑状态 · ${state.id}` : '新建状态'}
-              </Dialog.Title>
+          <Dialog.Popup className="material-modal state-definition-dialog">
+            <div className="data-definition-dialog-head">
+              <div className="data-definition-dialog-heading">
+                <Dialog.Title>{state ? `编辑状态 · ${state.id}` : '新建状态'}</Dialog.Title>
+                <Dialog.Description className="editor-note">
+                  初始值必须符合状态类型；修改会重置预览数据。
+                </Dialog.Description>
+              </div>
               <Dialog.Close className="ui-button ui-button-ghost" aria-label="关闭状态编辑">
                 <X size={14} />
               </Dialog.Close>
             </div>
-            <Dialog.Description className="editor-note">
-              初始值必须符合状态类型；修改会重置预览数据。
-            </Dialog.Description>
             <StateEditor
               key={`${page.id}/${state?.id ?? '@new'}`}
               document={document}
@@ -679,15 +697,24 @@ function SourceEditor({
   owners,
   lock,
   authoringAllowed,
+  shared = false,
+  formId,
 }: DefinitionProps & {
   chosen: string;
   owners: OwnedEntry[];
   source?: DataSourceDefinition;
   onSaved: (id: string) => void;
+  shared?: boolean;
+  formId: string;
 }) {
   const page = snapshot.plan.pages.get(snapshot.selection.pageId)!.schema;
+  const sharedSources = snapshot.plan.schema.sharedDataSources ?? [];
   const transports = snapshot.plan.registry.transports ?? {};
-  const transportId = source?.transport ?? Object.keys(transports)[0] ?? '';
+  const sharedOf = source?.ref ? sharedSources.find((item) => item.id === source.ref) : undefined;
+  const transportId =
+    sharedOf?.transport ??
+    source?.transport ??
+    (transports['http.request'] ? 'http.request' : (Object.keys(transports)[0] ?? ''));
   const initial = source ?? {
     id: '',
     kind: 'query' as const,
@@ -699,18 +726,67 @@ function SourceEditor({
     Object.fromEntries(
       Object.entries(transports[id]?.input ?? {}).map(([key, field]) => [
         key,
-        bindingDraft(id === source?.transport ? source.input[key] : undefined, field),
+        bindingDraft(
+          source && id === (source.transport || sharedOf?.transport)
+            ? source.input[key]
+            : undefined,
+          field,
+        ),
       ]),
     );
   const [draft, setDraft, status, draftOwner] = useDefinitionDraft(
-    `source:${page.id}/${source?.id ?? '@new'}`,
-    JSON.stringify({ definition: initial, contracts: transports }),
+    shared ? `shared-source:${source?.id ?? '@new'}` : `source:${page.id}/${source?.id ?? '@new'}`,
+    JSON.stringify({ definition: initial, contracts: transports, sharedOf: sharedOf?.id }),
     {
       id: initial.id,
       kind: initial.kind,
       transport: initial.transport,
+      ref: source?.ref ?? '',
       input: makeInput(initial.transport),
       transportInputs: {} as Record<string, Record<string, BindingDraft>>,
+      httpUrl: source?.input.url?.kind === 'literal' ? String(source.input.url.value) : '',
+      httpMethod:
+        source?.input.method?.kind === 'literal' ? String(source.input.method.value) : 'GET',
+      httpParams: Object.entries(
+        source?.input.params?.kind === 'literal' &&
+          source.input.params.value &&
+          typeof source.input.params.value === 'object' &&
+          !Array.isArray(source.input.params.value)
+          ? source.input.params.value
+          : {},
+      ).map(([key, value], index) => ({ id: `param-${index}`, key, value: String(value) })),
+      nextHttpParamId: Object.keys(
+        source?.input.params?.kind === 'literal' &&
+          source.input.params.value &&
+          typeof source.input.params.value === 'object' &&
+          !Array.isArray(source.input.params.value)
+          ? source.input.params.value
+          : {},
+      ).length,
+      httpHeaders: JSON.stringify(
+        source?.input.headers?.kind === 'literal' ? source.input.headers.value : {},
+        null,
+        2,
+      ),
+      httpBody: JSON.stringify(
+        source?.input.body?.kind === 'literal' ? source.input.body.value : {},
+        null,
+        2,
+      ),
+      httpTimeout:
+        source?.input.timeout?.kind === 'literal' && typeof source.input.timeout.value === 'number'
+          ? String(source.input.timeout.value)
+          : '',
+      httpDirty: (source
+        ? {}
+        : {
+            url: true,
+            method: true,
+            params: true,
+            headers: true,
+            body: true,
+            timeout: true,
+          }) as Record<string, boolean>,
       initial: JSON.stringify(initial.initial, null, 2),
       error: '',
     },
@@ -720,50 +796,258 @@ function SourceEditor({
     snapshot,
     lock,
     allowed: authoringAllowed,
-    kind: 'source',
+    kind: shared ? 'shared-source' : 'source',
     chosen,
     definition: source,
     entries: [...owners, draftOwner],
   });
-  const contract = transports[draft.transport];
-  return (
+  const refMode = !shared && !!draft.ref;
+  const sharedContract = refMode
+    ? transports[sharedSources.find((item) => item.id === draft.ref)?.transport ?? '']
+    : undefined;
+  const contract = refMode ? sharedContract : transports[draft.transport];
+  const httpMode = !shared && !refMode && draft.transport === 'http.request';
+  const httpKind = draft.httpMethod === 'GET' ? 'query' : 'mutation';
+  const [response, setResponse] = useState<{
+    status: number;
+    statusText: string;
+    time: number;
+    body: string;
+  } | null>(null);
+  const [sending, setSending] = useState(false);
+  const sendController = useRef<AbortController | null>(null);
+  useEffect(() => {
+    return () => {
+      const controller = sendController.current;
+      sendController.current = null;
+      controller?.abort();
+    };
+  }, []);
+  const params = draft.httpParams as HttpParamDraft[];
+  const paramsObject = () => {
+    const result: Record<string, string> = {};
+    for (const param of params) {
+      if (!param.key.trim()) throw new Error('Params 键不能为空');
+      if (Object.hasOwn(result, param.key)) throw new Error(`Params 键重复：${param.key}`);
+      Object.defineProperty(result, param.key, {
+        value: param.value,
+        enumerable: true,
+        configurable: true,
+        writable: true,
+      });
+    }
+    return result;
+  };
+  const updateParams = (next: HttpParamDraft[]) =>
+    owner.change(() =>
+      setDraft((d) => ({
+        ...d,
+        httpParams: next,
+        httpDirty: { ...d.httpDirty, params: true },
+        error: '',
+      })),
+    );
+  const addParam = () =>
+    owner.change(() =>
+      setDraft((d) => ({
+        ...d,
+        httpParams: [
+          ...(d.httpParams as HttpParamDraft[]),
+          { id: `param-${d.nextHttpParamId}`, key: '', value: '' },
+        ],
+        nextHttpParamId: d.nextHttpParamId + 1,
+        httpDirty: { ...d.httpDirty, params: true },
+        error: '',
+      })),
+    );
+  const discardDraft = () => {
+    owner.change(() => {
+      const controller = sendController.current;
+      sendController.current = null;
+      controller?.abort();
+      setSending(false);
+      setResponse(null);
+      status.reset();
+    });
+  };
+  const sendRequest = async () => {
+    if (!owner.allowed || sendController.current) return;
+    setResponse(null);
+    setSending(true);
+    const controller = new AbortController();
+    sendController.current = controller;
+    const started = performance.now();
+    try {
+      const dynamicFields = ['url', 'method', 'params', 'headers', 'body', 'timeout'].filter(
+        (key) => !draft.httpDirty[key] && source?.input[key]?.kind === 'expression',
+      );
+      if (dynamicFields.length)
+        throw new Error(
+          `Send 无法解析未修改的动态绑定：${dynamicFields.join('、')}。请先改为字面值。`,
+        );
+      const request = {
+        url: draft.httpUrl,
+        method: draft.httpMethod,
+        params: paramsObject(),
+        headers: JSON.parse(draft.httpHeaders),
+        ...(draft.httpMethod === 'GET' ? {} : { body: JSON.parse(draft.httpBody) }),
+        ...(draft.httpTimeout.trim() ? { timeout: Number(draft.httpTimeout) } : {}),
+      };
+      const result = await performHttpRequest(request, controller.signal, async (res) => {
+        const text = await res.text();
+        let body = text;
+        try {
+          body = text ? JSON.stringify(JSON.parse(text), null, 2) : '';
+        } catch {
+          /* Plain-text response. */
+        }
+        return { status: res.status, statusText: res.statusText, body };
+      });
+      if (sendController.current === controller)
+        setResponse({ ...result, time: Math.round(performance.now() - started) });
+    } catch (error) {
+      if (sendController.current !== controller) return;
+      setResponse({
+        status: 0,
+        statusText: errorText(error),
+        time: Math.round(performance.now() - started),
+        body: '',
+      });
+    } finally {
+      if (sendController.current === controller) {
+        sendController.current = null;
+        setSending(false);
+      }
+    }
+  };
+  const form = (
     <form
+      id={formId}
       className="data-definition"
-      aria-label={source ? '数据源配置' : '新建数据源配置'}
+      aria-label={shared ? '共享数据源配置' : source ? '数据源配置' : '新建数据源配置'}
       onSubmit={(event) => {
         event.preventDefault();
         if (status.stale) return;
         owner.run(
           (operation) => {
-            if (!contract) throw new Error('请选择已注册 transport');
-            const input = Object.fromEntries(
-              Object.entries(contract.input).flatMap(([name, field]) => {
-                try {
-                  const value = parseBinding(
-                    draft.input[name] ?? bindingDraft(undefined, field),
-                    field,
-                  );
-                  return value ? [[name, value]] : [];
-                } catch (error) {
-                  throw new Error(`${name}：${(error as Error).message}`);
+            const ref = refMode ? draft.ref : undefined;
+            const sharedDef = ref ? sharedSources.find((item) => item.id === ref) : undefined;
+            if (!ref && !contract) throw new Error('请选择已注册 transport');
+            const httpInput = httpMode
+              ? {
+                  ...source?.input,
+                  ...(draft.httpDirty.url
+                    ? { url: { kind: 'literal' as const, value: draft.httpUrl } }
+                    : {}),
+                  ...(draft.httpDirty.method
+                    ? { method: { kind: 'literal' as const, value: draft.httpMethod } }
+                    : {}),
+                  ...(draft.httpDirty.params
+                    ? { params: { kind: 'literal' as const, value: paramsObject() as Json } }
+                    : {}),
+                  ...(draft.httpDirty.headers
+                    ? {
+                        headers: {
+                          kind: 'literal' as const,
+                          value: JSON.parse(draft.httpHeaders) as Json,
+                        },
+                      }
+                    : {}),
+                  ...(draft.httpMethod === 'GET' && (!source || draft.httpDirty.method)
+                    ? { body: undefined }
+                    : draft.httpDirty.body
+                      ? {
+                          body: {
+                            kind: 'literal' as const,
+                            value: JSON.parse(draft.httpBody) as Json,
+                          },
+                        }
+                      : {}),
+                  ...(draft.httpDirty.timeout
+                    ? draft.httpTimeout.trim()
+                      ? { timeout: { kind: 'literal' as const, value: Number(draft.httpTimeout) } }
+                      : { timeout: undefined }
+                    : {}),
                 }
-              }),
-            );
-            const definition = {
-              kind: draft.kind,
-              transport: draft.transport,
-              input,
-              initial: JSON.parse(draft.initial) as Json,
-            };
+              : undefined;
+            const input = httpMode
+              ? Object.fromEntries(
+                  Object.entries(httpInput!).flatMap(([key, binding]) =>
+                    binding === undefined ? [] : [[key, binding]],
+                  ),
+                )
+              : Object.fromEntries(
+                  Object.entries(
+                    (ref ? transports[sharedDef!.transport] : contract)!.input,
+                  ).flatMap(([name, field]) => {
+                    try {
+                      const value = parseBinding(
+                        draft.input[name] ?? bindingDraft(undefined, field),
+                        field,
+                      );
+                      return value ? [[name, value]] : [];
+                    } catch (error) {
+                      throw new Error(`${name}：${(error as Error).message}`);
+                    }
+                  }),
+                );
+            if (httpMode && !source)
+              buildHttpRequest(
+                Object.fromEntries(
+                  Object.entries(input).flatMap(([key, binding]) =>
+                    binding.kind === 'literal' ? [[key, binding.value]] : [],
+                  ),
+                ),
+              );
             const id = source?.id ?? draft.id;
-            if (
-              !operation.command(source ? '保存' : '创建', id, { id, ...definition }, () =>
-                source
-                  ? document.updateDataSource(page.id, source.id, definition)
-                  : document.createDataSource(page.id, { id, ...definition }),
+            if (shared) {
+              const definition = {
+                kind: draft.kind as 'query' | 'mutation',
+                transport: draft.transport,
+                input,
+                initial: JSON.parse(draft.initial) as Json,
+              };
+              if (
+                !operation.command(
+                  source ? '保存' : '创建',
+                  id,
+                  { id, ...definition } as DataSourceDefinition,
+                  () =>
+                    source
+                      ? document.updateSharedDataSource(source.id, definition)
+                      : document.createSharedDataSource({ id, ...definition }),
+                )
               )
-            )
-              return;
+                return;
+            } else {
+              const definition = ref
+                ? { ref, input }
+                : {
+                    kind: (httpMode ? httpKind : draft.kind) as 'query' | 'mutation',
+                    transport: draft.transport,
+                    input,
+                    initial: JSON.parse(draft.initial) as Json,
+                  };
+              if (
+                !operation.command(
+                  source ? '保存' : '创建',
+                  id,
+                  { id, ...definition } as DataSourceDefinition,
+                  () =>
+                    source
+                      ? document.updateDataSource(
+                          page.id,
+                          source.id,
+                          definition as Omit<DataSourceDefinition, 'id'>,
+                        )
+                      : document.createDataSource(page.id, {
+                          id,
+                          ...definition,
+                        } as DataSourceDefinition),
+                )
+              )
+                return;
+            }
             if (!operation.write('reset', draftOwner.key, status.reset)) return;
             operation.finish(() => onSaved(id));
           },
@@ -771,125 +1055,396 @@ function SourceEditor({
         );
       }}
     >
-      {status.dirty && (
-        <fieldset className="action-chain-controls" disabled={!owner.allowed}>
-          <DraftNotice
-            {...status}
-            reset={() => owner.change(status.reset)}
-            rebase={() => owner.change(status.rebase)}
-          />
-        </fieldset>
-      )}
-      <label>
-        数据源 ID
-        <Input
-          aria-label="数据源 ID"
-          value={draft.id}
-          disabled={!!source || !owner.allowed}
-          onChange={(event) =>
-            owner.change(() => setDraft((d) => ({ ...d, id: event.target.value, error: '' })))
-          }
-        />
-      </label>
-      <label>
-        执行类型
-        <Select
-          aria-label="数据源执行类型"
-          value={draft.kind}
-          disabled={!owner.allowed}
-          onValueChange={(kind) =>
-            owner.change(() =>
-              setDraft((d) => ({
-                ...d,
-                kind: kind as 'query' | 'mutation',
-                error: '',
-              })),
-            )
-          }
-        >
-          <option value="query">query · 查询</option>
-          <option value="mutation">mutation · 写入</option>
-        </Select>
-      </label>
-      <label>
-        Transport
-        <Select
-          aria-label="数据源 Transport"
-          value={draft.transport}
-          disabled={!owner.allowed}
-          onValueChange={(transport) =>
-            owner.change(() =>
-              setDraft((d) => {
-                const cache = d.transportInputs ?? {};
-                return {
-                  ...d,
-                  transport,
-                  input: Object.hasOwn(cache, transport) ? cache[transport] : makeInput(transport),
-                  transportInputs: { ...cache, [d.transport]: d.input },
-                  error: '',
-                };
-              }),
-            )
-          }
-        >
-          {!Object.keys(transports).length && <option value="">尚未注册 transport</option>}
-          {Object.entries(transports).map(([id, contract]) => (
-            <option key={id} value={id}>
-              {id} · {contract.version}
-            </option>
-          ))}
-        </Select>
-      </label>
-      <label>
-        初始值（JSON）
-        <CodeEditor
-          label="数据源初始值"
-          language="json"
-          readOnly={!owner.allowed}
-          height={104}
-          value={draft.initial}
-          onChange={(initial) =>
-            owner.change(() => setDraft((d) => ({ ...d, initial, error: '' })))
-          }
-        />
-      </label>
-      <p className="editor-note">
-        返回 {contract?.output ?? '未选择'}；参数取自页面状态，字段变化不会自动请求。
-      </p>
-      {Object.entries(contract?.input ?? {}).map(([name, field]) => (
-        <ValueInput
-          key={name}
-          label={name}
-          field={field}
-          draft={draft.input[name] ?? bindingDraft(undefined, field)}
-          page={page}
-          pageScope
-          readOnly={!owner.allowed}
-          onChange={(value) =>
-            owner.change(() =>
-              setDraft((d) => ({
-                ...d,
-                input: { ...d.input, [name]: value },
-                error: '',
-              })),
-            )
-          }
-        />
-      ))}
-      {draft.error && (
-        <p role="alert" className="field-error action-error">
-          {draft.error}
-        </p>
-      )}
-      <Button
-        type="submit"
-        variant="primary"
-        disabled={!owner.allowed || !contract || status.stale || (!!source && !status.dirty)}
-      >
-        {source ? '保存数据源' : '创建数据源'}
-      </Button>
-      <p className="editor-note">保存不执行请求；在预览中用 data.execute 动作发起查询并绑定结果。</p>
+      <div className="workbench-dialog-scroll data-definition-fields">
+        {status.dirty && (
+          <fieldset className="action-chain-controls" disabled={!owner.allowed}>
+            <DraftNotice
+              {...status}
+              reset={discardDraft}
+              rebase={() => owner.change(status.rebase)}
+            />
+          </fieldset>
+        )}
+        <section className="data-source-config-section">
+          <h3>基础信息</h3>
+          <label className="data-source-config-field">
+            数据源 ID
+            <Input
+              aria-label="数据源 ID"
+              value={draft.id}
+              disabled={!!source || !owner.allowed}
+              onChange={(event) =>
+                owner.change(() => setDraft((d) => ({ ...d, id: event.target.value, error: '' })))
+              }
+            />
+          </label>
+          {!shared && !!sharedSources.length && (
+            <label className="data-source-config-field">
+              引用共享数据源
+              <Select
+                aria-label="数据源共享引用"
+                value={draft.ref}
+                disabled={!owner.allowed || !!source}
+                onValueChange={(ref) =>
+                  owner.change(() =>
+                    setDraft((d) => {
+                      const sharedDef = sharedSources.find((item) => item.id === ref);
+                      return {
+                        ...d,
+                        ref,
+                        transport: sharedDef?.transport ?? Object.keys(transports)[0] ?? '',
+                        input: Object.fromEntries(
+                          Object.entries(
+                            transports[sharedDef?.transport ?? Object.keys(transports)[0] ?? '']
+                              ?.input ?? {},
+                          ).map(([name, field]) => [name, bindingDraft(undefined, field)]),
+                        ),
+                        error: '',
+                      };
+                    }),
+                  )
+                }
+              >
+                <option value="">本地定义</option>
+                {sharedSources.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.id} · {item.kind === 'query' ? '查询' : '写入'}
+                  </option>
+                ))}
+              </Select>
+            </label>
+          )}
+          {refMode && (
+            <p className="editor-note">
+              引用共享数据源 {draft.ref}：类型与初始值由共享定义提供，下方参数为页面覆盖。
+            </p>
+          )}
+          {!shared && !refMode && (
+            <label className="data-source-config-field">
+              Transport
+              <Select
+                aria-label="数据源 Transport"
+                value={draft.transport}
+                disabled={!owner.allowed}
+                onValueChange={(transport) =>
+                  owner.change(() =>
+                    setDraft((d) => {
+                      const cache = d.transportInputs ?? {};
+                      return {
+                        ...d,
+                        transport,
+                        input: Object.hasOwn(cache, transport)
+                          ? cache[transport]
+                          : makeInput(transport),
+                        transportInputs: { ...cache, [d.transport]: d.input },
+                        error: '',
+                      };
+                    }),
+                  )
+                }
+              >
+                {Object.entries(transports).map(([id, transportContract]) => (
+                  <option key={id} value={id}>
+                    {id} · {transportContract.version}
+                  </option>
+                ))}
+              </Select>
+            </label>
+          )}
+        </section>
+        {httpMode ? (
+          <section className="data-source-config-section http-request-designer">
+            <h3>请求</h3>
+            <div className="http-request-line">
+              <Select
+                aria-label="请求方法"
+                value={draft.httpMethod}
+                disabled={!owner.allowed}
+                onValueChange={(httpMethod) =>
+                  owner.change(() =>
+                    setDraft((d) => ({
+                      ...d,
+                      httpMethod,
+                      httpDirty: { ...d.httpDirty, method: true },
+                      kind: httpMethod === 'GET' ? 'query' : 'mutation',
+                      error: '',
+                    })),
+                  )
+                }
+              >
+                {['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].map((method) => (
+                  <option key={method} value={method}>
+                    {method}
+                  </option>
+                ))}
+              </Select>
+              <Input
+                aria-label="请求 URL"
+                placeholder="https://api.example.com/path"
+                value={draft.httpUrl}
+                readOnly={!owner.allowed}
+                onChange={(event) =>
+                  owner.change(() =>
+                    setDraft((d) => ({
+                      ...d,
+                      httpUrl: event.target.value,
+                      httpDirty: { ...d.httpDirty, url: true },
+                      error: '',
+                    })),
+                  )
+                }
+              />
+              <Button
+                type="button"
+                variant="primary"
+                disabled={!owner.allowed || sending || !draft.httpUrl}
+                onClick={sendRequest}
+              >
+                {sending ? '发送中…' : 'Send'}
+              </Button>
+            </div>
+            <div className="data-source-config-field http-params-field">
+              <span>Params</span>
+              {params.map((param, index) => (
+                <div className="http-param-row" key={param.id}>
+                  <Input
+                    aria-label={`Params 键 ${index + 1}`}
+                    value={param.key}
+                    readOnly={!owner.allowed}
+                    onChange={(event) =>
+                      updateParams(
+                        params.map((item) =>
+                          item.id === param.id ? { ...item, key: event.target.value } : item,
+                        ),
+                      )
+                    }
+                  />
+                  <Input
+                    aria-label={`Params 值 ${index + 1}`}
+                    value={param.value}
+                    readOnly={!owner.allowed}
+                    onChange={(event) =>
+                      updateParams(
+                        params.map((item) =>
+                          item.id === param.id ? { ...item, value: event.target.value } : item,
+                        ),
+                      )
+                    }
+                  />
+                  <Button
+                    type="button"
+                    aria-label={`删除 Params ${param.key || index + 1}`}
+                    variant="ghost"
+                    disabled={!owner.allowed}
+                    onClick={() => updateParams(params.filter((item) => item.id !== param.id))}
+                  >
+                    <Trash2 size={14} />
+                  </Button>
+                </div>
+              ))}
+              <Button type="button" variant="ghost" disabled={!owner.allowed} onClick={addParam}>
+                <Plus size={14} />
+                添加参数
+              </Button>
+            </div>
+            <label className="data-source-config-field">
+              Headers（JSON 对象）
+              <CodeEditor
+                label="请求 Headers"
+                language="json"
+                readOnly={!owner.allowed}
+                height={96}
+                value={draft.httpHeaders}
+                onChange={(httpHeaders) =>
+                  owner.change(() =>
+                    setDraft((d) => ({
+                      ...d,
+                      httpHeaders,
+                      httpDirty: { ...d.httpDirty, headers: true },
+                      error: '',
+                    })),
+                  )
+                }
+              />
+            </label>
+            <label className="data-source-config-field">
+              Timeout（毫秒，可留空使用默认值）
+              <Input
+                aria-label="请求超时"
+                type="number"
+                min={1}
+                value={draft.httpTimeout}
+                readOnly={!owner.allowed}
+                onChange={(event) =>
+                  owner.change(() =>
+                    setDraft((d) => ({
+                      ...d,
+                      httpTimeout: event.target.value,
+                      httpDirty: { ...d.httpDirty, timeout: true },
+                      error: '',
+                    })),
+                  )
+                }
+              />
+            </label>
+            {draft.httpMethod !== 'GET' && (
+              <label className="data-source-config-field">
+                JSON Body
+                <CodeEditor
+                  label="请求 JSON Body"
+                  language="json"
+                  readOnly={!owner.allowed}
+                  height={132}
+                  value={draft.httpBody}
+                  onChange={(httpBody) =>
+                    owner.change(() =>
+                      setDraft((d) => ({
+                        ...d,
+                        httpBody,
+                        httpDirty: { ...d.httpDirty, body: true },
+                        error: '',
+                      })),
+                    )
+                  }
+                />
+              </label>
+            )}
+            {response && (
+              <section className="http-response" aria-label="响应结果">
+                <div className="http-response-heading">
+                  <strong>Response</strong>
+                  <span>
+                    {response.status
+                      ? `${response.status} ${response.statusText}`
+                      : response.statusText}
+                  </span>
+                  <span>{response.time} ms</span>
+                </div>
+                <CodeEditor
+                  label="响应 Body"
+                  language="json"
+                  readOnly
+                  height={180}
+                  value={response.body}
+                  onChange={() => {}}
+                />
+              </section>
+            )}
+          </section>
+        ) : (
+          !refMode && (
+            <section className="data-source-config-section">
+              <h3>加载方式</h3>
+              <label className="data-source-config-field">
+                执行类型
+                <Select
+                  aria-label={shared ? '共享数据源执行类型' : '数据源执行类型'}
+                  value={draft.kind}
+                  disabled={!owner.allowed}
+                  onValueChange={(kind) =>
+                    owner.change(() =>
+                      setDraft((d) => ({ ...d, kind: kind as 'query' | 'mutation', error: '' })),
+                    )
+                  }
+                >
+                  <option value="query">query · 查询</option>
+                  <option value="mutation">mutation · 写入</option>
+                </Select>
+              </label>
+              <p className="editor-note">
+                返回 {contract?.output ?? '未选择'}；参数取自页面状态，字段变化不会自动请求。
+              </p>
+            </section>
+          )
+        )}
+        {!httpMode && !refMode && (
+          <section className="data-source-config-section">
+            <h3>默认数据</h3>
+            <label className="data-source-config-field">
+              初始值（JSON）
+              <CodeEditor
+                label={shared ? '共享数据源初始值' : '数据源初始值'}
+                language="json"
+                readOnly={!owner.allowed}
+                height={104}
+                value={draft.initial}
+                onChange={(initial) =>
+                  owner.change(() => setDraft((d) => ({ ...d, initial, error: '' })))
+                }
+              />
+            </label>
+          </section>
+        )}
+        {(!httpMode || refMode) && !!Object.keys(contract?.input ?? {}).length && (
+          <section className="data-source-config-section">
+            <h3>请求参数</h3>
+            {Object.entries(contract?.input ?? {}).map(([name, field]) => (
+              <ValueInput
+                key={name}
+                label={name}
+                field={field}
+                draft={draft.input[name] ?? bindingDraft(undefined, field)}
+                page={page}
+                pageScope
+                readOnly={!owner.allowed}
+                onChange={(value) =>
+                  owner.change(() =>
+                    setDraft((d) => ({
+                      ...d,
+                      input: { ...d.input, [name]: value },
+                      error: '',
+                    })),
+                  )
+                }
+              />
+            ))}
+            <p className="editor-note">
+              保存不执行请求；在预览中用 data.execute 动作发起查询并绑定结果。
+            </p>
+          </section>
+        )}
+      </div>
+      <div className="workbench-dialog-actions data-definition-actions">
+        {draft.error && (
+          <p role="alert" className="field-error action-error">
+            {draft.error}
+          </p>
+        )}
+      </div>
     </form>
+  );
+  const sourceLabel = shared ? '共享数据源' : '数据源';
+  const actionLabel = source ? '保存' : '创建';
+  return (
+    <>
+      <div className="data-definition-dialog-head data-source-dialog-head">
+        <div className="data-definition-dialog-heading">
+          <Dialog.Title>
+            {source ? `编辑${sourceLabel} · ${source.id}` : `新建${sourceLabel}`}
+          </Dialog.Title>
+          <Dialog.Description className="editor-note">
+            {shared
+              ? '共享定义保存不执行请求；各页面可在引用时覆盖参数。'
+              : '配置保存不执行请求；字段变化也不会自动请求。'}
+          </Dialog.Description>
+        </div>
+        <div className="data-source-toolbar">
+          <Button
+            type="submit"
+            form={formId}
+            variant="primary"
+            aria-label={`${actionLabel}${sourceLabel}`}
+            disabled={!owner.allowed || !contract || status.stale || (!!source && !status.dirty)}
+          >
+            {actionLabel}
+          </Button>
+          <Dialog.Close className="ui-button" aria-label={`关闭${sourceLabel}编辑`}>
+            关闭
+          </Dialog.Close>
+        </div>
+      </div>
+      {form}
+    </>
   );
 }
 function SourcesPanel({ document, snapshot, lock, authoringAllowed }: DefinitionProps) {
@@ -929,6 +1484,20 @@ function SourcesPanel({ document, snapshot, lock, authoringAllowed }: Definition
         });
     });
   };
+  const sharedSources = snapshot.plan.schema.sharedDataSources ?? [];
+  const [sharedChosen, setSharedChosen] = useState('@new');
+  const [sharedEditorOpen, setSharedEditorOpen] = useState(false);
+  const [sharedDelete, setSharedDelete] = useState<string | null>(null);
+  const sharedSource = sharedSources.find((source) => source.id === sharedChosen);
+  const pickShared = (id: string) => {
+    owner.run((operation) => {
+      if (operation.write('clear', errorOwner.key, () => setError('')))
+        operation.finish(() => {
+          setSharedChosen(id);
+          setSharedEditorOpen(true);
+        });
+    });
+  };
   return (
     <section className="data-model-panel" aria-label="数据源管理">
       <div className="data-model-heading">
@@ -960,9 +1529,7 @@ function SourcesPanel({ document, snapshot, lock, authoringAllowed }: Definition
                 onClick={() => pickSource(item.id)}
               >
                 <span className="data-source-name">{item.id}</span>
-                <span className="data-source-kind">
-                  {item.kind === 'query' ? '查询' : '写入'}
-                </span>
+                <span className="data-source-kind">{item.kind === 'query' ? '查询' : '写入'}</span>
               </button>
               <Tip content="删除数据源">
                 <Button
@@ -971,9 +1538,7 @@ function SourcesPanel({ document, snapshot, lock, authoringAllowed }: Definition
                   aria-label={`删除数据源 ${item.id}`}
                   onClick={() => {
                     owner.run((operation) =>
-                      operation.finish(() =>
-                        setDeleteTarget({ id: item.id, plan: snapshot.plan }),
-                      ),
+                      operation.finish(() => setDeleteTarget({ id: item.id, plan: snapshot.plan })),
                     );
                   }}
                 >
@@ -987,24 +1552,121 @@ function SourcesPanel({ document, snapshot, lock, authoringAllowed }: Definition
       {!page.dataSources?.length && (
         <p className="editor-note">尚无数据源。点右上角「+」创建，或从动作里新建。</p>
       )}
+      <div className="data-model-heading shared-heading">
+        <strong>共享数据源 · {sharedSources.length}</strong>
+        <Tip content="新建共享数据源">
+          <Button
+            disabled={!owner.allowed}
+            aria-label="新建共享数据源"
+            onClick={() => pickShared('@new')}
+          >
+            <Plus size={13} />
+          </Button>
+        </Tip>
+      </div>
+      {!!sharedSources.length ? (
+        <ul className="data-source-list" aria-label="共享数据源列表">
+          {sharedSources.map((item) => (
+            <li className="data-source-row" key={item.id}>
+              <button
+                type="button"
+                className="data-source-open"
+                disabled={!owner.allowed}
+                aria-label={`编辑共享数据源 ${item.id}`}
+                onClick={() => pickShared(item.id)}
+              >
+                <span className="data-source-name">{item.id}</span>
+                <span className="data-source-kind">
+                  {item.kind === 'query' ? '查询' : '写入'} · 全应用共享
+                </span>
+              </button>
+              <Tip content="删除共享数据源">
+                <Button
+                  disabled={!owner.allowed}
+                  variant="ghost"
+                  aria-label={`删除共享数据源 ${item.id}`}
+                  onClick={() => setSharedDelete(item.id)}
+                >
+                  <Trash2 size={13} />
+                </Button>
+              </Tip>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="editor-note">共享数据源由整个应用复用，页面通过「引用共享数据源」接入。</p>
+      )}
+      <Dialog.Root open={sharedEditorOpen} onOpenChange={setSharedEditorOpen}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="material-modal-backdrop" />
+          <Dialog.Popup className="material-modal data-source-dialog drawer">
+            <SourceEditor
+              key={`shared/${sharedSource?.id ?? '@new'}`}
+              document={document}
+              snapshot={snapshot}
+              source={sharedSource}
+              onSaved={(id) => setSharedChosen(id)}
+              chosen={sharedChosen}
+              owners={[choiceOwner, errorOwner]}
+              lock={lock}
+              authoringAllowed={authoringAllowed}
+              formId="shared-source-definition"
+              shared
+            />
+          </Dialog.Popup>
+        </Dialog.Portal>
+      </Dialog.Root>
+      <Dialog.Root
+        open={sharedDelete !== null}
+        onOpenChange={(open) => !open && setSharedDelete(null)}
+      >
+        <Dialog.Portal>
+          <Dialog.Backdrop className="material-modal-backdrop" />
+          <Dialog.Popup className="material-modal project-confirmation data-delete-dialog">
+            <Dialog.Title className="project-confirmation-title">删除共享数据源？</Dialog.Title>
+            <Dialog.Description className="project-confirmation-description">
+              将删除共享数据源“{sharedDelete}”。若仍有页面引用它，删除会被阻止。
+            </Dialog.Description>
+            {error && (
+              <p role="alert" className="field-error action-error">
+                {error}
+              </p>
+            )}
+            <div className="project-confirmation-actions">
+              <Dialog.Close className="ui-button">取消</Dialog.Close>
+              <Button
+                variant="danger"
+                disabled={!owner.allowed}
+                onClick={() => {
+                  const target = sharedDelete;
+                  if (!target) return;
+                  owner.run((operation) => {
+                    if (
+                      !operation.command('删除', target, undefined, () =>
+                        document.removeSharedDataSource(target),
+                      )
+                    )
+                      return;
+                    if (!operation.write('clear', errorOwner.key, () => setError(''))) return;
+                    operation.finish(() => {
+                      setSharedChosen(
+                        sharedSources.find((item) => item.id !== target)?.id ?? '@new',
+                      );
+                      setSharedDelete(null);
+                    });
+                  }, setError);
+                }}
+              >
+                确认删除
+              </Button>
+            </div>
+          </Dialog.Popup>
+        </Dialog.Portal>
+      </Dialog.Root>
       <Dialog.Root open={editorOpen} onOpenChange={setEditorOpen}>
         <Dialog.Portal>
           <Dialog.Backdrop className="material-modal-backdrop" />
-          <Dialog.Popup className="material-modal data-source-dialog">
-            <div className="data-source-dialog-head">
-              <Dialog.Title className="project-confirmation-title">
-                {source ? `编辑数据源 · ${source.id}` : '新建数据源'}
-              </Dialog.Title>
-              <Dialog.Close
-                className="ui-button ui-button-ghost"
-                aria-label="关闭数据源编辑"
-              >
-                <X size={14} />
-              </Dialog.Close>
-            </div>
-            <Dialog.Description className="editor-note">
-              配置保存不执行请求；字段变化也不会自动请求。
-            </Dialog.Description>
+          <Dialog.Popup className="material-modal data-source-dialog drawer">
             <SourceEditor
               key={`${page.id}/${source?.id ?? '@new'}`}
               document={document}
@@ -1015,6 +1677,7 @@ function SourcesPanel({ document, snapshot, lock, authoringAllowed }: Definition
               owners={[choiceOwner, errorOwner]}
               lock={lock}
               authoringAllowed={authoringAllowed}
+              formId="page-source-definition"
             />
           </Dialog.Popup>
         </Dialog.Portal>

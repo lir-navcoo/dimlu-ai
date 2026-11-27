@@ -1,4 +1,4 @@
-import type { PageCode, PageSchema } from '../schema/types';
+import type { PageActionCode, PageCode, PageSchema } from '../schema/types';
 import type { DocumentHost } from './document-context';
 
 /** Page lifecycle: create, rename, group, duplicate, reorder, entry and removal. */
@@ -108,6 +108,13 @@ export class DocumentPages {
     return this.host.commit(schema, '删除页面', selection);
   };
 
+  setPageCss = (pageId: string, css: string | undefined) => {
+    const { schema, page } = this.host.draft(pageId);
+    if (css === undefined || !css.trim()) delete page.css;
+    else page.css = css;
+    return this.host.commit(schema, '保存页面 CSS');
+  };
+
   /** Structural publication only. Compilation and activation never run inside the document. */
   setPageCode = (pageId: string, code: PageCode | undefined) => {
     const { schema, page } = this.host.draft(pageId);
@@ -115,5 +122,11 @@ export class DocumentPages {
     else page.code = structuredClone(code);
     return this.host.commit(schema, code?.enabled ? '保存页面代码' : '禁用页面代码');
   };
-}
 
+  setPageActionCode = (pageId: string, code: PageActionCode | undefined) => {
+    const { schema, page } = this.host.draft(pageId);
+    if (code === undefined) delete page.actionCode;
+    else page.actionCode = structuredClone(code);
+    return this.host.commit(schema, '保存页面动作代码');
+  };
+}

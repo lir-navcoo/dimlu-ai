@@ -1,4 +1,5 @@
-import type { ApplicationSchema, Json, Value } from '../packages/schema/types';
+import type { ApplicationSchema, Json, Value } from '../../packages/schema/types';
+import { pageHeader } from '../../src/example-header.ts';
 const literal = (value: Json): Value => ({ kind: 'literal', value });
 const expression = (source: string): Value => ({
   kind: 'expression',
@@ -12,7 +13,7 @@ export const dataSourceExample: ApplicationSchema = {
   entryPageId: 'query',
   dependencies: {
     components: Object.fromEntries(
-      ['ui.heading', 'ui.input', 'ui.button', 'ui.table', 'ui.text'].map((id) => [id, '1.0.0']),
+      ['ui.input', 'ui.button', 'ui.table', 'ui.text'].map((id) => [id, '1.0.0']),
     ),
     actions: { 'data.execute': '1.0.0', 'state.set': '1.0.0' },
     transports: { 'demo.peopleQuery': '1.0.0' },
@@ -35,16 +36,11 @@ export const dataSourceExample: ApplicationSchema = {
         { id: 'enter-people', action: 'data.execute', input: { sourceId: literal('people') } },
       ],
       children: [
-        {
-          id: 'heading',
-          component: 'ui.heading',
-          props: {
-            title: literal('数据源查询'),
-            description: literal(
-              '仅预览时进入页面查询；修改条件后显式点击查询。输入“失败”可体验错误与重试。',
-            ),
-          },
-        },
+        ...pageHeader(
+          'heading',
+          '数据源查询',
+          '仅预览时进入页面查询；修改条件后显式点击查询。输入“失败”可体验错误与重试。',
+        ),
         {
           id: 'query-input',
           component: 'ui.input',

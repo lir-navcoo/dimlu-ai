@@ -1,5 +1,9 @@
 import { useLayoutEffect, useRef } from 'react';
 
+export const resizingWindows = new WeakSet<Window>();
+export const isSaveKeyFamily = (event: Pick<KeyboardEvent, 'ctrlKey' | 'metaKey' | 'key'>) =>
+  (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's';
+
 /** Popup libraries keep their own key policy; author actions only accept this narrow key. */
 export function isAuthorEscape(event: KeyboardEvent): boolean {
   return (

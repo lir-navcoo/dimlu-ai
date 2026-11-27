@@ -10,7 +10,7 @@ import {
   type ReactSetterProps,
 } from '../src/editor/Setters';
 import { catalog } from '../src/editor/catalog';
-import { exampleApplication } from '../src/examples';
+import { exampleApplication } from './fixtures/examples';
 import { registry } from '../src/materials';
 import { changeControl } from './ui-helpers';
 
@@ -22,7 +22,7 @@ describe('cycle 009 pending expression mode callback acceptance', () => {
     (operation) => {
       const document = new EditorDocument(exampleApplication, registry);
       const metadata = structuredClone(catalog);
-      metadata['ui.heading'].properties.find((property) => property.name === 'title')!.setter = {
+      metadata['ui.text'].properties.find((property) => property.name === 'value')!.setter = {
         kind: 'custom',
         id: 'acceptance.pending',
       };
@@ -45,8 +45,8 @@ describe('cycle 009 pending expression mode callback acceptance', () => {
         </SetterRegistryProvider>,
       );
       const previous = captured!;
-      changeControl(screen.getByLabelText('标题绑定方式'), 'expression');
-      changeControl(screen.getByRole('textbox', { name: '标题' }), 'state.');
+      changeControl(screen.getByLabelText('文本内容绑定方式'), 'expression');
+      changeControl(screen.getByRole('textbox', { name: '文本内容' }), 'state.');
       const before = document.getSnapshot();
       let accepted: boolean | undefined;
       act(() => {
@@ -55,14 +55,14 @@ describe('cycle 009 pending expression mode callback acceptance', () => {
       const title = findNode(
         document.getSnapshot().plan.pages.get('purchase')!.schema,
         'purchase-heading',
-      )!.node.props.title;
+      )!.node.props.value;
       expect({ accepted, title }).toEqual({
         accepted: false,
         title: { kind: 'literal', value: '创建采购申请' },
       });
       expect(document.getSnapshot()).toBe(before);
-      expect(screen.getByLabelText('标题绑定方式').getAttribute('data-value')).toBe('expression');
-      expect((screen.getByRole('textbox', { name: '标题' }) as HTMLTextAreaElement).value).toBe(
+      expect(screen.getByLabelText('文本内容绑定方式').getAttribute('data-value')).toBe('expression');
+      expect((screen.getByRole('textbox', { name: '文本内容' }) as HTMLTextAreaElement).value).toBe(
         'state.',
       );
     },

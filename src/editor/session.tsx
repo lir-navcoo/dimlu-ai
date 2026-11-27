@@ -22,6 +22,13 @@ class DraftStore {
       this.listeners.delete(listener);
     };
   };
+  getDirtyCount = () => {
+    let count = 0;
+    for (const [key, entry] of this.entries) {
+      if (entry.dirty && !key.startsWith('ui:')) count++;
+    }
+    return count;
+  };
   read<T>(key: string, source: string, initial: T): Entry<T> {
     let entry = this.entries.get(key) as Entry<T> | undefined;
     if (!entry || (!entry.dirty && entry.source !== source)) {
@@ -137,6 +144,10 @@ export function useEditorSession() {
   if (!session) throw new Error('EditorSessionProvider is required');
   return session;
 }
+export function useDirtyDraftCount() {
+  const { drafts } = useEditorSession();
+  return useSyncExternalStore(drafts.subscribe, drafts.getDirtyCount, drafts.getDirtyCount);
+}
 /** Draft identity is independent of panel mounting and document revisions. */
 export function useDraft<T>(key: string, source: string, initial: T) {
   const { drafts } = useEditorSession();
@@ -170,9 +181,11 @@ export function DraftNotice({
   stale,
   reset,
   rebase,
+  readOnly = false,
 }: {
   dirty: boolean;
   stale: boolean;
+  readOnly?: boolean;
   reset: () => void;
   rebase: () => void;
 }) {
@@ -184,11 +197,11 @@ export function DraftNotice({
       </span>
       <div>
         {stale && (
-          <Button onClick={rebase} type="button">
+          <Button onClick={rebase} type="button" disabled={readOnly}>
             确认使用草稿
           </Button>
         )}
-        <Button onClick={reset} type="button">
+        <Button onClick={reset} type="button" disabled={readOnly}>
           放弃草稿
         </Button>
       </div>

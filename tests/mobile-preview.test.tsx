@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import MobilePreview from '../src/MobilePreview';
-import { exampleApplication } from '../src/examples';
+import { exampleApplication } from './fixtures/examples';
 
 const token = 'v'.repeat(43);
 const snapshotPath = '/api/mobile-preview/snapshot';

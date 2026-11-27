@@ -6,6 +6,7 @@ import { PROJECT_STORAGE_KEY, ProjectStorage } from '../packages/editor/project-
 import * as applicationMethods from '../packages/runtime/application-methods';
 import {
   ApplicationDirectory,
+  APPLICATION_DIRECTORY_KEY,
   applicationProjectStorageKey,
 } from '../packages/editor/application-directory';
 import type { ApplicationSchema, PageSchema } from '../packages/schema/types';
@@ -257,6 +258,10 @@ describe('page management authoring UI', () => {
     window.history.replaceState({}, '', '/editor/page/b');
     render(<App saveDelayMs={1} />);
 
+    fireEvent(window, new CustomEvent('dimlu:navigate-panel', { detail: 'logic' }));
+    fireEvent.click(screen.getByRole('tab', { name: '页面代码' }));
+    expect(screen.queryByRole('region', { name: '页面生命周期配置' })).toBeNull();
+
     fireEvent.click(screen.getByRole('combobox', { name: '切换页面' }));
     changeControl(await screen.findByRole('combobox', { name: '搜索页面' }), '不存在的页面');
     expect(await screen.findByText('没有匹配的页面')).toBeTruthy();
@@ -423,9 +428,8 @@ describe('page management authoring UI', () => {
     );
     await waitFor(() => expect(window.document.activeElement).toBe(trigger));
     expect(window.location.pathname + window.location.search).toBe('/editor/page/b?panel=logic');
-    expect(screen.getByRole('tab', { name: '页面逻辑' }).getAttribute('aria-selected')).toBe(
-      'true',
-    );
+    // 左侧 logic 标签已移除；页面逻辑常驻于右侧页面设置，左侧 logic 面板仍保留生命周期区域。
+    expect(screen.getByRole('region', { name: '页面生命周期配置' })).toBeTruthy();
     fireEvent(window, new Event('pagehide'));
     expect(JSON.parse(localStorage.getItem(PROJECT_STORAGE_KEY)!).schema.methods).toEqual([
       expect.objectContaining({
@@ -573,7 +577,7 @@ describe('page management authoring UI', () => {
         );
         window.history.replaceState({}, '', '/editor/page/a?panel=logic');
         render(<App saveDelayMs={1} />);
-        if (width === 390) fireEvent.click(screen.getByRole('button', { name: '打开页面设计' }));
+        // 页面逻辑在右侧页面设置中；深链已自动展开右侧面板。
         await screen.findByRole('region', { name: '页面生命周期配置' });
         // Action parameters live in the config dialog.
         openActionConfig(1);
@@ -633,8 +637,10 @@ describe('page management authoring UI', () => {
         expect(window.location.pathname + window.location.search).toBe('/editor/page/b');
 
         closeActionConfig();
+        fireEvent(window, new CustomEvent('dimlu:navigate-panel', { detail: 'logic' }));
+        const pageLogic = within(await screen.findByRole('region', { name: '页面生命周期配置' }));
         await followReference(
-          screen.getByRole('button', { name: '应用自定义方法' }),
+          pageLogic.getByRole('button', { name: '应用自定义方法' }),
           /页面进入事件/,
         );
         expect(window.location.pathname + window.location.search).toBe(
@@ -699,8 +705,9 @@ describe('page management authoring UI', () => {
   // TODO(action-dialog): these cases assert panel-inline parameter editing and
   // focus-restoration semantics that moved into the action config dialog;
   // they need a dedicated adaptation pass.
-  it('opens shared methods from a component event and preserves its unsaved action draft', async () => {
+  it('uses shared actions from a component event and preserves its unsaved action draft', async () => {
     const schema = application();
+    schema.methods = [{ id: 'method-1', title: '格式化输入', source: 'return input.payload;' }];
     schema.dependencies.components['ui.button'] = '1.0.0';
     schema.pages[0].children = [
       {
@@ -724,17 +731,6 @@ describe('page management authoring UI', () => {
     changeControl(screen.getByRole('textbox', { name: 'title' }), '未保存通知');
     closeActionConfig();
 
-    const trigger = events.getByRole('button', { name: '应用自定义方法' });
-    trigger.focus();
-    fireEvent.click(trigger);
-    const methods = await screen.findByRole('dialog', { name: '应用自定义方法' });
-    fireEvent.click(within(methods).getByRole('button', { name: '新建方法' }));
-    changeControl(await screen.findByLabelText('方法名称'), '格式化输入');
-    fireEvent.click(screen.getByRole('button', { name: '保存方法' }));
-    fireEvent.click(await within(methods).findByRole('button', { name: '关闭应用自定义方法' }));
-    await waitFor(() => expect(window.document.activeElement).toBe(trigger));
-    expect(window.location.pathname + window.location.search).toBe('/editor/page/a');
-    expect(screen.getByRole('tab', { name: '事件' }).getAttribute('aria-selected')).toBe('true');
     openActionConfig(1);
     expect((screen.getByRole('textbox', { name: 'title' }) as HTMLInputElement).value).toBe(
       '未保存通知',
@@ -748,24 +744,30 @@ describe('page management authoring UI', () => {
       'app.method.method-1',
     );
     closeActionConfig();
-    const createAndBind = events.getByRole('button', { name: '新建并绑定 JS' });
-    createAndBind.focus();
-    fireEvent.click(createAndBind);
-    const cancelled = within(await screen.findByRole('dialog', { name: '新建自定义方法' }));
-    changeControl(cancelled.getByLabelText('方法名称'), '不保存');
-    fireEvent.click(cancelled.getByRole('button', { name: '取消' }));
-    await waitFor(() => expect(window.document.activeElement).toBe(createAndBind));
-    expect(events.queryByRole('region', { name: '动作 3' })).toBeNull();
-
-    fireEvent.click(createAndBind);
-    const direct = within(await screen.findByRole('dialog', { name: '新建自定义方法' }));
-    changeControl(direct.getByLabelText('方法名称'), '计算合计');
-    fireEvent.click(direct.getByRole('button', { name: '保存方法' }));
-    await waitFor(() => expect(window.document.activeElement).toBe(createAndBind));
-    openActionConfig(3);
-    expect(screen.getByRole('combobox', { name: '动作 3 类型' }).getAttribute('data-value')).toBe(
-      'app.method.method-2',
+    fireEvent.click(screen.getByRole('tab', { name: '代码' }));
+    changeControl(
+      await screen.findByRole('textbox', { name: '页面动作源码' }),
+      'export async function calcTotal(payload) {\n  return payload;\n}',
     );
+    fireEvent.click(screen.getByRole('button', { name: '保存动作代码' }));
+    await waitFor(() => {
+      const saved: ApplicationSchema = JSON.parse(
+        localStorage.getItem(PROJECT_STORAGE_KEY)!,
+      ).schema;
+      expect(saved.pages[0].actionCode?.source).toContain('export async function calcTotal');
+      expect(saved.pages[0].children[0].on?.onClick ?? []).toEqual([]);
+    });
+
+    fireEvent.click(screen.getByRole('tab', { name: '事件' }));
+    const currentEvents = within(await screen.findByRole('region', { name: '事件配置' }));
+    fireEvent.click(currentEvents.getByRole('button', { name: '添加动作' }));
+    openActionConfig(3);
+    changeControl(screen.getByRole('combobox', { name: '动作 3 类型' }), 'page.action.calcTotal');
+    expect(screen.getByRole('combobox', { name: '动作 3 类型' }).getAttribute('data-value')).toBe(
+      'page.action.calcTotal',
+    );
+    changeControl(screen.getByRole('combobox', { name: 'payload取值方式' }), 'literal');
+    expect(screen.getByRole('textbox', { name: 'payload' })).toBeTruthy();
     closeActionConfig();
     // The unsaved draft lives on the first action (ui.notify title).
     openActionConfig(1);
@@ -777,12 +779,14 @@ describe('page management authoring UI', () => {
       const saved: ApplicationSchema = JSON.parse(
         localStorage.getItem(PROJECT_STORAGE_KEY)!,
       ).schema;
-      expect(saved.methods?.map((method) => method.title)).toEqual(['格式化输入', '计算合计']);
+      // 页面动作源码显式保存；事件动作链仍是未提交草稿。
+      expect(saved.methods?.map((method) => method.title)).toEqual(['格式化输入']);
+      expect(saved.pages[0].actionCode?.source).toContain('export async function calcTotal');
       expect(saved.pages[0].children[0].on?.onClick ?? []).toEqual([]);
     });
     fireEvent.click(screen.getByRole('button', { name: '预览模式' }));
     expect(events.queryByRole('button', { name: '应用自定义方法' })).toBeNull();
-    expect(events.queryByRole('button', { name: '新建并绑定 JS' })).toBeNull();
+    expect(events.queryByRole('button', { name: '绑定页面方法' })).toBeNull();
   });
 
   it('opens a saved application directly at its entry page and routes between pages', async () => {
@@ -897,6 +901,69 @@ describe('page management authoring UI', () => {
     fireEvent.click(await screen.findByRole('button', { name: '打开应用' }));
     await waitFor(() => expect(window.location.pathname).toBe('/editor/page/a'));
     expect(screen.getByRole('combobox', { name: '切换页面' }).getAttribute('data-value')).toBe('a');
+  });
+
+  it.each([false, true])(
+    'copies the latest committed edits without drafts (save fails: %s)',
+    (fails) => {
+      const schema = application();
+      const sourceKey = applicationProjectStorageKey(schema.id);
+      const copyId = `${schema.id}-copy-1`;
+      localStorage.setItem(PROJECT_STORAGE_KEY, JSON.stringify({ storageVersion: 1, schema }));
+      window.history.replaceState({}, '', '/editor/page/a');
+      render(<App saveDelayMs={60_000} />);
+      fireEvent.click(screen.getByRole('button', { name: '选中 文本 a-text' }));
+      changeControl(screen.getByRole('textbox', { name: '文本内容' }), '最新已应用文本');
+      fireEvent.click(screen.getByRole('tab', { name: 'Schema' }));
+      changeControl(screen.getByLabelText('应用定义 · JSON'), '{"unapplied":true}');
+      const old = localStorage.getItem(sourceKey)!;
+      expect(old).not.toContain('最新已应用文本');
+      const setItem = Storage.prototype.setItem;
+      const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (
+        this: Storage,
+        key: string,
+        value: string,
+      ) {
+        if (fails && key === sourceKey) throw new DOMException('存储已满', 'QuotaExceededError');
+        setItem.call(this, key, value);
+      });
+      try {
+        window.history.replaceState({}, '', '/editor/apps');
+        fireEvent(window, new PopStateEvent('popstate'));
+        expect(window.location.pathname).toBe('/editor/apps');
+        expect(localStorage.getItem(sourceKey)).toBe(old);
+        expect(write.mock.calls.some(([key]) => key === sourceKey)).toBe(false);
+        fireEvent.click(screen.getByRole('button', { name: '复制' }));
+        const copy = localStorage.getItem(applicationProjectStorageKey(copyId));
+        if (fails) {
+          expect(copy).toBeNull();
+          expect(localStorage.getItem(sourceKey)).toBe(old);
+          expect(screen.getByRole('alert').textContent).toContain('存储已满');
+          expect(JSON.parse(localStorage.getItem(APPLICATION_DIRECTORY_KEY)!).appIds).toEqual([
+            schema.id,
+          ]);
+        } else {
+          expect(copy).toContain('最新已应用文本');
+          expect(copy).not.toContain('unapplied');
+          expect(localStorage.getItem(sourceKey)).toContain('最新已应用文本');
+        }
+      } finally {
+        write.mockRestore();
+      }
+    },
+  );
+
+  it('blocks copying a protected active application without touching its original data', () => {
+    const raw = '{"storageVersion":88,"schema":"future"}';
+    localStorage.setItem(PROJECT_STORAGE_KEY, raw);
+    window.history.replaceState({}, '', '/editor/apps');
+    render(<App />);
+    const record = localStorage.getItem(APPLICATION_DIRECTORY_KEY)!;
+    const appId = JSON.parse(record).activeAppId;
+    fireEvent.click(screen.getByRole('button', { name: '复制' }));
+    expect(screen.getByRole('alert').textContent).toContain('无法复制当前应用');
+    expect(localStorage.getItem(applicationProjectStorageKey(appId))).toBe(raw);
+    expect(localStorage.getItem(APPLICATION_DIRECTORY_KEY)).toBe(record);
   });
 
   it('duplicates an application and confirms directory removal without deleting saved bytes', async () => {

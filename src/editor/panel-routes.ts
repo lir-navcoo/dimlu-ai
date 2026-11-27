@@ -1,4 +1,4 @@
-import { Database, Code2, Files, LayoutGrid, ListTree, Workflow } from 'lucide-react';
+import { Database, Code2, Files, LayoutGrid, ListTree } from 'lucide-react';
 /** Local panel routes share labels, size policy and mounting policy. */
 export const editorPanelRoutes = [
   {
@@ -29,14 +29,6 @@ export const editorPanelRoutes = [
     id: 'data',
     title: '数据',
     icon: Database,
-    minWidth: 280,
-    className: 'sidebar-content data-content',
-    lazy: true,
-  },
-  {
-    id: 'logic',
-    title: '页面逻辑',
-    icon: Workflow,
     minWidth: 280,
     className: 'sidebar-content data-content',
     lazy: true,

@@ -5,7 +5,6 @@
   "entryPageId": "purchases",
   "dependencies": {
     "components": {
-      "ui.heading": "1.0.0",
       "ui.layout": "1.0.0",
       "ui.card": "1.0.0",
       "ui.input": "1.0.0",
@@ -27,6 +26,7 @@
       "data.execute": "1.0.0",
       "form.reset": "1.0.0",
       "form.setValues": "1.0.0",
+      "form.submit": "1.0.0",
       "demo.savePurchaseOnce": "1.0.0",
       "ui.notify": "1.0.0"
     },
@@ -478,25 +478,57 @@
           "children": [
             {
               "id": "purchase-heading",
-              "component": "ui.heading",
+              "component": "ui.text",
               "props": {
-                "title": {
+                "value": {
                   "kind": "literal",
                   "value": "采购申请管理"
-                },
-                "description": {
-                  "kind": "literal",
-                  "value": "从采购明细到金额校验，集中管理每一笔申请。演示数据，刷新页面后恢复初始记录。"
                 }
               },
               "style": {
                 "fontSize": {
                   "kind": "literal",
-                  "value": 23
+                  "value": 22
+                },
+                "fontWeight": {
+                  "kind": "literal",
+                  "value": 700
+                },
+                "color": {
+                  "kind": "literal",
+                  "value": "#1e293b"
+                },
+                "lineHeight": {
+                  "kind": "literal",
+                  "value": 1.4
                 },
                 "marginBottom": {
                   "kind": "literal",
                   "value": 2
+                }
+              }
+            },
+            {
+              "id": "purchase-heading-note",
+              "component": "ui.text",
+              "props": {
+                "value": {
+                  "kind": "literal",
+                  "value": "从采购明细到金额校验，集中管理每一笔申请。演示数据，刷新页面后恢复初始记录。"
+                },
+                "tone": {
+                  "kind": "literal",
+                  "value": "muted"
+                }
+              },
+              "style": {
+                "fontSize": {
+                  "kind": "literal",
+                  "value": 13
+                },
+                "lineHeight": {
+                  "kind": "literal",
+                  "value": 1.7
                 }
               }
             },
@@ -1339,7 +1371,7 @@
                 },
                 "showFooter": {
                   "kind": "literal",
-                  "value": false
+                  "value": true
                 },
                 "width": {
                   "kind": "literal",
@@ -1945,7 +1977,14 @@
                           "value": "error"
                         }
                       }
-                    },
+                    }
+                  ]
+                }
+              ],
+              "slots": {
+                "footer": {
+                  "params": [],
+                  "children": [
                     {
                       "id": "purchase-form-actions",
                       "component": "ui.layout",
@@ -1961,12 +2000,6 @@
                         "gap": {
                           "kind": "literal",
                           "value": 8
-                        }
-                      },
-                      "style": {
-                        "marginTop": {
-                          "kind": "literal",
-                          "value": 4
                         }
                       },
                       "children": [
@@ -2011,27 +2044,41 @@
                           "id": "submit-purchase",
                           "component": "ui.button",
                           "props": {
-                            "type": {
-                              "kind": "literal",
-                              "value": "submit"
-                            },
                             "label": {
                               "kind": "expression",
                               "language": "javascript",
                               "source": "forms.purchase.isSubmitting ? \"正在提交…\" : \"提交申请\""
+                            },
+                            "variant": {
+                              "kind": "literal",
+                              "value": "primary"
                             },
                             "disabled": {
                               "kind": "expression",
                               "language": "javascript",
                               "source": "forms.purchase.isSubmitting || state.saveCommitted"
                             }
+                          },
+                          "on": {
+                            "onClick": [
+                              {
+                                "id": "submit-purchase-call",
+                                "action": "form.submit",
+                                "input": {
+                                  "formId": {
+                                    "kind": "literal",
+                                    "value": "purchase"
+                                  }
+                                }
+                              }
+                            ]
                           }
                         }
                       ]
                     }
                   ]
                 }
-              ]
+              }
             }
           ]
         }

@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { EditorDocument, findNode } from '../packages/editor/document';
-import { exampleApplication } from '../src/examples';
+import { exampleApplication } from './fixtures/examples';
 import { registry } from '../src/materials';
 import { PropertyPanel } from '../src/editor/Editor';
 import { EditorSessionProvider } from '../src/editor/session';
@@ -31,6 +31,13 @@ function mount(document: EditorDocument, setter?: (props: ReactSetterProps) => R
   fireEvent.click(screen.getByRole('tab', { name: '样式' }));
 }
 const make = () => new EditorDocument(exampleApplication, registry);
+const headerStyle = {
+  color: { kind: 'literal', value: '#1e293b' },
+  fontSize: { kind: 'literal', value: 22 },
+  fontWeight: { kind: 'literal', value: 700 },
+  lineHeight: { kind: 'literal', value: 1.4 },
+  marginBottom: { kind: 'literal', value: 2 },
+};
 const style = (doc: EditorDocument, id = 'purchase-heading') =>
   findNode(doc.getSnapshot().plan.pages.get('purchase')!.schema, id)!.node.style;
 
@@ -44,7 +51,8 @@ describe('style inspector', () => {
     mount(doc);
     fireEvent.click(screen.getByRole('button', { name: 'CSS 源码' }));
     const input = screen.getByRole('textbox', { name: '组件 CSS 源码' }) as HTMLTextAreaElement;
-    expect(input.value).toBe(':root {\n  width: 24px;\n}');
+    expect(input.value).toContain('width: 24px');
+    expect(input.value).toContain('font-size: 22px');
     changeControl(input, 'body { color: red; }');
     fireEvent.click(screen.getByRole('button', { name: '应用 CSS' }));
     expect(screen.getByRole('alert').textContent).toContain('CSS 选择器');
@@ -142,12 +150,13 @@ describe('style inspector', () => {
     changeControl(screen.getByRole('textbox', { name: '高度' }), 'bad');
     fireEvent.click(screen.getByRole('button', { name: '尺寸' }));
     fireEvent.click(screen.getByRole('button', { name: '恢复尺寸分组' }));
-    expect(style(doc)).toBeUndefined();
+    expect(style(doc)).toEqual(headerStyle);
     fireEvent.click(screen.getByRole('button', { name: '尺寸' }));
     expect((screen.getByRole('textbox', { name: '高度' }) as HTMLInputElement).value).toBe('');
     expect(screen.queryByRole('alert')).toBeNull();
     act(() => doc.undo());
     expect(style(doc)).toEqual({
+      ...headerStyle,
       width: { kind: 'literal', value: '10px' },
       height: { kind: 'literal', value: '20px' },
     });

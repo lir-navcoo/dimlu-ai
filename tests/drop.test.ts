@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { EditorDocument, findNode } from '../packages/editor/document';
 import { resolveDrop } from '../packages/editor/drop';
-import { exampleApplication } from '../src/examples';
+import { exampleApplication } from './fixtures/examples';
 import { registry } from '../src/materials';
 describe('drop resolution and read-only validation', () => {
   it('normalizes gaps for moves in both directions without shifting insertion gaps', () => {
@@ -22,7 +22,7 @@ describe('drop resolution and read-only validation', () => {
     expect(
       resolveDrop(
         page,
-        { kind: 'material', component: 'ui.heading' },
+        { kind: 'material', component: 'ui.text' },
         { kind: 'after', nodeId: 'purchase-items' },
       ).index,
     ).toBe(2);
@@ -45,7 +45,7 @@ describe('drop resolution and read-only validation', () => {
     expect(() =>
       resolveDrop(
         page,
-        { kind: 'material', component: 'ui.heading' },
+        { kind: 'material', component: 'ui.text' },
         { kind: 'after', nodeId: 'missing' },
       ),
     ).toThrow();
@@ -53,8 +53,8 @@ describe('drop resolution and read-only validation', () => {
   it('preflights the actual command path without modifying selection, listeners, IDs or redo', () => {
     const doc = new EditorDocument(exampleApplication, registry);
     const input = {
-      component: 'ui.heading',
-      props: { title: { kind: 'literal' as const, value: 'drop' } },
+      component: 'ui.text',
+      props: { value: { kind: 'literal' as const, value: 'drop' } },
     };
     doc.insertNode('composition', input);
     doc.undo();
@@ -76,7 +76,7 @@ describe('drop resolution and read-only validation', () => {
     expect(doc.getSnapshot()).toBe(before);
     expect(doc.exportJson()).toBe(exported);
     expect(notifications).toBe(0);
-    expect(doc.insertNode('composition', input)).toBe('ui-heading-2');
+    expect(doc.insertNode('composition', input)).toBe('ui-text-2');
     expect(doc.getSnapshot().canRedo).toBe(false);
   });
   it('commits one normalized drop as one undo step and preserves the subtree', () => {

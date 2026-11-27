@@ -1,6 +1,6 @@
 .editor-canvas.edit .editor-surface [data-editor-selected='true'],
 .editor-canvas.edit .editor-surface [data-editor-selected='true'] * {
-  cursor: grab;
+  cursor: default;
   touch-action: none;
 }
 .editor-canvas.edit.dragging .editor-surface,

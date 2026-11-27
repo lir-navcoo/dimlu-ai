@@ -63,7 +63,7 @@ describe('material category browsing through the actual retained palette', () =>
     fireEvent.click(all());
     expect(tileNames()).toEqual(originalTiles);
 
-    metadata('ui.heading', { category: '全部' });
+    metadata('ui.select', { category: '全部' });
     metadata('ui.text', { category: 'null' });
     metadata('ui.button', { category: ' ' });
     metadata('ui.badge', { category: '  ' });
@@ -79,9 +79,9 @@ describe('material category browsing through the actual retained palette', () =>
     ).toEqual([
       '全部',
       '布局',
-      '全部',
       'null',
       '输入',
+      '全部',
       '未命名分类',
       '未命名分类',
       '展示',
@@ -94,7 +94,7 @@ describe('material category browsing through the actual retained palette', () =>
     expect(screen.queryByRole('button', { name: '拖入 摘要' })).toBeNull();
     expect(screen.queryByRole('button', { name: '拖入 表单状态' })).toBeNull();
     fireEvent.click(category('全部'));
-    expect(tileNames()).toEqual(['拖入 标题']);
+    expect(tileNames()).toEqual(['拖入 选择器']);
     expect(selected()).toEqual([category('全部')]);
     expect(all().getAttribute('aria-pressed')).toBe('false');
     fireEvent.click(category('null'));

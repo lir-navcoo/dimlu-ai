@@ -8,7 +8,7 @@ import {
 
 export type Setter =
   | { kind: 'text'; multiline?: boolean }
-  | { kind: 'number' | 'boolean' | 'json' | 'options' | 'columns' | 'color' }
+  | { kind: 'number' | 'boolean' | 'json' | 'options' | 'columns' | 'color' | 'richText' }
   | { kind: 'select'; options: { label: string; value: Json }[] }
   | { kind: 'custom'; id: string; options?: Record<string, Json> };
 export interface PropertyMetadata {
@@ -68,7 +68,7 @@ export function validateCatalog(catalog: MaterialCatalog, registry: Registry): s
           if (!dependency || !matchesType(prop.visibleWhen.equals, dependency.type))
             errors.push(component + '.' + prop.name + ' 显示条件无效');
         }
-        const type = { text: 'string', number: 'number', boolean: 'boolean' }[
+        const type = { text: 'string', richText: 'string', number: 'number', boolean: 'boolean' }[
           prop.setter.kind as 'text' | 'number' | 'boolean'
         ];
         if (type && field.type !== type && field.type !== 'json')

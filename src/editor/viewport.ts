@@ -21,10 +21,10 @@ export type ViewportMetrics = {
   fitClamped: boolean;
 };
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
-export function resolveViewport(state: ViewportState, mode: 'edit' | 'preview'): ViewportMetrics {
+export function resolveViewport(state: ViewportState, _mode: 'edit' | 'preview'): ViewportMetrics {
   const width =
     state.preset === 'auto'
-      ? Math.max(240, mode === 'edit' ? state.availableWidth : Math.min(960, state.availableWidth))
+      ? Math.max(240, state.availableWidth)
       : state.preset === 'desktop'
         ? 1440
         : state.preset === 'tablet'
@@ -35,8 +35,7 @@ export function resolveViewport(state: ViewportState, mode: 'edit' | 'preview'):
   const fit = state.availableWidth / width;
   return {
     width,
-    scale:
-      mode === 'preview' ? 1 : state.zoom.kind === 'fit' ? clamp(fit, 0.5, 1.5) : state.zoom.scale,
+    scale: state.zoom.kind === 'fit' ? clamp(fit, 0.5, 1.5) : state.zoom.scale,
     availableWidth: state.availableWidth,
     availableHeight: state.availableHeight,
     measured: state.measured,

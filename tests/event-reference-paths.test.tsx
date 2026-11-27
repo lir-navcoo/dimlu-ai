@@ -1,7 +1,7 @@
 import type { ComponentProps } from 'react';
 import { act, cleanup, fireEvent, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { changeControl, closeActionConfig, openActionConfig } from './ui-helpers';
+import { actionOperation, changeControl, closeActionConfig, openActionConfig } from './ui-helpers';
 import {
   eventHarness,
   eventSpecialPath,
@@ -154,20 +154,20 @@ describe('node-event saved initial path ownership and draft integration', () => 
     expect(h.execute).not.toHaveBeenCalled();
   });
 
-  it('reorder ABA and deletion/index reuse permanently retire old call callbacks while fresh exact-call choice works', () => {
+  it('reorder ABA and deletion/index reuse permanently retire old call callbacks while fresh exact-call choice works', async () => {
     const h = eventHarness();
     open();
     const old = capture();
     const oldClose = held.roots.at(-1)!;
     closeActionConfig();
-    fireEvent.click(within(card(1)).getByRole('button', { name: '下移动作 1' }));
-    fireEvent.click(within(card(2)).getByRole('button', { name: '上移动作 2' }));
+    await actionOperation(1, 'down');
+    await actionOperation(2, 'up');
     let entry = h.entry();
     const write = vi.spyOn(h.session().drafts, 'write');
     act(() => old());
     expect(h.entry()).toBe(entry);
     expect(write).not.toHaveBeenCalled();
-    fireEvent.click(within(card(1)).getByRole('button', { name: '删除动作 1' }));
+    await actionOperation(1, 'delete');
     entry = h.entry();
     expect(entry.value.calls[0].id).toBe('a-notice-b');
     write.mockClear();

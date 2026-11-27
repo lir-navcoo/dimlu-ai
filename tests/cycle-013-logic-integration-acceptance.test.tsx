@@ -107,7 +107,12 @@ function setup(document = new EditorDocument(fixture, registry)) {
 }
 function bind(label: string, mode: Value['kind'], source: string) {
   changeControl(screen.getByRole('combobox', { name: `${label}取值方式` }), mode);
-  changeControl(screen.getByRole('textbox', { name: label }), source);
+  if (mode === 'literal' && (source === 'true' || source === 'false')) {
+    const checkbox = screen.getByRole('checkbox', { name: label });
+    if (checkbox.getAttribute('aria-checked') !== source) fireEvent.click(checkbox);
+  } else {
+    changeControl(screen.getByRole('textbox', { name: label }), source);
+  }
 }
 
 describe('cycle 013 independent inspector/runtime logic integration', () => {
@@ -196,9 +201,9 @@ describe('cycle 013 independent inspector/runtime logic integration', () => {
     fireEvent.click(screen.getByRole('button', { name: '恢复循环渲染' }));
     expect(document.getSnapshot()).toBe(before);
     expect(screen.getByRole('alert').textContent).toContain('scope.record');
-    expect((screen.getByRole('textbox', { name: '显示条件' }) as HTMLTextAreaElement).value).toBe(
-      'false',
-    );
+    expect(
+      screen.getByRole('checkbox', { name: '显示条件' }).getAttribute('aria-checked'),
+    ).toBe('false');
     expect((screen.getByRole('textbox', { name: '记录变量' }) as HTMLInputElement).value).toBe(
       'replacement',
     );

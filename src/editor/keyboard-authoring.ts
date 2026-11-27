@@ -13,6 +13,7 @@ import {
   topSelectedNodeIds,
 } from '../../packages/editor/selection';
 import { useAuthorGuard } from './author-guard';
+import { resizingWindows } from './author-escape';
 import { useDragDrop } from './DragDrop';
 import { errorText } from './errors';
 import { useEditorNavigation } from './session';
@@ -50,6 +51,8 @@ export const isDeleteKey = (key: string) => key === 'Delete' || key === 'Backspa
 /** Routing is deliberately broader than eligibility so denied native history keys propagate. */
 export const isHistoryKeyFamily = (event: Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey'>) =>
   (event.ctrlKey || event.metaKey) && /^[zy]$/i.test(event.key);
+export const isDuplicateKeyFamily = (event: Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey'>) =>
+  (event.ctrlKey || event.metaKey) && /^d$/i.test(event.key);
 export const isClipboardKeyFamily = (event: Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey'>) =>
   (event.ctrlKey || event.metaKey) && /^[cv]$/i.test(event.key);
 function visible(element: HTMLElement): boolean {
@@ -260,7 +263,7 @@ export function useKeyboardDelete({
   return { onKeyDown, error };
 }
 
-/** Local visual-author history only; native editors keep their own Undo/Redo. */
+/** Local visual-author history and duplication share post-command focus recovery. */
 export function useKeyboardHistory({
   document,
   snapshot,
@@ -335,7 +338,8 @@ export function useKeyboardHistory({
     );
   }, [document, snapshot, host, domain, enabled, drag, navigation, state]);
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (!isHistoryKeyFamily(event)) return;
+    const duplicate = isDuplicateKeyFamily(event);
+    if (!duplicate && !isHistoryKeyFamily(event)) return;
     const native = event.nativeEvent,
       element = host.current,
       key = event.key.toLowerCase();
@@ -348,7 +352,8 @@ export function useKeyboardHistory({
       event.ctrlKey === event.metaKey ||
       event.altKey ||
       event.repeat ||
-      (key === 'y' && event.shiftKey) ||
+      ((duplicate || key === 'y') && event.shiftKey) ||
+      (duplicate && resizingWindows.has(element.ownerDocument.defaultView!)) ||
       native.isComposing ||
       native.keyCode === 229 ||
       composing.current ||
@@ -376,6 +381,11 @@ export function useKeyboardHistory({
     const path = native.composedPath();
     if (path[0] !== target || shadowPath(path, element)) return;
     if (
+      duplicate &&
+      (!path.includes(element) || !clipboardTargetCurrent(element, target, domain, snapshot, stage))
+    )
+      return;
+    if (
       domain === 'tree' &&
       target !== element &&
       !selectedNodeIds(snapshot.selection).includes(
@@ -391,7 +401,8 @@ export function useKeyboardHistory({
     }
     const command = key === 'y' || event.shiftKey ? 'redo' : 'undo';
     const before = document.getSnapshot();
-    if (command === 'undo' ? !before.canUndo : !before.canRedo) return;
+    const ids = selectedNodeIds(before.selection);
+    if (duplicate ? !ids.length : command === 'undo' ? !before.canUndo : !before.canRedo) return;
     const attachment = domain === 'canvas' ? stage?.current() : undefined;
     if (domain === 'canvas' && stage && !attachment) return;
     let retired = false;
@@ -405,7 +416,10 @@ export function useKeyboardHistory({
     event.stopPropagation();
     try {
       navigation.retireClipboardPasteForCommand(document, domain);
-      document[command]();
+      if (duplicate) {
+        if (ids.length === 1) document.duplicateNode(before.selection.pageId, ids[0]);
+        else document.duplicateNodes(before.selection.pageId, ids);
+      } else document[command]();
       setError('');
       const after = document.getSnapshot(),
         latest = current.current,

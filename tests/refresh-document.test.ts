@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { EditorDocument } from '../packages/editor/document';
 import { refreshEditorDocument } from '../src/editor/refresh-document';
-import { exampleApplication } from '../src/examples';
+import { exampleApplication } from './fixtures/examples';
 import { registry } from '../src/materials';
 
 describe('document refresh', () => {
@@ -35,7 +35,7 @@ describe('document refresh', () => {
     // A different constructor models a document retained by React Fast Refresh.
     class OldDocument extends EditorDocument {}
     const previous = new OldDocument(exampleApplication, registry);
-    previous.setProp('composition', 'composition-heading', 'title', {
+    previous.setProp('composition', 'composition-heading', 'value', {
       kind: 'literal',
       value: '保留编辑',
     });
@@ -48,8 +48,8 @@ describe('document refresh', () => {
     expect(next.getSnapshot().selection).toEqual(previous.getSnapshot().selection);
     expect(() =>
       next.checkInsert('composition', {
-        component: 'ui.heading',
-        props: { title: { kind: 'literal', value: '新节点' } },
+        component: 'ui.text',
+        props: { value: { kind: 'literal', value: '新节点' } },
       }),
     ).not.toThrow();
     expect(() => next.checkMove('composition', 'composition-heading')).not.toThrow();

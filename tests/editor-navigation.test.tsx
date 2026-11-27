@@ -461,10 +461,14 @@ describe('editor navigation separates selection from reveal', () => {
     const toolbar = action.closest<HTMLElement>('.canvas-selection-toolbar')!;
     const outline = action.closest<HTMLElement>('[data-editor-outline]')!;
     const canvas = screen.getByLabelText('页面编辑画布').getBoundingClientRect();
-    const x = canvas.left + parseFloat(outline.style.left) + parseFloat(toolbar.style.left);
+    const right =
+      canvas.left +
+      parseFloat(outline.style.left) +
+      parseFloat(outline.style.width) -
+      parseFloat(toolbar.style.right);
     const y = canvas.top + parseFloat(outline.style.top) + parseFloat(toolbar.style.top);
-    expect(x).toBeGreaterThanOrEqual(400);
-    expect(x + parseFloat(toolbar.style.width)).toBeLessThanOrEqual(1000);
+    expect(right - parseFloat(toolbar.style.maxWidth)).toBeGreaterThanOrEqual(400);
+    expect(right).toBeLessThanOrEqual(1000);
     expect(y).toBeGreaterThanOrEqual(102);
     expect(y).toBeLessThan(500);
   });
@@ -507,10 +511,14 @@ describe('editor navigation separates selection from reveal', () => {
     expect(outline.dataset.editorOutlineInstance).toBe(firstMarker.dataset.editorInstance);
     const toolbar = copies[0].closest<HTMLElement>('.canvas-selection-toolbar')!;
     const canvas = screen.getByLabelText('页面编辑画布').getBoundingClientRect();
-    const x = canvas.left + parseFloat(outline.style.left) + parseFloat(toolbar.style.left);
+    const right =
+      canvas.left +
+      parseFloat(outline.style.left) +
+      parseFloat(outline.style.width) -
+      parseFloat(toolbar.style.right);
     const y = canvas.top + parseFloat(outline.style.top) + parseFloat(toolbar.style.top);
-    expect(x).toBeGreaterThanOrEqual(450);
-    expect(x + parseFloat(toolbar.style.width)).toBeLessThanOrEqual(750);
+    expect(right - parseFloat(toolbar.style.maxWidth)).toBeGreaterThanOrEqual(450);
+    expect(right).toBeLessThanOrEqual(750);
     expect(y).toBeGreaterThanOrEqual(150);
     expect(y + 28).toBeLessThanOrEqual(350);
   });
@@ -692,14 +700,17 @@ describe('registered panel activation through navigation', () => {
     render(<App />);
     for (const panel of designPanels)
       expect(screen.getByRole('tab', { name: panel.title })).toBeTruthy();
-    expect(document.querySelector('[aria-label="页面代码"]')).toBeNull();
+    expect(document.querySelector('[aria-label="页面动作代码编辑区"]')).toBeNull();
     expect(document.querySelector('[aria-label="页面状态管理"]')).toBeNull();
     fireEvent.change(screen.getByLabelText('搜索组件树'), {
       target: { value: '隐藏当前选中节点' },
     });
     fireEvent.click(screen.getByRole('tab', { name: '代码' }));
-    const code = screen.getByRole('textbox', { name: '页面 React 代码' }) as HTMLTextAreaElement;
-    changeControl(code, 'export default () => <');
+    const actionPanel = within(screen.getByRole('region', { name: '页面动作代码编辑区' }));
+    const draft = 'export function broken() {';
+    changeControl(actionPanel.getByRole('textbox', { name: '页面动作源码' }), draft);
+    expect(actionPanel.queryByRole('tab', { name: 'TSX' })).toBeNull();
+    expect(screen.queryByRole('textbox', { name: '页面 React 代码' })).toBeNull();
     fireEvent.click(screen.getByRole('tab', { name: '数据' }));
     fireEvent.click(screen.getByRole('tab', { name: '页面状态配置' }));
     fireEvent.click(screen.getByRole('button', { name: '新建状态' }));
@@ -715,17 +726,21 @@ describe('registered panel activation through navigation', () => {
     await frame();
     expect(screen.getByRole('tab', { name: '大纲' }).getAttribute('aria-selected')).toBe('true');
     expect((screen.getByLabelText('搜索组件树') as HTMLInputElement).value).toBe('');
-    expect(screen.getByRole('button', { name: '选中 标题 purchase-heading' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '选中 文本 purchase-heading' })).toBeTruthy();
     fireEvent.click(screen.getByRole('tab', { name: '代码' }));
-    expect(screen.getByRole('textbox', { name: '页面 React 代码' })).toBe(code);
-    expect(code.value).toBe('export default () => <');
+    const retained = screen.getByRole<HTMLTextAreaElement>('textbox', { name: '页面动作源码' });
+    expect(retained.value).toBe(draft);
     fireEvent.click(screen.getByRole('tab', { name: '数据' }));
     fireEvent.click(screen.getByRole('tab', { name: '页面状态配置' }));
     fireEvent.click(screen.getByRole('button', { name: '新建状态' }));
     // 弹窗重挂后是新控件，草稿值仍保留。
-    expect((screen.getByRole('textbox', { name: '状态 ID' }) as HTMLInputElement).value).toBe('pendingState');
-    expect((screen.getByRole('textbox', { name: '状态初始值' }) as HTMLTextAreaElement).value).toBe('{未完成');
-    expect(document.querySelector('[aria-label="页面代码"]')).not.toBeNull();
+    expect((screen.getByRole('textbox', { name: '状态 ID' }) as HTMLInputElement).value).toBe(
+      'pendingState',
+    );
+    expect((screen.getByRole('textbox', { name: '状态初始值' }) as HTMLTextAreaElement).value).toBe(
+      '{未完成',
+    );
+    expect(document.querySelector('[aria-label="页面动作代码编辑区"]')).not.toBeNull();
     expect(document.querySelector('[aria-label="页面状态管理"]')).not.toBeNull();
     fireEvent.click(screen.getByRole('button', { name: '关闭状态编辑' }));
     const undo = within(screen.getByLabelText('文档操作')).getByRole('button', { name: '↶ 撤销' });

@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { autoScrollAtPoint } from '../src/editor/DragDrop';
 import { hitTestDrop } from '../src/editor/hit-test';
 import { compileApplication } from '../packages/runtime/engine';
-import { exampleApplication } from '../src/examples';
+import { exampleApplication } from './fixtures/examples';
 import { registry } from '../src/materials';
 import App from '../src/App';
 import { seedLegacyProject } from './legacy-project';
@@ -269,7 +269,7 @@ describe('real selected canvas body dragging under non-unit presentation', () =>
       expect(scale).not.toBe(1);
       const canvas = screen.getByLabelText('页面编辑画布');
       boxes.set(canvas, new DOMRect(100, 80, 1440 * scale, 1200 * scale));
-      const heading = screen.getByRole('heading', { name: '创建采购申请' });
+      const heading = within(screen.getByLabelText('页面编辑画布')).getByText('创建采购申请');
       boxes.set(heading, new DOMRect(160.25, 140.5, 600 * scale, 40 * scale));
       fireEvent.click(heading);
       fireEvent(window, new Event('resize'));
@@ -283,7 +283,8 @@ describe('real selected canvas body dragging under non-unit presentation', () =>
       expect(parseFloat(outline.style.top)).toBeCloseTo(60.5, 8);
       expect(parseFloat(outline.style.width)).toBeCloseTo(600 * scale, 8);
       const toolbar = outline.querySelector<HTMLElement>('.canvas-selection-toolbar')!;
-      expect(toolbar.style.width).toBe('218px');
+      expect(toolbar.style.maxWidth).toBe('218px');
+      expect(toolbar.style.width).toBe('');
       expect(toolbar.closest('.canvas-scaled-surface')).toBeNull();
       const capture = vi.fn();
       Object.defineProperty(canvas, 'setPointerCapture', { value: capture });
@@ -299,7 +300,7 @@ describe('real selected canvas body dragging under non-unit presentation', () =>
       pointer(window, 'pointerup', 400, 450);
       expect(lookup).toHaveBeenLastCalledWith(400, 450);
       expect(screen.queryByLabelText('拖放操作')).toBeNull();
-      expect(screen.getByRole('heading', { name: '创建采购申请' })).toBe(heading);
+      expect(within(screen.getByLabelText('页面编辑画布')).getByText('创建采购申请')).toBe(heading);
       expect((screen.getByRole('button', { name: /撤销/ }) as HTMLButtonElement).disabled).toBe(
         true,
       );
@@ -311,9 +312,9 @@ describe('real selected canvas body dragging under non-unit presentation', () =>
         [
           ...view.container.querySelectorAll<HTMLElement>('.editor-surface > [data-editor-node]'),
         ].map((node) => node.dataset.editorNode);
-      expect(order()).toEqual(['purchase-form', 'purchase-heading']);
+      expect(order()).toEqual(['purchase-heading-note', 'purchase-form', 'purchase-heading']);
       fireEvent.click(screen.getByRole('button', { name: /撤销/ }));
-      expect(order()).toEqual(['purchase-heading', 'purchase-form']);
+      expect(order()).toEqual(['purchase-heading', 'purchase-heading-note', 'purchase-form']);
       expect((screen.getByRole('button', { name: /撤销/ }) as HTMLButtonElement).disabled).toBe(
         true,
       );

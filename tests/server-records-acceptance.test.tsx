@@ -4,7 +4,7 @@ import { compileApplication, PageRuntime } from '../packages/runtime/engine';
 import { RuntimeRenderer } from '../packages/react-runtime/Renderer';
 import { registry, materials } from '../src/materials';
 import { createRecordsTransports, type RecordEntry } from '../src/records-transports';
-import { serverRecordsExample } from '../src/server-records-example';
+import { serverRecordsExample } from './fixtures/server-records-example';
 import { TipProvider } from '../src/ui/primitives';
 import type { ApplicationSchema, Json } from '../packages/schema/types';
 import { changeControl } from './ui-helpers';

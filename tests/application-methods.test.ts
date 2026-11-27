@@ -7,7 +7,7 @@ import {
   executeApplicationMethod,
 } from '../packages/runtime/application-methods';
 import { validateApplication } from '../packages/schema/validate';
-import { actionExample } from '../src/action-example';
+import { actionExample } from './fixtures/action-example';
 import { registry } from '../src/materials';
 
 describe('application custom methods', () => {

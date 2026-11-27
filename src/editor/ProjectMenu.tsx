@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react';
 import { Menu } from '@base-ui/react/menu';
 import { Dialog } from '@base-ui/react/dialog';
-import { HardDrive, ChevronDown } from 'lucide-react';
+import { HardDrive, ChevronDown, CircleAlert } from 'lucide-react';
+import { useDirtyDraftCount } from './session';
 import { Button, Tip } from '../ui/primitives';
 import type { ProjectStorage, ProjectStorageSnapshot } from '../../packages/editor/project-storage';
 
@@ -22,6 +23,8 @@ export function ProjectMenu({
 }) {
   const [confirmation, setConfirmation] = useState<'replace' | 'reset' | null>(null);
   const cancel = useRef<HTMLButtonElement>(null);
+  const dirtyDrafts = useDirtyDraftCount();
+  const draftLabel = `${dirtyDrafts} 项未应用草稿`;
   const label =
     snapshot.status === 'saved'
       ? '已保存'
@@ -34,12 +37,23 @@ export function ProjectMenu({
     <>
       <div className={`project-storage ${snapshot.error ? 'has-error' : ''}`}>
         <Menu.Root>
-          <Tip content="本地项目与保存状态" side="bottom">
+          <Tip
+            content={dirtyDrafts ? `本地项目 · ${draftLabel}` : '本地项目与保存状态'}
+            side="bottom"
+          >
             <Menu.Trigger className="ui-button" aria-label="本地项目菜单">
               <HardDrive size={14} />
               <span role="status" aria-label="本地保存状态">
                 {label}
               </span>
+              {dirtyDrafts > 0 && (
+                <CircleAlert
+                  size={13}
+                  className="project-drafts-indicator"
+                  role="img"
+                  aria-label={draftLabel}
+                />
+              )}
               <ChevronDown size={12} />
             </Menu.Trigger>
           </Tip>
@@ -47,6 +61,7 @@ export function ProjectMenu({
             <Menu.Positioner sideOffset={4} className="menu-positioner">
               <Menu.Popup className="ui-menu project-menu">
                 <p className="editor-note">项目定义自动保存在当前浏览器</p>
+                {dirtyDrafts > 0 && <p className="project-drafts-indicator">{draftLabel}</p>}
                 {snapshot.error && (
                   <p role="alert" className="project-error">
                     {snapshot.error}
@@ -54,8 +69,12 @@ export function ProjectMenu({
                   </p>
                 )}
                 {!snapshot.protected && (
-                  <Menu.Item className="ui-menu-item" onClick={project.retry}>
-                    重试保存当前项目
+                  <Menu.Item
+                    className="ui-menu-item"
+                    aria-keyshortcuts="Control+S Meta+S"
+                    onClick={snapshot.status === 'error' ? project.retry : project.flush}
+                  >
+                    {snapshot.status === 'error' ? '重试保存当前项目' : '立即保存项目'}
                   </Menu.Item>
                 )}
                 {snapshot.raw !== null && (

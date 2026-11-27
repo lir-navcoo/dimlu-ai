@@ -41,11 +41,9 @@ describe('editor router', () => {
     expect(parseEditorLocation(window.location)).toEqual({ pageId: 'orders', panel: 'materials' });
   });
 
-  it('round trips the page logic panel', () => {
-    const path = editorRoutePath('orders', 'logic');
-    expect(path).toBe('/editor/page/orders?panel=logic');
-    window.history.replaceState({}, '', path);
-    expect(parseEditorLocation(window.location)).toEqual({ pageId: 'orders', panel: 'logic' });
+  it('falls back to outline for the retired page logic panel', () => {
+    window.history.replaceState({}, '', '/editor/page/orders?panel=logic');
+    expect(parseEditorLocation(window.location)).toEqual({ pageId: 'orders', panel: 'outline' });
   });
 
   it('falls back to structure for an unknown panel', () => {

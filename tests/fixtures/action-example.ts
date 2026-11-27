@@ -4,7 +4,8 @@ import type {
   Json,
   NodeSchema,
   Value,
-} from '../packages/schema/types';
+} from '../../packages/schema/types';
+import { pageHeader } from '../../src/example-header.ts';
 const literal = (value: Json): Value => ({ kind: 'literal', value });
 const expression = (source: string): Value => ({
   kind: 'expression',
@@ -41,7 +42,7 @@ export const actionExample: ApplicationSchema = {
   dependencies: {
     components: Object.fromEntries(
       [
-        'ui.heading',
+        'ui.text',
         'ui.table',
         'ui.button',
         'ui.drawer',
@@ -103,16 +104,11 @@ export const actionExample: ApplicationSchema = {
         },
       ],
       children: [
-        {
-          id: 'heading',
-          component: 'ui.heading',
-          props: {
-            title: literal('记录管理'),
-            description: literal(
-              '点击表格中的编辑。姓名包含“失败”可体验服务错误；右侧事件面板可修改动作。',
-            ),
-          },
-        },
+        ...pageHeader(
+          'heading',
+          '记录管理',
+          '点击表格中的编辑。姓名包含“失败”可体验服务错误；右侧事件面板可修改动作。',
+        ),
         {
           id: 'records-table',
           component: 'ui.table',

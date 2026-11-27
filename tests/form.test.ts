@@ -110,6 +110,35 @@ describe('form kernel', () => {
     rt.dispose();
   });
 
+  it('reacts to booleans from page state and the same form', () => {
+    const app = structuredClone(exampleApplication);
+    const page = app.pages[0];
+    const definition = page.forms![0];
+    page.state.push({ id: 'locked', type: 'boolean', initial: false });
+    definition.fields.push({
+      id: 'showName',
+      path: ['showName'],
+      label: '显示名称',
+      type: 'boolean',
+      initial: false,
+    });
+    definition.fields[0].when = { kind: 'fieldRef', formId: definition.id, fieldId: 'showName' };
+    definition.fields[0].disabled = { kind: 'stateRef', stateId: 'locked' };
+    const rt = new PageRuntime(compileApplication(app, registry), 'purchase');
+    const form = rt.getForm(definition.id);
+    expect(form.getSnapshot().fields.name.visible).toBe(false);
+    form.setValue('showName', true);
+    expect(form.getSnapshot().fields.name).toMatchObject({ visible: true, disabled: false });
+    form.setValue('name', '设备');
+    rt.setState('locked', true);
+    expect(form.getSnapshot().fields.name).toMatchObject({ visible: true, disabled: true });
+    expect(form.getSubmitValues().name).toBe('设备');
+    form.setValue('showName', false);
+    expect(form.getSubmitValues()).not.toHaveProperty('name');
+    expect(form.getSnapshot().values.name).toBe('设备');
+    rt.dispose();
+  });
+
   it('supports nested data paths independent of stable field IDs and refreshes rules on page state changes', () => {
     const app = structuredClone(exampleApplication);
     const field = app.pages[0].forms![0].fields[0];
@@ -273,6 +302,23 @@ describe('form schema contracts', () => {
       ]),
     );
   });
+  it('rejects known non-boolean references and invalid scopes in standalone field conditions', () => {
+    const app = structuredClone(exampleApplication);
+    const field = app.pages[0].forms![0].fields[0];
+    const validateCondition = (condition: Value) => {
+      field.when = condition;
+      return validateApplication(app, registry)
+        .filter((issue) => issue.path.endsWith('/fields/0/when'))
+        .map((issue) => issue.code);
+    };
+    expect(validateCondition({ kind: 'stateRef', stateId: 'result' })).toContain('logic.type');
+    expect(
+      validateCondition({ kind: 'fieldRef', formId: 'purchase', fieldId: 'quantity' }),
+    ).toContain('logic.type');
+    expect(validateCondition(expression('event.checked'))).toContain('event.scope');
+    expect(validateCondition(expression('scope.row.visible'))).toContain('form.rule');
+  });
+
   it('rejects conflicting bindings, incompatible adapters and cross-form rules', () => {
     const app = structuredClone(exampleApplication),
       page = app.pages[0];
@@ -281,7 +327,7 @@ describe('form schema contracts', () => {
       fields: [{ id: 'x', path: ['x'], type: 'string', label: 'X', initial: '' }],
     });
     page.forms![0].fields[0].when = expression("forms.other.values.x === ''");
-    const node = page.children[1].children![0];
+    const node = page.children[2].children![0];
     node.props.value = { kind: 'literal', value: 'duplicate source' };
     node.field!.fieldId = 'quantity';
     const codes = validateApplication(app, registry).map((i) => i.code);

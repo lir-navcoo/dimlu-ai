@@ -1,8 +1,13 @@
 import Ajv from 'ajv';
 import { applicationJsonSchema } from './schema';
-import { type ApplicationSchema, type Issue } from './types';
+import {
+  matchesType,
+  type ApplicationSchema,
+  type Issue,
+} from './types';
 import { validatePage } from './validate-page';
 import type { Registry } from '../runtime/registry';
+import { compileValue } from '../runtime/expression';
 import { withApplicationMethods } from '../runtime/application-methods';
 
 const ajv = new Ajv({ allErrors: true, strict: false });
@@ -41,6 +46,35 @@ export function validateApplication(input: unknown, registry: Registry): Issue[]
           'dependency.version',
           `${id} 需要 ${version}，实际 ${entries[id].version}`,
         );
+    }
+  }
+  const sharedIds = new Set<string>();
+  for (const [index, source] of (app.sharedDataSources ?? []).entries()) {
+    const at = `/sharedDataSources/${index}`;
+    if (sharedIds.has(source.id)) add(at, 'source.id', `重复共享数据源 ID ${source.id}`);
+    sharedIds.add(source.id);
+    const contract = registry.transports?.[source.transport];
+    if (!contract) add(`${at}/transport`, 'transport.missing', `未注册 transport ${source.transport}`);
+    if (!Object.hasOwn(app.dependencies.transports ?? {}, source.transport))
+      add(`${at}/dependency`, 'dependency.undeclared', `transport ${source.transport} 未声明依赖`);
+    if (contract && !matchesType(source.initial, contract.output))
+      add(`${at}/initial`, 'source.type', `初始值需要 ${contract.output}`);
+    for (const [key, binding] of Object.entries(source.input)) {
+      if (contract) {
+        if (!Object.hasOwn(contract.input, key))
+          add(`${at}/input/${key}`, 'source.input', `未知数据源参数 ${key}`);
+        else if (
+          binding.kind === 'literal' &&
+          !matchesType(binding.value, contract.input[key].type)
+        )
+          add(`${at}/input/${key}`, 'source.type', `数据源参数 ${key} 类型错误`);
+      }
+      try {
+        if (compileValue(binding).usesScope)
+          add(`${at}/input/${key}`, 'source.scope', '共享数据源 input 不能读取 scope');
+      } catch {
+        /* shape validation already rejected malformed bindings */
+      }
     }
   }
   app.pages.forEach((page, pageIndex) => {

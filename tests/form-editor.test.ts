@@ -131,6 +131,39 @@ describe('form authoring commands', () => {
     restored.importJson(doc.exportJson());
     expect(restored.exportJson()).toBe(doc.exportJson());
   });
+  it('edits field conditions atomically, validates them and preserves history and import/export', () => {
+    const doc = make();
+    const when = { kind: 'stateRef' as const, stateId: 'enabled' };
+    const disabled = { kind: 'literal' as const, value: true };
+    const settings = { label: '姓名', initial: '', rules: nameField.rules };
+    doc.updateField('page', 'model', 'name', { ...settings, when, disabled });
+    expect(page(doc).forms![0].fields[0]).toMatchObject({ when, disabled });
+    const before = doc.getSnapshot();
+    expect(() =>
+      doc.updateField('page', 'model', 'name', {
+        ...settings,
+        when: { kind: 'literal', value: 'yes' },
+        disabled: undefined,
+      }),
+    ).toThrow(/boolean/);
+    expect(doc.getSnapshot()).toBe(before);
+    const restored = make();
+    restored.importJson(doc.exportJson());
+    expect(restored.exportJson()).toBe(doc.exportJson());
+    doc.undo();
+    expect(page(doc).forms![0].fields[0]).not.toHaveProperty('when');
+    expect(page(doc).forms![0].fields[0]).not.toHaveProperty('disabled');
+    doc.redo();
+    expect(page(doc).forms![0].fields[0]).toMatchObject({ when, disabled });
+
+    doc.updateField('page', 'model', 'name', { ...settings, when: undefined });
+    expect(page(doc).forms![0].fields[0]).not.toHaveProperty('when');
+    expect(page(doc).forms![0].fields[0].disabled).toEqual(disabled);
+    doc.undo();
+    expect(page(doc).forms![0].fields[0]).toMatchObject({ when, disabled });
+    doc.redo();
+    expect(page(doc).forms![0].fields[0]).not.toHaveProperty('when');
+  });
   it('rejects deleting bound fields and forms, allows unused deletion and protects the final field', () => {
     const doc = make();
     doc.bindField('page', 'name-input', { formId: 'model', fieldId: 'name' });

@@ -306,6 +306,7 @@ describe('053 explicit DataPanel definition authoring permission', () => {
       const publish = vi.fn(),
         stop = h.author.subscribe(publish);
       const clear = vi.spyOn(h.session().drafts, 'clear');
+      expect(draft.save).toHaveProperty('disabled', true);
       fireEvent.click(draft.save);
       submit(retained);
       expect(held.controls.get(draft.label)?.readOnly).toBe(true);

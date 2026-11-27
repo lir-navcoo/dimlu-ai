@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState, type MouseEventHandler, type ReactNode } from 'react';
 import { Dialog } from '@base-ui/react/dialog';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, ImageOff } from 'lucide-react';
 import { Button, Checkbox, Select, Tip } from '../ui/primitives';
@@ -70,6 +70,7 @@ export function ImageMaterial({
   height = 160,
   fit = 'cover',
   preview = false,
+  onClick,
   style,
 }: {
   style?: React.CSSProperties;
@@ -79,6 +80,7 @@ export function ImageMaterial({
   height?: number;
   fit?: 'cover' | 'contain' | 'fill';
   preview?: boolean;
+  onClick?: MouseEventHandler<HTMLDivElement>;
 }) {
   const [failed, setFailed] = useState('');
   const container = runtimePortalContainer(useRuntimeDomEnvironment());
@@ -96,6 +98,7 @@ export function ImageMaterial({
       className="material-image"
       style={{ width, maxWidth: '100%', height, ...style }}
       {...materialStyleTarget(style)}
+      onClick={onClick}
     >
       {preview && src && failed !== src ? (
         <Dialog.Root>
@@ -121,18 +124,21 @@ export function DescriptionsMaterial({
   items,
   columns = 2,
   bordered = true,
+  onClick,
   style,
 }: {
   style?: React.CSSProperties;
   items: { label: string; value: unknown }[];
   columns?: number;
   bordered?: boolean;
+  onClick?: MouseEventHandler<HTMLElement>;
 }) {
   return (
     <dl
       className={`material-descriptions ${bordered ? 'bordered' : ''}`}
       style={{ '--description-columns': columns, ...style } as React.CSSProperties}
       {...materialStyleTarget(style)}
+      onClick={onClick}
     >
       {items.map((item, index) => (
         <div key={index}>
@@ -181,6 +187,7 @@ export function ListMaterial({
   error,
   slots = {},
   onRetry,
+  onClick,
   style,
 }: {
   data: Record<string, unknown>[];
@@ -191,6 +198,7 @@ export function ListMaterial({
   error?: string;
   slots?: SlotRenderers;
   onRetry?: () => void;
+  onClick?: MouseEventHandler<HTMLDivElement>;
 }) {
   const hasItem = useHasSlot('item', slots),
     design = useDesignMode();
@@ -200,6 +208,7 @@ export function ListMaterial({
       style={style}
       {...materialStyleTarget(style)}
       aria-busy={loading || undefined}
+      onClick={onClick}
     >
       <DataStatus loading={loading} error={error} empty={!data.length} onRetry={onRetry}>
         <div
@@ -244,6 +253,7 @@ export function PaginationMaterial({
   onPaginationChange,
   disabled = false,
   showSizeChanger = true,
+  onClick,
   style,
 }: {
   style?: React.CSSProperties;
@@ -255,6 +265,7 @@ export function PaginationMaterial({
   onPaginationChange?: (pagination: { page: number; pageSize: number }) => void;
   disabled?: boolean;
   showSizeChanger?: boolean;
+  onClick?: MouseEventHandler<HTMLElement>;
 }) {
   const [current, change] = useMaterialValue(
       page,
@@ -276,6 +287,7 @@ export function PaginationMaterial({
       style={style}
       {...materialStyleTarget(style)}
       aria-label="数据分页"
+      onClick={onClick}
     >
       <span>共 {total} 条</span>
       <Tip content="上一页">
@@ -358,6 +370,7 @@ export function TableMaterial({
   onRowClick,
   onRetry,
   slots = {},
+  onClick,
   style,
 }: {
   data: Row[];
@@ -377,6 +390,7 @@ export function TableMaterial({
   onRowClick?: (row: Row) => void;
   onRetry?: () => void;
   slots?: SlotRenderers;
+  onClick?: MouseEventHandler<HTMLDivElement>;
 }) {
   const hasCell = useHasSlot('cell', slots),
     hasActions = useHasSlot('actions', slots),
@@ -415,6 +429,7 @@ export function TableMaterial({
       style={style}
       {...materialStyleTarget(style)}
       aria-busy={loading || undefined}
+      onClick={onClick}
     >
       <DataStatus loading={loading} error={error} empty={!data.length} onRetry={onRetry}>
         <div className="material-table-scroll">
@@ -603,6 +618,7 @@ export const dataContracts: Contracts = {
       fit: textProp,
       preview: boolProp,
     },
+    events: ['onClick'],
     validateProps: (props) => [
       ...enumErrors(props, { fit: ['cover', 'contain', 'fill'] }),
       ...positiveInteger(props, ['width', 'height'], 4000),
@@ -629,6 +645,7 @@ export const dataContracts: Contracts = {
   'ui.descriptions': {
     version: '1.0.0',
     props: { items: { ...arrayProp, required: true }, columns: numberProp, bordered: boolProp },
+    events: ['onClick'],
     validateProps: (props) => [
       ...positiveInteger(props, ['columns'], 4),
       ...('items' in props &&
@@ -644,7 +661,7 @@ export const dataContracts: Contracts = {
     version: '1.0.0',
     props: { ...dataProps, columns: numberProp },
     slots: { item: ['item', 'index'] },
-    events: ['onRetry'],
+    events: ['onRetry', 'onClick'],
     validateProps: (props) => [
       ...rowsErrors({ rowKey: 'id', ...props }),
       ...positiveInteger(props, ['columns'], 4),
@@ -659,7 +676,7 @@ export const dataContracts: Contracts = {
       disabled: boolProp,
       showSizeChanger: boolProp,
     },
-    events: ['onPageChange', 'onPageSizeChange', 'onPaginationChange'],
+    events: ['onPageChange', 'onPageSizeChange', 'onPaginationChange', 'onClick'],
     validateProps: (props) => [
       ...positiveInteger(props, ['page', 'pageSize'], 1000000),
       ...('total' in props && (!Number.isInteger(props.total) || Number(props.total) < 0)
@@ -679,7 +696,7 @@ export const dataContracts: Contracts = {
       pageSize: numberProp,
       paginate: boolProp,
     },
-    events: ['onSelectionChange', 'onSortChange', 'onRowClick', 'onRetry'],
+    events: ['onSelectionChange', 'onSortChange', 'onRowClick', 'onRetry', 'onClick'],
     slots: { cell: ['row', 'column', 'value', 'index'], actions: ['row', 'index'] },
     validateProps: (props) => [
       ...rowsErrors({ rowKey: 'id', ...props }),

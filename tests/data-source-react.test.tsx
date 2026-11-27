@@ -3,7 +3,7 @@ import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { compileApplication, PageRuntime } from '../packages/runtime/engine';
 import { RuntimeRenderer, useDataSource } from '../packages/react-runtime/Renderer';
 import { registry, materials } from '../src/materials';
-import { dataSourceExample } from '../src/data-source-example';
+import { dataSourceExample } from './fixtures/data-source-example';
 afterEach(cleanup);
 describe('data source React integration', () => {
   it('renders the mock query through dataRef and sources bindings only after preview activation', async () => {

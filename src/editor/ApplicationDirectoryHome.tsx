@@ -4,15 +4,18 @@ import { Dialog } from '@base-ui/react/dialog';
 import type { ApplicationDirectory } from '../../packages/editor/application-directory';
 import type { ApplicationDirectoryEntry } from '../../packages/editor/application-directory';
 import { Button } from '../ui/primitives';
+import { BrandLogo } from '../ui/BrandLogo';
 import './page-management.css';
 
 export function ApplicationDirectoryHome({
   directory,
   onSelect,
+  onDuplicate,
   onDelete,
 }: {
   directory: ApplicationDirectory;
   onSelect: (appId: string) => void;
+  onDuplicate: (appId: string) => string;
   onDelete: (appId: string, replacementAppId?: string) => void;
 }) {
   const [applications, setApplications] = useState(() => directory.getApplications());
@@ -31,7 +34,7 @@ export function ApplicationDirectoryHome({
   };
   const duplicate = (application: ApplicationDirectoryEntry) => {
     try {
-      const id = directory.duplicateApplication(application.key);
+      const id = onDuplicate(application.key);
       onSelect(id);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
@@ -53,8 +56,7 @@ export function ApplicationDirectoryHome({
     <main className="page-management-home">
       <header className="page-management-header">
         <div className="brand">
-          <span className="brand-mark">d</span>
-          <strong>dimlu</strong>
+          <BrandLogo className="brand-logo" />
         </div>
         <div>
           <h1>我的应用</h1>

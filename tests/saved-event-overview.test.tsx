@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { findNode } from '../packages/editor/document';
 import { registry } from '../src/materials';
 import { purchaseManagementExample } from '../src/purchase-management-example';
-import { changeControl, closeActionConfig, openActionConfig } from './ui-helpers';
+import { actionOperation, changeControl, closeActionConfig, openActionConfig } from './ui-helpers';
 import {
   emptyEventApplication,
   overviewHarness,
@@ -26,7 +26,7 @@ const assertCount = (event: string, count: number) => {
 };
 
 describe('saved component event overview independent integration', () => {
-  it('discovers nonselected stock table/pagination chains while keeping first empty event and real Select values', () => {
+  it('discovers nonselected stock table/pagination chains while keeping first empty event and real Select values', async () => {
     const query = vi.spyOn(registry.transports!['demo.purchasesQuery'], 'execute');
     const action = vi.spyOn(registry.actions['state.set'], 'execute');
     const h = overviewHarness();
@@ -73,7 +73,7 @@ describe('saved component event overview independent integration', () => {
     expect(action).not.toHaveBeenCalled();
   });
 
-  it('excludes unapplied additions/deletions, retains event drafts, and derives count after one save and Undo/Redo', () => {
+  it('excludes unapplied additions/deletions, retains event drafts, and derives count after one save and Undo/Redo', async () => {
     const h = overviewHarness();
     const original = overviewNode(h.author).on!;
     fireEvent.click(screen.getByRole('button', { name: '添加动作' }));
@@ -82,11 +82,11 @@ describe('saved component event overview independent integration', () => {
     expect(savedRow('onSelectionChange')).toBeUndefined();
     expect(selector().textContent).toContain('未配置');
     selectEvent('onSortChange');
-    fireEvent.click(screen.getByRole('button', { name: '删除动作 1' }));
+    await actionOperation(1, 'delete');
     expect(screen.getAllByRole('region', { name: /^动作 \d+$/ })).toHaveLength(5);
     assertCount('onSortChange', 6);
     selectEvent('onRetry');
-    fireEvent.click(screen.getByRole('button', { name: '删除动作 1' }));
+    await actionOperation(1, 'delete');
     assertCount('onRetry', 3);
     selectEvent('onSortChange');
     expect(screen.getAllByRole('region', { name: /^动作 \d+$/ })).toHaveLength(5);
@@ -152,7 +152,7 @@ describe('saved component event overview independent integration', () => {
     assertCount('onSortChange', 6);
   });
 
-  it('distinguishes allowed empty chains from managed-field and no-event components without misleading saved entries', () => {
+  it('distinguishes allowed empty chains from managed-field components now that every material declares onClick', () => {
     const h = overviewHarness(emptyEventApplication(), 'page', 'absent');
     for (const nodeId of ['absent', 'empty']) {
       act(() => h.author.select('page', nodeId));
@@ -162,12 +162,19 @@ describe('saved component event overview independent integration', () => {
       expect(selector().textContent).toContain('未配置');
     }
     act(() => h.author.select('page', 'managed'));
-    expect(screen.queryByRole('region', { name: '已保存事件' })).toBeNull();
-    expect(screen.queryByRole('combobox', { name: '组件事件' })).toBeNull();
-    expect(screen.getByText('change / blur 事件由表单字段适配器管理。')).toBeTruthy();
+    // Managed fields still delegate change/blur to the form adapter, but every component now
+    // exposes onClick, so the panel lists the click event instead of hiding the section.
+    expect(within(overview()).getByText('暂无已保存事件动作。')).toBeTruthy();
+    expect(rows()).toHaveLength(0);
+    expect(selector().textContent).toContain('onClick');
+    expect(selector().textContent).toContain('未配置');
     act(() => h.author.select('page', 'none'));
-    expect(screen.queryByRole('region', { name: '已保存事件' })).toBeNull();
-    expect(screen.getByText('此物料没有可配置事件。')).toBeTruthy();
+    // ui.text used to be the no-event component; with universal click support it now
+    // presents the same empty overview as the others. The "此物料没有可配置事件" branch
+    // remains in ActionPanel as a defensive path for future materials without events.
+    expect(within(overview()).getByText('暂无已保存事件动作。')).toBeTruthy();
+    expect(rows()).toHaveLength(0);
+    expect(selector().textContent).toContain('onClick');
     expect(h.author.getSnapshot().canUndo).toBe(false);
   });
 });

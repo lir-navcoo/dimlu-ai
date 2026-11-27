@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { compileApplication } from '../packages/runtime/engine';
 import { applicationRoutePath, resolveApplicationRoute } from '../packages/runtime/router';
-import { exampleApplication } from '../src/examples';
+import { exampleApplication } from './fixtures/examples';
 import { registry } from '../src/materials';
 
 const plan = compileApplication(exampleApplication, registry);

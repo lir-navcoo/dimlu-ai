@@ -46,7 +46,7 @@ describe('workbench organization and session state', () => {
     expect(screen.queryByLabelText('组件类型')).toBeNull();
     expect(screen.queryByRole('button', { name: '＋ 添加组件' })).toBeNull();
     const materials = document.querySelectorAll('.material-tile');
-    expect(materials.length).toBe(31);
+    expect(materials.length).toBe(37);
     expect(
       [...materials].every(
         (tile) =>
@@ -59,11 +59,11 @@ describe('workbench organization and session state', () => {
     render(<App />);
     selectPage('composition');
     for (let i = 0; i < 3; i++)
-      insertMaterial('标题', { kind: 'inside', parentId: 'person-card', slot: 'footer' });
+      insertMaterial('文本', { kind: 'inside', parentId: 'person-card', slot: 'footer' });
     expect(screen.getByRole('tab', { name: '组件' }).getAttribute('aria-selected')).toBe(
       'true',
     );
-    const headings = screen.getAllByRole('heading', { name: '新的标题' });
+    const headings = within(screen.getByLabelText('页面编辑画布')).getAllByText('新的文本');
     expect(headings).toHaveLength(3);
     expect(headings.every((heading) => heading.closest('.material-card footer'))).toBe(true);
     expect(screen.queryByLabelText('插入位置')).toBeNull();
@@ -75,21 +75,21 @@ describe('workbench organization and session state', () => {
   it('retains an invalid expression draft after node changes and reparenting to the mobile inspector', () => {
     seedLegacyProject();
     render(<App />);
-    changeControl(screen.getByLabelText('标题绑定方式'), 'expression');
-    changeControl(screen.getByRole('textbox', { name: '标题' }), 'state.');
+    changeControl(screen.getByLabelText('文本内容绑定方式'), 'expression');
+    changeControl(screen.getByRole('textbox', { name: '文本内容' }), 'state.');
     selectName();
-    fireEvent.click(screen.getByRole('button', { name: '选中 标题 purchase-heading' }));
-    expect((screen.getByRole('textbox', { name: '标题' }) as HTMLTextAreaElement).value).toBe(
+    fireEvent.click(screen.getByRole('button', { name: '选中 文本 purchase-heading' }));
+    expect((screen.getByRole('textbox', { name: '文本内容' }) as HTMLTextAreaElement).value).toBe(
       'state.',
     );
     resize(390);
     fireEvent.click(screen.getByRole('button', { name: '打开属性检查器' }));
-    expect((screen.getByRole('textbox', { name: '标题' }) as HTMLTextAreaElement).value).toBe(
+    expect((screen.getByRole('textbox', { name: '文本内容' }) as HTMLTextAreaElement).value).toBe(
       'state.',
     );
-    expect(screen.getByRole('heading', { name: '创建采购申请', hidden: true })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '标题放弃草稿' }));
-    expect((screen.getByRole('textbox', { name: '标题' }) as HTMLInputElement).value).toBe(
+    expect(within(screen.getByLabelText('页面编辑画布')).getByText('创建采购申请')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '文本内容放弃草稿' }));
+    expect((screen.getByRole('textbox', { name: '文本内容' }) as HTMLInputElement).value).toBe(
       '创建采购申请',
     );
   });
@@ -114,7 +114,7 @@ describe('workbench organization and session state', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '打开页面设计' }));
     expect(field.getAttribute('aria-pressed')).toBe('true');
-    fireEvent.click(screen.getByRole('button', { name: '选中 标题 purchase-heading' }), {
+    fireEvent.click(screen.getByRole('button', { name: '选中 文本 purchase-heading' }), {
       ctrlKey: true,
     });
     expect(screen.queryByRole('button', { name: /^编辑属性 / })).toBeNull();
@@ -131,19 +131,18 @@ describe('workbench organization and session state', () => {
     changeControl(screen.getByLabelText('规则 1 错误提示'), '请输入联系人');
     fireEvent.click(screen.getByRole('button', { name: '关闭字段设置' }));
     showStructure();
-    fireEvent.click(screen.getByRole('button', { name: '选中 标题 purchase-heading' }));
-    changeControl(screen.getByRole('textbox', { name: '标题' }), '与字段无关的修改');
+    fireEvent.click(screen.getByRole('button', { name: '选中 文本 purchase-heading' }));
+    changeControl(screen.getByRole('textbox', { name: '文本内容' }), '与字段无关的修改');
     showFormModels();
     fireEvent.click(screen.getByRole('button', { name: '编辑字段 purchase/name' }));
     expect((screen.getByLabelText('字段名称') as HTMLInputElement).value).toBe('未保存联系人');
     resize(390);
-    fireEvent.click(screen.getByRole('button', { name: '打开页面设计' }));
     expect((screen.getByLabelText('规则 1 错误提示') as HTMLInputElement).value).toBe(
       '请输入联系人',
     );
     fireEvent.click(screen.getByRole('button', { name: '保存字段设置' }));
     expect(screen.queryByText('有未保存草稿')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: '关闭页面设计' }));
+    resize(1280);
     expect(screen.getByRole('textbox', { name: '未保存联系人' })).toBeTruthy();
   });
 
@@ -175,7 +174,7 @@ describe('workbench organization and session state', () => {
     const draft = source.value + '\n ';
     changeControl(source, draft);
     fireEvent.click(screen.getByRole('button', { name: '关闭调试区' }));
-    changeControl(screen.getByRole('textbox', { name: '标题' }), '文档新版本');
+    changeControl(screen.getByRole('textbox', { name: '文本内容' }), '文档新版本');
     fireEvent.click(screen.getByRole('tab', { name: 'Schema' }));
     expect((screen.getByLabelText('应用定义 · JSON') as HTMLTextAreaElement).value).toBe(draft);
     expect((screen.getByRole('button', { name: '校验并应用' }) as HTMLButtonElement).disabled).toBe(
@@ -278,7 +277,7 @@ describe('workbench organization and session state', () => {
     fireEvent.click(screen.getByRole('button', { name: '折叠 purchase-form' }));
     expect(screen.queryByRole('button', { name: '选中 文本输入 purchase-name' })).toBeNull();
     changeControl(screen.getByLabelText('搜索组件树'), '创建采购');
-    expect(screen.getByRole('button', { name: '选中 标题 purchase-heading' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '选中 文本 purchase-heading' })).toBeTruthy();
     changeControl(screen.getByLabelText('搜索组件树'), 'purchase-items');
     expect(screen.getByRole('button', { name: '选中 采购明细 purchase-items' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '定位当前节点' }));
@@ -307,7 +306,6 @@ describe('workbench organization and session state', () => {
     fireEvent.click(screen.getByRole('button', { name: '编辑字段 purchase/approvalReason' }));
     changeControl(screen.getByLabelText('字段名称'), '待保存说明');
     resize(390);
-    fireEvent.click(screen.getByRole('button', { name: '打开页面设计' }));
     expect((screen.getByLabelText('字段名称') as HTMLInputElement).value).toBe('待保存说明');
     resize(1280);
     expect((screen.getByLabelText('字段名称') as HTMLInputElement).value).toBe('待保存说明');

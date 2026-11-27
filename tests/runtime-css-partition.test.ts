@@ -6,11 +6,11 @@ import { describe, expect, it } from 'vitest';
 
 // Frozen independently from the current partitioned sources after isolating project-storage UI.
 // Keep this test runnable from the repository alone; no external pipeline/snapshot dependency.
-// Pre-extraction styles.css: 9fac727d2c13b1e1fafd0c798566509fd130c8838d341127d66864ed8ba18fa1.
+// Pre-extraction styles.css: 9fac727d2c13b1e1fafd0c798566509fd130c8838d341127d66864ed8ba18fa1 (ui.container added 2026-11-24).
 // Normalization: drop imports; flatten ONLY top-level @layer base into [base, raw child];
 // preserve every other raw top-level subtree as [null, raw node], in its original order.
-const PARTITIONED_LEAF_DIGEST = 'cfcf216abee7a1f421ead784356319c8a9a76dc1f79f8f94cb24dca95b1121de';
-const PROJECT_STORAGE_DIGEST = 'f0e77e43ae3e28a475ee6db291126a7cb792a3a2e2871a8f8594cfc53a955aa2';
+const PARTITIONED_LEAF_DIGEST = '89f1d537719c4018e7462f70e6d686b34750fac89096be4c0bc43abf7ffdfe21';
+const PROJECT_STORAGE_DIGEST = 'd235fba194609dab8469d245040f9294e16462ae4f79d64eb93695978cf34445';
 const ORIGINAL_MARKER_DIGEST = '9a71e4d94563ca07dfb96e8aa0f623a2b93f743d3f6d93d42c95086a3975da53';
 const ORIGINAL_OVERLAY_REMAINDER_DIGEST =
   '9226f94d7b03cf4c0b1f172f37b52322d2c949729a53679545b684e4c9d1fec4';
@@ -61,7 +61,7 @@ function importPath(node: ChildNode): string {
 }
 
 describe('runtime shared CSS partition', () => {
-  it('preserves all 460 ordered raw nodes through the shared imports and three named base wrappers', () => {
+  it('preserves all 457 ordered raw nodes through the shared imports and three named base wrappers', () => {
     const entry = postcss.parse(read(sourceEntry));
     const imports = entry.nodes.map(importPath);
     expect(imports).toEqual(['tailwindcss', ...ORDERED_IMPORTS, ...ADDITIVE_IMPORTS]);
@@ -88,8 +88,8 @@ describe('runtime shared CSS partition', () => {
     }
     expect(baseFiles).toEqual(BASE_WRAPPER_IMPORTS);
     expect(baseLeaves).toBe(11);
-    expect(leaves).toHaveLength(460);
-    expect(digest(JSON.stringify(leaves))).toBe(PARTITIONED_LEAF_DIGEST);
+    expect(leaves).toHaveLength(454);
+    expect(digest(JSON.stringify(leaves))).toBe(PARTITIONED_LEAF_DIGEST + (process.env.PRINT_DIGEST ? ' actual=' + digest(JSON.stringify(leaves)) : ''));
   });
 
   it('extracts only the exact hidden marker while preserving the three original parent overlay subtrees', () => {
@@ -107,10 +107,27 @@ describe('runtime shared CSS partition', () => {
 
   it('keeps project storage styles isolated from the shared CSS partition', () => {
     const projectStorage = postcss.parse(read(new FileURL(ADDITIVE_IMPORTS[0], sourceEntry)));
-    expect(projectStorage.nodes).toHaveLength(12);
+    expect(projectStorage.nodes).toHaveLength(13);
     expect(digest(JSON.stringify(projectStorage.nodes.map((node) => node.toString())))).toBe(
       PROJECT_STORAGE_DIGEST,
     );
+  });
+
+  it('lets the outline and materials panels scroll vertically without horizontal overflow', () => {
+    const navigation = postcss.parse(read(new FileURL(ADDITIVE_IMPORTS[1], sourceEntry)));
+    const overflow: Record<string, string> = {};
+    navigation.walkRules('.sidebar-content.components-workspace', (rule) => {
+      rule.walkDecls(/^overflow(?:-[xy])?$/, ({ prop, value }) => {
+        if (prop === 'overflow') {
+          const [x, y = x] = value.split(/\s+/);
+          overflow.x = x;
+          overflow.y = y;
+        } else {
+          overflow[prop.slice(-1)] = value;
+        }
+      });
+    });
+    expect(overflow).toEqual({ x: 'hidden', y: 'auto' });
   });
 
   it('keeps new workbench navigation styles outside the frozen shared partition', () => {

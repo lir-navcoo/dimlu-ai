@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { hitTestDrop } from '../src/editor/hit-test';
 import { compileApplication } from '../packages/runtime/engine';
-import { exampleApplication } from '../src/examples';
+import { exampleApplication } from './fixtures/examples';
 import { registry } from '../src/materials';
 
 const plan = compileApplication(exampleApplication, registry);

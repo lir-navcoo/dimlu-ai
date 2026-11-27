@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { EditorDocument, findNode } from '../packages/editor/document';
 import { validateCatalog, type MaterialCatalog } from '../packages/editor/metadata';
-import { exampleApplication } from '../src/examples';
+import { exampleApplication } from './fixtures/examples';
 import { registry } from '../src/materials';
 import { catalog } from '../src/editor/catalog';
 import { PropertyPanel } from '../src/editor/Editor';
@@ -13,19 +13,21 @@ import {
   SetterRegistryProvider,
   type ReactSetterProps,
 } from '../src/editor/Setters';
+import type { Json } from '../packages/schema/types';
 import { changeControl } from './ui-helpers';
 
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
 });
+const literal = (value: string) => ({ kind: 'literal' as const, value });
 const make = () => new EditorDocument(exampleApplication, registry);
 const title = (document: EditorDocument) =>
   findNode(document.getSnapshot().plan.pages.get('purchase')!.schema, 'purchase-heading')!.node
-    .props.title;
-function customCatalog(name = 'title', id = 'host.title') {
+    .props.value;
+function customCatalog(name = 'value', id = 'host.title') {
   const next = structuredClone(catalog);
-  next['ui.heading'].properties.find((prop) => prop.name === name)!.setter = {
+  next['ui.text'].properties.find((prop) => prop.name === name)!.setter = {
     kind: 'custom',
     id,
     options: { suffix: '!' },
@@ -67,7 +69,7 @@ function HostSetter(props: ReactSetterProps) {
         value={String(props.value ?? '')}
         onChange={(event) => props.onChange(event.target.value + props.options.suffix)}
       />
-      <button onClick={() => props.onChange(123)}>提交错误类型</button>
+      <button onClick={() => props.onChange(undefined as unknown as Json)}>提交错误类型</button>
       <button onClick={props.onReset}>恢复属性默认值</button>
       <button onClick={() => props.onError('宿主输入错误')}>报告输入错误</button>
     </div>
@@ -78,7 +80,7 @@ describe('registered React property setters', () => {
   it('uses host TSX metadata and options, validates commits, and supports undo/redo/reset', () => {
     const document = make();
     render(<Host document={document} metadata={customCatalog()} />);
-    changeControl(screen.getByRole('textbox', { name: '标题' }), '宿主');
+    changeControl(screen.getByRole('textbox', { name: '文本内容' }), '宿主');
     expect(title(document)).toEqual({ kind: 'literal', value: '宿主!' });
     act(() => document.undo());
     expect(title(document)).toEqual({ kind: 'literal', value: '创建采购申请' });
@@ -89,7 +91,7 @@ describe('registered React property setters', () => {
     expect(document.exportJson()).toBe(before);
     expect(screen.getByRole('alert')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '恢复属性默认值' }));
-    expect(title(document)).toEqual({ kind: 'literal', value: '新的标题' });
+    expect(title(document)).toEqual({ kind: 'literal', value: '新的文本' });
     expect(screen.queryByRole('alert')).toBeNull();
     act(() => document.undo());
     expect(title(document)).toEqual({ kind: 'literal', value: '宿主!' });
@@ -111,7 +113,7 @@ describe('registered React property setters', () => {
         </EditorSessionProvider>
       </SetterRegistryProvider>,
     );
-    changeControl(screen.getByRole('textbox', { name: '标题替代编辑器' }), '替换内置');
+    changeControl(screen.getByRole('textbox', { name: '文本内容替代编辑器' }), '替换内置');
     expect(title(document)).toEqual({ kind: 'literal', value: '替换内置' });
     view.rerender(
       <SetterRegistryProvider registry={createSetterRegistry()}>
@@ -120,17 +122,17 @@ describe('registered React property setters', () => {
         </EditorSessionProvider>
       </SetterRegistryProvider>,
     );
-    expect(screen.queryByRole('textbox', { name: '标题替代编辑器' })).toBeNull();
-    expect((screen.getByRole('textbox', { name: '标题' }) as HTMLInputElement).value).toBe(
+    expect(screen.queryByRole('textbox', { name: '文本内容替代编辑器' })).toBeNull();
+    expect((screen.getByRole('textbox', { name: '文本内容' }) as HTMLInputElement).value).toBe(
       '替换内置',
     );
   });
   it('falls back locally for missing and throwing setters without changing accepted values', () => {
     const document = make(),
-      metadata = customCatalog('title', 'host.missing');
+      metadata = customCatalog('value', 'host.missing');
     const view = render(<Host document={document} metadata={metadata} />);
     expect(screen.getByText(/host.missing 未注册/)).toBeTruthy();
-    changeControl(screen.getByRole('textbox', { name: '标题' }), '基础编辑');
+    changeControl(screen.getByRole('textbox', { name: '文本内容' }), JSON.stringify('基础编辑'));
     expect(title(document)).toEqual({ kind: 'literal', value: '基础编辑' });
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const Broken = () => {
@@ -138,8 +140,8 @@ describe('registered React property setters', () => {
     };
     view.rerender(<Host document={document} metadata={customCatalog()} setter={Broken} />);
     expect(screen.getByText(/设置器无法显示/)).toBeTruthy();
-    expect(screen.getByRole('textbox', { name: '说明' })).toBeTruthy();
-    changeControl(screen.getByRole('textbox', { name: '标题' }), '异常回退');
+    expect(screen.getByRole('textbox', { name: '文本内容' })).toBeTruthy();
+    changeControl(screen.getByRole('textbox', { name: '文本内容' }), JSON.stringify('异常回退'));
     expect(title(document)).toEqual({ kind: 'literal', value: '异常回退' });
     view.rerender(<Host document={document} metadata={customCatalog()} />);
     expect(screen.queryByText(/设置器无法显示/)).toBeNull();
@@ -155,7 +157,7 @@ describe('registered React property setters', () => {
     render(<Host document={document} metadata={customCatalog()} setter={Capture} />);
     const previous = retained!;
     act(() =>
-      document.setProp('purchase', 'purchase-heading', 'title', {
+      document.setProp('purchase', 'purchase-heading', 'value', {
         kind: 'expression',
         language: 'javascript',
         source: '"动态标题"',
@@ -170,13 +172,13 @@ describe('registered React property setters', () => {
     expect(document.exportJson()).toBe(before);
     expect(screen.queryByRole('button', { name: '标题放弃草稿' })).toBeNull();
     expect(screen.queryByRole('alert')).toBeNull();
-    expect(screen.getByRole('textbox', { name: '标题' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: '文本内容' })).toBeTruthy();
   });
   it('keeps missing setters from affecting expressions and field-owned properties', () => {
     const document = make();
-    const metadata = customCatalog('title', 'host.missing');
+    const metadata = customCatalog('value', 'host.missing');
     act(() =>
-      document.setProp('purchase', 'purchase-heading', 'title', {
+      document.setProp('purchase', 'purchase-heading', 'value', {
         kind: 'expression',
         language: 'javascript',
         source: '"表达式"',
@@ -198,16 +200,16 @@ describe('registered React property setters', () => {
   });
   it('resets optional values by removal and rejects reset of required values with no default', () => {
     const document = make(),
-      metadata = customCatalog('description');
-    delete metadata['ui.heading'].defaultProps.description;
+      metadata = customCatalog('tone');
+    document.setProp('purchase', 'purchase-heading', 'tone', literal('muted'));
     const view = render(<Host document={document} metadata={metadata} />);
     fireEvent.click(screen.getByRole('button', { name: '恢复属性默认值' }));
     expect(
       findNode(document.getSnapshot().plan.pages.get('purchase')!.schema, 'purchase-heading')!.node
-        .props.description,
+        .props.tone,
     ).toBeUndefined();
     const required = customCatalog();
-    delete required['ui.heading'].defaultProps.title;
+    delete required['ui.text'].defaultProps.value;
     view.rerender(<Host document={document} metadata={required} />);
     const before = document.exportJson();
     fireEvent.click(screen.getByRole('button', { name: '恢复属性默认值' }));
@@ -217,8 +219,8 @@ describe('registered React property setters', () => {
   it('checks custom metadata without requiring its UI implementation in runtime schema', () => {
     const metadata = customCatalog();
     expect(validateCatalog(metadata, registry)).toEqual([]);
-    metadata['ui.heading'].properties[0].setter = { kind: 'custom', id: '' };
-    expect(validateCatalog(metadata, registry)).toContain('ui.heading.title 自定义设置器配置无效');
+    metadata['ui.text'].properties[0].setter = { kind: 'custom', id: '' };
+    expect(validateCatalog(metadata, registry)).toContain('ui.text.value 自定义设置器配置无效');
   });
   it.each(['expression', 'invalid-expression', 'dataRef'])(
     'rejects retained literal callbacks while an unapplied %s authoring session is active',
@@ -237,11 +239,11 @@ describe('registered React property setters', () => {
       );
       const old = captured;
       changeControl(
-        screen.getByRole('combobox', { name: '标题绑定方式' }),
+        screen.getByRole('combobox', { name: '文本内容绑定方式' }),
         mode === 'dataRef' ? 'dataRef' : 'expression',
       );
       if (mode === 'invalid-expression')
-        changeControl(screen.getByRole('textbox', { name: '标题' }), 'state.');
+        changeControl(screen.getByRole('textbox', { name: '文本内容' }), 'state.');
       const before = document.exportJson();
       const selection = document.getSnapshot().selection;
       const alerts = screen.queryAllByRole('alert').map((element) => element.textContent);
@@ -254,15 +256,15 @@ describe('registered React property setters', () => {
       });
       expect(document.exportJson()).toBe(before);
       expect(document.getSnapshot().selection).toBe(selection);
-      expect(screen.getByRole('combobox', { name: '标题绑定方式' }).textContent).toContain(
+      expect(screen.getByRole('combobox', { name: '文本内容绑定方式' }).textContent).toContain(
         mode === 'dataRef' ? '数据源' : '表达式',
       );
       expect(screen.queryAllByRole('alert').map((element) => element.textContent)).toEqual(alerts);
       if (mode !== 'dataRef')
-        expect((screen.getByRole('textbox', { name: '标题' }) as HTMLTextAreaElement).value).toBe(
+        expect((screen.getByRole('textbox', { name: '文本内容' }) as HTMLTextAreaElement).value).toBe(
           mode === 'invalid-expression' ? 'state.' : '',
         );
-      changeControl(screen.getByRole('combobox', { name: '标题绑定方式' }), 'literal');
+      changeControl(screen.getByRole('combobox', { name: '文本内容绑定方式' }), 'literal');
       const fixed = document.exportJson();
       act(() => {
         expect(old.onChange('must remain inactive')).toBe(false);

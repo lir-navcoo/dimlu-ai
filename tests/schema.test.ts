@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { exampleApplication } from '../src/examples';
+import { exampleApplication } from './fixtures/examples';
 import { registry } from '../src/materials';
 import { validateApplication } from '../packages/schema/validate';
 import { compileApplication } from '../packages/runtime/engine';
@@ -29,9 +29,9 @@ describe('schema contracts', () => {
   });
   it('checks state references, initial types, property contracts and exact dependency versions', () => {
     const input = structuredClone(exampleApplication);
-    input.dependencies.components['ui.heading'] = '2.0.0';
+    input.dependencies.components['ui.input'] = '2.0.0';
     input.pages[0].state[0].initial = 7;
-    input.pages[0].children[0].props.title = { kind: 'stateRef', stateId: 'missing' };
+    input.pages[0].children[0].props.value = { kind: 'stateRef', stateId: 'missing' };
     input.pages[0].children[0].props.typo = { kind: 'literal', value: true };
     const codes = validateApplication(input, registry).map((i) => i.code);
     expect(codes).toEqual(
@@ -40,7 +40,7 @@ describe('schema contracts', () => {
   });
   it('walks nodes inside slots and detects duplicate identities and unsupported slot parameters', () => {
     const input = structuredClone(exampleApplication);
-    const card = input.pages[2].children[1];
+    const card = input.pages[2].children[2];
     card.slots!.body.children[0].id = card.id;
     card.slots!.header.params.push('secret');
     const codes = validateApplication(input, registry).map((i) => i.code);
@@ -48,7 +48,7 @@ describe('schema contracts', () => {
   });
   it('rejects events used outside action inputs', () => {
     const input = structuredClone(exampleApplication);
-    input.pages[0].children[0].props.title = {
+    input.pages[0].children[0].props.value = {
       kind: 'expression',
       language: 'javascript',
       source: 'event.target.value',
@@ -57,7 +57,7 @@ describe('schema contracts', () => {
   });
   it('rejects inherited slot names and collisions with the default loop index', () => {
     const input = structuredClone(exampleApplication);
-    Object.assign(input.pages[2].children[1].slots!, { constructor: { params: [], children: [] } });
+    Object.assign(input.pages[2].children[2].slots!, { constructor: { params: [], children: [] } });
     const repeat = input.pages[1].children.find((node) => node.repeat)!.repeat!;
     repeat.item = 'index';
     delete repeat.index;

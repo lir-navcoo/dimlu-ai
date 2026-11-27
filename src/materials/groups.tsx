@@ -21,12 +21,14 @@ import { textStyle } from './style';
 type Props = FieldPresentation & {
   options: SelectOption[];
   orientation?: 'horizontal' | 'vertical';
+  optionType?: 'default' | 'button';
 };
 export function RadioGroupMaterial({
   value,
   onValueChange,
   options,
   orientation = 'horizontal',
+  optionType = 'default',
   ...field
 }: Props & { value: SelectValue | null; onValueChange?: (value: SelectValue | null) => void }) {
   const [selected, change] = useMaterialValue(value, onValueChange);
@@ -35,10 +37,12 @@ export function RadioGroupMaterial({
       {(a11y) => (
         <RadioGroup
           {...a11y}
-          className={`material-choice-group ${orientation}`}
+          className={`material-choice-group ${orientation}${
+            optionType === 'button' ? ' as-buttons' : ''
+          }`}
           value={selected === '' ? null : selected}
           onValueChange={change}
-          disabled={field.disabled}
+          disabled={field.disabled || field.readOnly}
           required={field.required}
           name={field.name}
         >
@@ -97,7 +101,7 @@ export function CheckboxGroupMaterial({
                 .filter((v) => v !== undefined),
             )
           }
-          disabled={field.disabled}
+          disabled={field.disabled || field.readOnly}
         >
           {options.map((option) => (
             <label
@@ -134,24 +138,25 @@ const props = {
   hint: textProp,
   orientation: textProp,
   disabled: boolProp,
+  readOnly: boolProp,
   required: boolProp,
 };
 export const groupContracts: Contracts = {
   'ui.radioGroup': {
     version: '1.0.0',
     field: { type: ['string', 'number'], valueProp: 'value', changeEvent: 'onValueChange' },
-    props,
-    events: ['onValueChange', 'onBlur'],
+    props: { ...props, optionType: textProp },
+    events: ['onValueChange', 'onBlur', 'onClick'],
     validateProps: (props, context) => [
       ...validateSelectProps({ ...props, multiple: false }, context),
-      ...enumErrors(props, { orientation: ['horizontal', 'vertical'] }),
+      ...enumErrors(props, { orientation: ['horizontal', 'vertical'], optionType: ['default', 'button'] }),
     ],
   },
   'ui.checkboxGroup': {
     version: '1.0.0',
     field: { type: 'array', valueProp: 'value', changeEvent: 'onValueChange' },
     props,
-    events: ['onValueChange', 'onBlur'],
+    events: ['onValueChange', 'onBlur', 'onClick'],
     validateProps: (props, context) => [
       ...validateSelectProps({ ...props, multiple: true }, context),
       ...enumErrors(props, { orientation: ['horizontal', 'vertical'] }),

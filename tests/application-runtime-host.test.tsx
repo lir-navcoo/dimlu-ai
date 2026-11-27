@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, describe, expect, it } from 'vitest';
 import { ApplicationRuntimeHost } from '../src/ApplicationRuntimeHost';
 import { compileApplication } from '../packages/runtime/engine';
-import { exampleApplication } from '../src/examples';
+import { exampleApplication } from './fixtures/examples';
 import { registry } from '../src/materials';
 import { applicationRoutePath } from '../packages/runtime/router';
 

@@ -2,7 +2,7 @@ import { useCallback, useLayoutEffect, useRef } from 'react';
 import type { EditorDocument, EditorSnapshot } from '../../packages/editor/document';
 import type { ApplicationMethodReference } from '../../packages/editor/data';
 import { selectedNodeIds } from '../../packages/editor/selection';
-import { Button } from '../ui/primitives';
+import { Button, Tip } from '../ui/primitives';
 import { ActionChainEditor, type OpenApplicationMethods } from './ActionPanel';
 import { useAuthorGuard } from './author-guard';
 import { useDragDrop } from './DragDrop';
@@ -14,12 +14,14 @@ export function PageLifecyclePanel({
   authoringAllowed,
   onOpenMethods,
   focusReference,
+  panelLabel = '页面生命周期配置',
 }: {
   document: EditorDocument;
   snapshot: EditorSnapshot;
   authoringAllowed: boolean;
   onOpenMethods?: OpenApplicationMethods;
   focusReference?: ApplicationMethodReference;
+  panelLabel?: string;
 }) {
   const canAuthor = useAuthorGuard(document, snapshot, undefined, authoringAllowed);
   const canOpenMethods = useAuthorGuard(
@@ -88,7 +90,7 @@ export function PageLifecyclePanel({
     return false;
   };
   return (
-    <section className="action-panel" aria-label="页面生命周期配置">
+    <section className="action-panel" aria-label={panelLabel}>
       {onOpenMethods && (
         <Button
           type="button"
@@ -102,85 +104,99 @@ export function PageLifecyclePanel({
           应用自定义方法
         </Button>
       )}
-      <h3>页面进入时</h3>
-      <p className="editor-note">
-        编辑时保存配置不会执行动作。页面实例首次进入预览时执行；重置页面或应用定义变更后会创建新实例。
-      </p>
-      {!authoringAllowed && (
-        <p className="editor-note">当前为预览模式，请切回编辑模式配置进入动作。</p>
-      )}
-      <section className="action-chain" aria-label="页面进入动作">
-        <ActionChainEditor
-          key={`enter-${page.id}`}
-          page={page}
-          existing={page.onEnter ?? []}
-          focusReference={focusReference}
-          onOpenMethods={
-            onOpenMethods &&
-            ((trigger, target) => canOpenMethods() && onOpenMethods(trigger, target))
-          }
-          draftKey={`page-enter:${page.id}`}
-          source={source}
-          pageScope
-          pageReference={{
-            document,
-            snapshot,
-            pageId: page.id,
-            savedActions: page.onEnter,
-            pageSource: source,
-            canReference,
-          }}
-          authoringAllowed={authoringAllowed}
-          canSave={preflight}
-          saveLabel="保存进入动作"
-          onSave={(calls) => {
-            if (!preflight()) return;
-            const target = current.current;
-            if (!target.authoringAllowed) throw new Error('请切回编辑模式保存进入动作');
-            const live = target.document.getSnapshot().plan.pages.get(target.pageId)?.schema;
-            if (!live || JSON.stringify(live) !== target.source)
-              throw new Error('页面定义已变化，请确认或放弃草稿后再保存');
-            return target.document.setPageEnterActions(target.pageId, calls);
-          }}
-        />
+      <section className="lifecycle-block" aria-label="页面加载完成时">
+        <header className="lifecycle-block-head">
+          <h3>页面加载完成时</h3>
+          <code>didMount</code>
+          <Tip content="编辑时保存配置不会执行动作。页面实例首次进入预览时执行；重置页面或应用定义变更后会创建新实例。">
+            <span className="lifecycle-help" tabIndex={0} role="note" aria-label="生命周期说明">
+              ?
+            </span>
+          </Tip>
+        </header>
+        {!authoringAllowed && (
+          <p className="editor-note">当前为预览模式，请切回编辑模式配置进入动作。</p>
+        )}
+        <section className="action-chain" aria-label="页面进入动作">
+          <ActionChainEditor
+            key={`enter-${page.id}`}
+            page={page}
+            existing={page.onEnter ?? []}
+            focusReference={focusReference}
+            onOpenMethods={
+              onOpenMethods &&
+              ((trigger, target) => canOpenMethods() && onOpenMethods(trigger, target))
+            }
+            draftKey={`page-enter:${page.id}`}
+            source={source}
+            pageScope
+            pageReference={{
+              document,
+              snapshot,
+              pageId: page.id,
+              savedActions: page.onEnter,
+              pageSource: source,
+              canReference,
+            }}
+            authoringAllowed={authoringAllowed}
+            canSave={preflight}
+            saveLabel="保存进入动作"
+            onSave={(calls) => {
+              if (!preflight()) return;
+              const target = current.current;
+              if (!target.authoringAllowed) throw new Error('请切回编辑模式保存进入动作');
+              const live = target.document.getSnapshot().plan.pages.get(target.pageId)?.schema;
+              if (!live || JSON.stringify(live) !== target.source)
+                throw new Error('页面定义已变化，请确认或放弃草稿后再保存');
+              return target.document.setPageEnterActions(target.pageId, calls);
+            }}
+          />
+        </section>
       </section>
-      <h3>页面离开时</h3>
-      <p className="editor-note">
-        对齐宜搭「页面关闭时」：预览中离开页面（切换页面或销毁页面实例）时执行一次；编辑时保存不执行。
-      </p>
-      <section className="action-chain" aria-label="页面离开动作">
-        <ActionChainEditor
-          key={`leave-${page.id}`}
-          page={page}
-          existing={page.onLeave ?? []}
-          onOpenMethods={
-            onOpenMethods &&
-            ((trigger, target) => canOpenMethods() && onOpenMethods(trigger, target))
-          }
-          draftKey={`page-leave:${page.id}`}
-          source={source}
-          pageScope
-          pageReference={{
-            document,
-            snapshot,
-            pageId: page.id,
-            savedActions: page.onLeave,
-            pageSource: source,
-            canReference,
-          }}
-          authoringAllowed={authoringAllowed}
-          canSave={preflight}
-          saveLabel="保存离开动作"
-          onSave={(calls) => {
-            if (!preflight()) return;
-            const target = current.current;
-            if (!target.authoringAllowed) throw new Error('请切回编辑模式保存离开动作');
-            const live = target.document.getSnapshot().plan.pages.get(target.pageId)?.schema;
-            if (!live || JSON.stringify(live) !== target.source)
-              throw new Error('页面定义已变化，请确认或放弃草稿后再保存');
-            return target.document.setPageLeaveActions(target.pageId, calls);
-          }}
-        />
+      <section className="lifecycle-block" aria-label="页面关闭时">
+        <header className="lifecycle-block-head">
+          <h3>页面关闭时</h3>
+          <code>willUnmount</code>
+          <Tip content="预览中离开页面（切换页面或销毁页面实例）时执行一次；编辑时保存不执行。">
+            <span className="lifecycle-help" tabIndex={0} role="note" aria-label="生命周期说明">
+              ?
+            </span>
+          </Tip>
+        </header>
+        <section className="action-chain" aria-label="页面离开动作">
+          <ActionChainEditor
+            key={`leave-${page.id}`}
+            page={page}
+            existing={page.onLeave ?? []}
+            onOpenMethods={
+              onOpenMethods &&
+              ((trigger, target) => canOpenMethods() && onOpenMethods(trigger, target))
+            }
+            draftKey={`page-leave:${page.id}`}
+            source={source}
+            pageScope
+            pageReference={{
+              document,
+              snapshot,
+              pageId: page.id,
+              savedActions: page.onLeave,
+              pageSource: source,
+              canReference,
+            }}
+            authoringAllowed={authoringAllowed}
+            canSave={preflight}
+            saveLabel="保存离开动作"
+            onSave={(calls) => {
+              if (!preflight()) return;
+              const target = current.current;
+              if (!target.authoringAllowed) throw new Error('请切回编辑模式保存离开动作');
+              const live = target.document.getSnapshot().plan.pages.get(target.pageId)?.schema;
+              if (!live || JSON.stringify(live) !== target.source)
+                throw new Error('页面定义已变化，请确认或放弃草稿后再保存');
+              return target.document.setPageLeaveActions(target.pageId, calls);
+            }}
+          />
+        </section>
       </section>
     </section>
   );

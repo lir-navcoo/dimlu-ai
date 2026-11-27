@@ -35,11 +35,11 @@ describe('columns editor preserves accepted JSON and explicit optional absence',
     ).toEqual({ kind: 'columns' });
     expect(validateCatalog(catalog, registry)).toEqual([]);
     const wrong = structuredClone(catalog);
-    wrong['ui.heading'].properties.find((property) => property.name === 'title')!.setter = {
+    wrong['ui.text'].properties.find((property) => property.name === 'value')!.setter = {
       kind: 'columns',
     };
     expect(
-      validateCatalog(wrong, registry).some((error) => error.includes('ui.heading.title')),
+      validateCatalog(wrong, registry).some((error) => error.includes('ui.text.value')),
     ).toBe(true);
   });
 

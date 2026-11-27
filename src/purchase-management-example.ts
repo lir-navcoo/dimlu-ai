@@ -5,6 +5,7 @@ import type {
   NodeSchema,
   Value,
 } from '../packages/schema/types';
+import { pageHeader } from './example-header.ts';
 const lit = (value: Json): Value => ({ kind: 'literal', value });
 const expr = (source: string): Value => ({ kind: 'expression', language: 'javascript', source });
 const state = (stateId: string): Value => ({ kind: 'stateRef', stateId });
@@ -59,7 +60,6 @@ export const purchaseManagementExample: ApplicationSchema = {
   dependencies: {
     components: Object.fromEntries(
       [
-        'ui.heading',
         'ui.layout',
         'ui.card',
         'ui.input',
@@ -83,6 +83,7 @@ export const purchaseManagementExample: ApplicationSchema = {
         'data.execute',
         'form.reset',
         'form.setValues',
+        'form.submit',
         'demo.savePurchaseOnce',
         'ui.notify',
       ].map((id) => [id, '1.0.0']),
@@ -251,17 +252,11 @@ export const purchaseManagementExample: ApplicationSchema = {
             minWidth: lit(0),
           },
           children: [
-            {
-              id: 'purchase-heading',
-              component: 'ui.heading',
-              props: {
-                title: lit('采购申请管理'),
-                description: lit(
-                  '从采购明细到金额校验，集中管理每一笔申请。演示数据，刷新页面后恢复初始记录。',
-                ),
-              },
-              style: { fontSize: lit(23), marginBottom: lit(2) },
-            },
+            ...pageHeader(
+              'purchase-heading',
+              '采购申请管理',
+              '从采购明细到金额校验，集中管理每一笔申请。演示数据，刷新页面后恢复初始记录。',
+            ),
             {
               id: 'purchase-list-card',
               component: 'ui.card',
@@ -424,7 +419,7 @@ export const purchaseManagementExample: ApplicationSchema = {
                 description: lit('填写申请信息与采购明细，金额实时计算。'),
                 open: state('drawerOpen'),
                 showTrigger: lit(false),
-                showFooter: lit(false),
+                showFooter: lit(true),
                 width: lit(720),
               },
               style: { maxWidth: lit('100%'), backgroundColor: lit('#ffffff') },
@@ -565,11 +560,17 @@ export const purchaseManagementExample: ApplicationSchema = {
                         tone: lit('error'),
                       },
                     },
+                  ],
+                },
+              ],
+              slots: {
+                footer: {
+                  params: [],
+                  children: [
                     {
                       id: 'purchase-form-actions',
                       component: 'ui.layout',
                       props: { variant: lit('row'), justify: lit('end'), gap: lit(8) },
-                      style: { marginTop: lit(4) },
                       children: [
                         button(
                           'cancel-purchase',
@@ -580,20 +581,21 @@ export const purchaseManagementExample: ApplicationSchema = {
                             disabled: expr('forms.purchase.isSubmitting'),
                           },
                         ),
-                        {
-                          id: 'submit-purchase',
-                          component: 'ui.button',
-                          props: {
-                            type: lit('submit'),
+                        button(
+                          'submit-purchase',
+                          '提交申请',
+                          [call('submit-purchase-call', 'form.submit', { formId: lit('purchase') })],
+                          {
+                            variant: lit('primary'),
                             label: expr('forms.purchase.isSubmitting ? "正在提交…" : "提交申请"'),
                             disabled,
                           },
-                        },
+                        ),
                       ],
                     },
                   ],
                 },
-              ],
+              },
             },
           ],
         },

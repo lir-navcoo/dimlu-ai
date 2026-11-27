@@ -13,13 +13,20 @@ import {
   type ReactSetterProps,
   type ReactSetterRegistry,
 } from '../src/editor/Setters';
-import { exampleApplication } from '../src/examples';
+import { exampleApplication } from './fixtures/examples';
 import { materials, registry } from '../src/materials';
 import { changeControl } from './ui-helpers';
 
 afterEach(cleanup);
 const literal = (value: number | string): Value => ({ kind: 'literal', value });
 const make = () => new EditorDocument(exampleApplication, registry);
+const headerStyle = {
+  color: literal('#1e293b'),
+  fontSize: literal(22),
+  fontWeight: literal(700),
+  lineHeight: literal(1.4),
+  marginBottom: literal(2),
+};
 const selected = (document: EditorDocument) => {
   const { pageId, nodeId } = document.getSnapshot().selection;
   return findNode(document.getSnapshot().plan.pages.get(pageId)!.schema, nodeId!)!.node;
@@ -84,18 +91,18 @@ describe('cycle 009 independent style inspector acceptance', () => {
     showStyle();
     const control = screen.getByRole('textbox', { name: '宽度' }) as HTMLInputElement;
     expect(control.value).toBe('');
-    expect(selected(document).style).toBeUndefined();
+    expect(selected(document).style).toEqual(headerStyle);
     fireEvent.focus(control);
     changeControl(control, '1');
     changeControl(control, '12');
     changeControl(control, '12p');
     changeControl(control, '12px');
     fireEvent.blur(control);
-    expect(view.container.querySelector<HTMLElement>('.material-heading')!.style.width).toBe(
+    expect(view.container.querySelector<HTMLElement>('.material-text')!.style.width).toBe(
       '12px',
     );
     act(() => document.undo());
-    expect(selected(document).style).toBeUndefined();
+    expect(selected(document).style).toEqual(headerStyle);
     expect(document.getSnapshot().canUndo).toBe(false);
     act(() => document.redo());
     expect(selected(document).style?.width).toEqual(literal('12px'));
@@ -112,16 +119,21 @@ describe('cycle 009 independent style inspector acceptance', () => {
     showStyle();
     changeControl(screen.getByRole('textbox', { name: '宽度' }), 'bad-unit');
     fireEvent.click(screen.getByRole('button', { name: '恢复宽度' }));
-    expect(selected(document).style).toEqual({ height: literal(40), marginLeft: literal(3) });
+    expect(selected(document).style).toEqual({
+      ...headerStyle,
+      height: literal(40),
+      marginLeft: literal(3),
+    });
     expect(screen.queryByRole('alert')).toBeNull();
     act(() => document.undo());
     expect((screen.getByRole('textbox', { name: '宽度' }) as HTMLInputElement).value).toBe('120');
     changeControl(screen.getByRole('textbox', { name: '高度' }), 'bad-height');
     fireEvent.click(screen.getByRole('button', { name: '恢复尺寸分组' }));
-    expect(selected(document).style).toEqual({ marginLeft: literal(3) });
+    expect(selected(document).style).toEqual({ ...headerStyle, marginLeft: literal(3) });
     expect(screen.queryByRole('alert')).toBeNull();
     act(() => document.undo());
     expect(selected(document).style).toEqual({
+      ...headerStyle,
       width: literal(120),
       height: literal(40),
       marginLeft: literal(3),
@@ -133,6 +145,7 @@ describe('cycle 009 independent style inspector acceptance', () => {
     expect(screen.queryByRole('alert')).toBeNull();
     act(() => document.undo());
     expect(selected(document).style).toEqual({
+      ...headerStyle,
       width: literal(120),
       height: literal(40),
       marginLeft: literal(3),
@@ -163,25 +176,25 @@ describe('cycle 009 independent style inspector acceptance', () => {
       kind: 'stateRef',
       stateId: 'appearanceWidth',
     });
-    expect(view.container.querySelector<HTMLElement>('.material-heading')!.style.width).toBe(
+    expect(view.container.querySelector<HTMLElement>('.material-text')!.style.width).toBe(
       '180px',
     );
     act(() => currentRuntime.setState('appearanceWidth', 220));
-    expect(view.container.querySelector<HTMLElement>('.material-heading')!.style.width).toBe(
+    expect(view.container.querySelector<HTMLElement>('.material-text')!.style.width).toBe(
       '220px',
     );
     changeControl(screen.getByLabelText('宽度绑定取值方式'), 'expression');
     changeControl(screen.getByRole('textbox', { name: '宽度绑定' }), 'state.appearanceWidth + 10');
     expect(selected(document).style?.width?.kind).toBe('stateRef');
     fireEvent.click(screen.getByRole('button', { name: '应用绑定' }));
-    expect(view.container.querySelector<HTMLElement>('.material-heading')!.style.width).toBe(
+    expect(view.container.querySelector<HTMLElement>('.material-text')!.style.width).toBe(
       '190px',
     );
     const accepted = document.getSnapshot();
     changeControl(screen.getByRole('textbox', { name: '宽度绑定' }), 'state.');
     fireEvent.click(screen.getByRole('button', { name: '应用绑定' }));
     expect(document.getSnapshot()).toBe(accepted);
-    expect(view.container.querySelector<HTMLElement>('.material-heading')!.style.width).toBe(
+    expect(view.container.querySelector<HTMLElement>('.material-text')!.style.width).toBe(
       '190px',
     );
   });

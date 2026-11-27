@@ -19,6 +19,7 @@ import { matchesType, type FieldTarget, type NodeSchema } from '../schema/types'
 import { PageRuntime, type PlannedNode } from '../runtime/engine';
 import { styleValueError, type StyleProperty } from '../schema/style';
 import { scopeStyleSource } from '../schema/style-source';
+import { scopePageStyleSource } from '../schema/page-style-source';
 
 const materialStyleTargets = new WeakMap<
   CSSProperties,
@@ -28,30 +29,52 @@ const materialStyleTargets = new WeakMap<
 export function materialStyleTarget(style?: CSSProperties) {
   return style && materialStyleTargets.get(style);
 }
+function useStyleScopeId() {
+  return useId().replace(/[^\w-]/g, (char) => `_${char.charCodeAt(0).toString(16)}_`);
+}
+
+function useScopedStyleRef(css?: string) {
+  return useMemo(() => {
+    if (!css) return;
+    let sheet: HTMLStyleElement | undefined;
+    return (target: HTMLElement | SVGElement | null) => {
+      sheet?.remove();
+      sheet = undefined;
+      if (!target) return;
+      const root = target.getRootNode();
+      const document = target.ownerDocument;
+      sheet = document.createElement('style');
+      sheet.textContent = css;
+      if (root.nodeType === 11) root.appendChild(sheet);
+      else document.head.appendChild(sheet);
+    };
+  }, [css]);
+}
+
 function useMaterialStyleTarget(source?: string) {
-  const id = useId().replace(/[^\w-]/g, (char) => `_${char.charCodeAt(0).toString(16)}_`);
+  const id = useStyleScopeId();
   const css = useMemo(
     () => source && scopeStyleSource(source, `[data-material-style="${id}"]`),
     [id, source],
   );
-  return useMemo(() => {
-    if (!css) return;
-    let sheet: HTMLStyleElement | undefined;
-    return {
-      'data-material-style': id,
-      ref: (target: HTMLElement | SVGElement | null) => {
-        sheet?.remove();
-        sheet = undefined;
-        if (!target) return;
-        const root = target.getRootNode();
-        const document = target.ownerDocument;
-        sheet = document.createElement('style');
-        sheet.textContent = css;
-        if (root.nodeType === 11) root.appendChild(sheet);
-        else document.head.appendChild(sheet);
-      },
-    };
-  }, [css, id]);
+  const ref = useScopedStyleRef(css);
+  return useMemo(() => ref && { 'data-material-style': id, ref }, [id, ref]);
+}
+
+function PageStyleScope({ source, children }: { source?: string; children: ReactNode }) {
+  const id = useStyleScopeId();
+  const css = useMemo(
+    () => source && scopePageStyleSource(source, `:where([data-page-style="${id}"])`),
+    [id, source],
+  );
+  const ref = useScopedStyleRef(css);
+  return ref ? (
+    <div ref={ref} data-page-style={id}>
+      {children}
+    </div>
+  ) : (
+    children
+  );
 }
 
 export type SlotRenderers = Record<
@@ -640,9 +663,13 @@ export function RuntimeRenderer({
   );
   return (
     <RuntimeContext.Provider key={runtime.instanceId} value={value}>
-      {children !== undefined
-        ? children
-        : runtime.page.children.map((node) => (
+      {children !== undefined ? (
+        children
+      ) : (
+        <PageStyleScope
+          source={runtime.page.schema.code?.enabled ? undefined : runtime.page.schema.css}
+        >
+          {runtime.page.children.map((node) => (
             <NodeView
               key={node.schema.id}
               node={node}
@@ -650,6 +677,8 @@ export function RuntimeRenderer({
               instanceKey={node.schema.id}
             />
           ))}
+        </PageStyleScope>
+      )}
     </RuntimeContext.Provider>
   );
 }

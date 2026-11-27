@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { EditorDocument, findNode } from '../packages/editor/document';
 import { registry } from '../src/materials';
-import { actionExample } from '../src/action-example';
+import { actionExample } from './fixtures/action-example';
 import type { ActionCall } from '../packages/schema/types';
 
 const notify = (id = 'authored-notify'): ActionCall => ({

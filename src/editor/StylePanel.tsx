@@ -306,7 +306,7 @@ function StyleField({ document, snapshot, node, property }: Props & { property: 
         />
       )}
       {bindingOpen && (
-        <div className="style-binding-editor">
+        <>
           <ValueInput
             label={`${labels[property]}绑定`}
             field={input.binding.kind === 'literal' ? { type: 'string' } : field}
@@ -354,7 +354,7 @@ function StyleField({ document, snapshot, node, property }: Props & { property: 
               </Button>
             )}
           </div>
-        </div>
+        </>
       )}
       {input.error && <small role="alert">{input.error}</small>}
       <DraftNotice {...status} />

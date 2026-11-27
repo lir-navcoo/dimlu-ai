@@ -1,17 +1,27 @@
 import { bindingDraft, parseBinding, ValueInput, type BindingDraft } from './ValueEditor';
-import { ArrowDown, ArrowUp, Pencil, Plus, Trash2 } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowUp,
+  Copy,
+  Ellipsis,
+  GripVertical,
+  Pencil,
+  Plus,
+  Trash2,
+} from 'lucide-react';
 import { Dialog } from '@base-ui/react/dialog';
 import type { EditorDocument, EditorSnapshot } from '../../packages/editor/document';
 import { nodeScopeNames } from '../../packages/editor/scope';
 import type { ApplicationMethodReference } from '../../packages/editor/data';
 import { applicationMethodActionId } from '../../packages/runtime/application-methods';
+import { pageActionId, pageActionName, pageActionPrefix } from '../../packages/runtime/page-action-code';
 import type {
   ActionCall,
   ApplicationMethod,
   NodeSchema,
   PageSchema,
 } from '../../packages/schema/types';
-import { useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
 import { registry } from '../materials';
 import { Button, Select, Tip } from '../ui/primitives';
 import { DraftNotice, useDraft, useEditorSession, useSessionState } from './session';
@@ -27,6 +37,9 @@ type CallDraft = {
   action: string;
   input: Record<string, BindingDraft>;
   resultTo: string;
+  /** 条件分支归属：非空表示这是某个 control.branch 的 then/else 子调用。 */
+  branch?: 'then' | 'else';
+  parentId?: string;
 };
 function bindingSummary(binding: BindingDraft): string {
   switch (binding.kind) {
@@ -52,13 +65,14 @@ function callSummary(call: CallDraft): string {
     .filter(([, binding]) => binding.kind !== 'unset')
     .map(([name, binding]) => `${name}=${bindingSummary(binding)}`);
   const result = call.resultTo ? ` → ${call.resultTo}` : '';
-  return (parts.join('、') + result) || '未配置参数';
+  return parts.join('、') + result || '未配置参数';
 }
 export type OpenApplicationMethods = (
   trigger: HTMLButtonElement,
   target?: { methodId: string } | { onCreated: (method: ApplicationMethod) => void },
 ) => void;
 const actionLabels: Record<string, string> = {
+  'control.branch': '条件分支',
   'app.navigate': '跳转应用页面',
   'state.set': '设置页面状态',
   'form.setValues': '回填表单',
@@ -115,21 +129,29 @@ export function ActionChainEditor({
   onOpenMethods?: OpenApplicationMethods;
 }) {
   const drag = useDragDrop();
-  const actionRegistry =
-    pageReference?.snapshot.plan.registry ?? eventReference?.snapshot.plan.registry ?? registry;
-  const applicationDefinition =
-    pageReference?.snapshot.plan.schema ?? eventReference?.snapshot.plan.schema;
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [openMenu, setOpenMenu] = useState<number | null>(null);
+  const methodDoc = pageReference?.document ?? eventReference?.document;
+  const plan = pageReference?.snapshot.plan ?? eventReference?.snapshot.plan;
+  const localActions = plan?.pages.get(page.id)?.actions ?? {};
+  const actions = { ...(plan?.registry ?? registry).actions, ...localActions };
+  const applicationDefinition = plan?.schema;
   const applicationMethods = new Map(
     (applicationDefinition?.methods ?? []).map((method) => [
       applicationMethodActionId(method.id),
       method,
     ]),
   );
-  const actionLabel = (id: string) => applicationMethods.get(id)?.title ?? actionLabels[id] ?? id;
-  const actionContract = (id: string) =>
-    Object.hasOwn(actionRegistry.actions, id) ? actionRegistry.actions[id] : undefined;
-  const actionIds = Object.keys(actionRegistry.actions);
-  const standardActionIds = actionIds.filter((id) => !applicationMethods.has(id));
+  const actionLabel = (id: string) =>
+    id.startsWith(pageActionPrefix)
+      ? `this.${pageActionName(id)}()`
+      : (applicationMethods.get(id)?.title ?? actionLabels[id] ?? id);
+  const actionContract = (id: string) => (Object.hasOwn(actions, id) ? actions[id] : undefined);
+  const actionIds = Object.keys(actions);
+  const pageActionIds = Object.keys(localActions);
+  const standardActionIds = actionIds.filter(
+    (id) => !applicationMethods.has(id) && !id.startsWith(pageActionPrefix),
+  );
   const methodActionIds = actionIds.filter((id) => applicationMethods.has(id));
   const renderActionOption = (id: string) => (
     <option key={id} value={id}>
@@ -142,18 +164,33 @@ export function ActionChainEditor({
       <p className="editor-note action-method-description">{description}</p>
     ) : null;
   };
+  // 分支子调用展平到主列表（编辑期单层结构，保存时重组为树）。
+  const flattenCalls = (
+    calls: ActionCall[],
+    parentId?: string,
+    branch?: 'then' | 'else',
+  ): CallDraft[] =>
+    calls.flatMap((call) => {
+      const item: CallDraft = {
+        id: call.id,
+        action: call.action,
+        resultTo: call.resultTo ?? '',
+        ...(parentId ? { parentId, branch } : {}),
+        input: Object.fromEntries(
+          Object.entries(actions[call.action]?.input ?? {}).map(([name, field]) => [
+            name,
+            bindingDraft(call.input[name], field),
+          ]),
+        ),
+      };
+      return [
+        item,
+        ...flattenCalls(call.then ?? [], call.id, 'then'),
+        ...flattenCalls(call.else ?? [], call.id, 'else'),
+      ];
+    });
   const initial = {
-    calls: existing.map((call): CallDraft => ({
-      id: call.id,
-      action: call.action,
-      resultTo: call.resultTo ?? '',
-      input: Object.fromEntries(
-        Object.entries(actionRegistry.actions[call.action].input).map(([name, field]) => [
-          name,
-          bindingDraft(call.input[name], field),
-        ]),
-      ),
-    })),
+    calls: flattenCalls(existing),
     error: '',
   };
   const { drafts } = useEditorSession();
@@ -347,6 +384,26 @@ export function ActionChainEditor({
       calls: d.calls.map((call, i) => (i === index ? { ...call, ...patch } : call)),
     }));
   };
+  const moveAction = (from: number, to: number) => {
+    if (!canAuthor()) return;
+    if (to < 0 || to >= draft.calls.length || from === to) return;
+    // 根级卡片只能移动到根级位置，避免落入分支子链区间破坏结构。
+    const rootPositions = new Set(
+      draft.calls.reduce<number[]>(
+        (acc, call, i) => (call.parentId ? acc : [...acc, i]),
+        [],
+      ),
+    );
+    if (!rootPositions.has(from) || !rootPositions.has(to)) return;
+    setEditingCall(null);
+    setDraft((d) => {
+      if (to < 0 || to >= d.calls.length) return d;
+      const calls = [...d.calls];
+      const [moved] = calls.splice(from, 1);
+      calls.splice(to, 0, moved);
+      return { ...d, calls, error: '' };
+    });
+  };
   const add = () => {
     if (!canAuthor()) return;
     // Uncommitted drafts on other nodes/events also own their identity.
@@ -362,7 +419,7 @@ export function ActionChainEditor({
           action,
           resultTo: '',
           input: Object.fromEntries(
-            Object.entries(actionRegistry.actions[action].input).map(([name, field]) => [
+            Object.entries(actions[action].input).map(([name, field]) => [
               name,
               bindingDraft(undefined, field),
             ]),
@@ -371,6 +428,63 @@ export function ActionChainEditor({
       ],
     }));
     setEditingCall(draft.calls.length);
+  };
+  const collectSubtreeIds = (rootId: string): Set<string> => {
+    const ids = new Set([rootId]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const item of draft.calls) {
+        if (item.parentId && ids.has(item.parentId) && !ids.has(item.id)) {
+          ids.add(item.id);
+          changed = true;
+        }
+      }
+    }
+    return ids;
+  };
+  const removeAt = (index: number) => {
+    if (!canAuthor()) return;
+    const ids = collectSubtreeIds(draft.calls[index].id);
+    setEditingCall(null);
+    setDraft((d) => ({
+      ...d,
+      error: '',
+      calls: d.calls.filter((item) => !ids.has(item.id)),
+    }));
+  };
+  const addBranchChild = (parentId: string, branch: 'then' | 'else') => {
+    if (!canAuthor()) return;
+    const id = `action-${crypto.randomUUID()}`;
+    const action = 'state.set';
+    const item: CallDraft = {
+      id,
+      action,
+      resultTo: '',
+      parentId,
+      branch,
+      input: Object.fromEntries(
+        Object.entries(actions[action].input).map(([name, field]) => [
+          name,
+          bindingDraft(undefined, field),
+        ]),
+      ),
+    };
+    // then 追加到 then 区末尾；else 追加到整个子树末尾，保证 then/else 分区连续。
+    const branchStart = draft.calls.findIndex((candidate) => candidate.id === parentId) + 1;
+    const insertAt = draft.calls.reduce(
+      (acc, item, i) => {
+        if (item.parentId !== parentId) return acc;
+        return branch === 'else' || item.branch === 'then' ? Math.max(acc, i + 1) : acc;
+      },
+      branchStart,
+    );
+    setDraft((d) => ({
+      ...d,
+      error: '',
+      calls: [...d.calls.slice(0, insertAt), item, ...d.calls.slice(insertAt)],
+    }));
+    setEditingCall(insertAt);
   };
   const appendMethod = (method: ApplicationMethod) => {
     if (!canAuthor()) return;
@@ -389,34 +503,51 @@ export function ActionChainEditor({
     }));
     setEditingCall(latest.current.draft.calls.length);
   };
+  const canApply = authoringAllowed && status.dirty && !status.stale && !hasUnavailableAction;
   const save = () => {
     const current = latest.current;
-    if (!canAuthor() || current.status.stale) return;
+    if (!canAuthor() || !current.status.dirty || current.status.stale) return false;
     try {
-      if (current.canSave?.() === false) return;
-      const calls: ActionCall[] = current.draft.calls.map((call) => {
-        const contract = actionContract(call.action);
-        if (!contract) throw new Error(`动作 ${call.action} 已不可用，请替换或移除后再保存。`);
-        return {
-          id: call.id,
-          action: call.action,
-          input: Object.fromEntries(
-            Object.entries(contract.input).flatMap(([name, field]) => {
-              try {
-                const value = parseBinding(call.input[name], field);
-                return value ? [[name, value]] : [];
-              } catch (error) {
-                throw new Error(`${call.action} / ${name}：${(error as Error).message}`);
-              }
-            }),
-          ),
-          ...(call.resultTo ? { resultTo: call.resultTo } : {}),
-        };
-      });
-      current.onSave(calls);
+      if (current.canSave?.() === false) return false;
+      const groupCalls = (flat: CallDraft[]): ActionCall[] => {
+        const roots: ActionCall[] = [];
+        const byId = new Map<string, ActionCall>();
+        for (const call of flat) {
+          const contract = actionContract(call.action);
+          if (!contract) throw new Error(`动作 ${call.action} 已不可用，请替换或移除后再保存。`);
+          const compiled: ActionCall = {
+            id: call.id,
+            action: call.action,
+            input: Object.fromEntries(
+              Object.entries(contract.input).flatMap(([name, field]) => {
+                try {
+                  const value = parseBinding(call.input[name], field);
+                  return value ? [[name, value]] : [];
+                } catch (error) {
+                  throw new Error(`${call.action} / ${name}：${(error as Error).message}`);
+                }
+              }),
+            ),
+            ...(call.resultTo ? { resultTo: call.resultTo } : {}),
+          };
+          if (call.parentId) {
+            const parent = byId.get(call.parentId);
+            if (!parent) throw new Error('条件分支结构已失效，请重新编辑后再保存。');
+            const key = call.branch === 'else' ? 'else' : 'then';
+            (parent[key] ??= []).push(compiled);
+          } else {
+            roots.push(compiled);
+          }
+          byId.set(call.id, compiled);
+        }
+        return roots;
+      };
+      current.onSave(groupCalls(current.draft.calls));
       current.status.reset();
+      return true;
     } catch (error) {
-      setDraft((d) => ({ ...d, error: errorText(error) }));
+      current.setDraft((d) => ({ ...d, error: errorText(error) }));
+      return false;
     }
   };
   // Full parameter editing for one call. Rendered inside the config dialog;
@@ -426,12 +557,10 @@ export function ActionChainEditor({
       <Select
         aria-label={`动作 ${index + 1} 类型`}
         value={call.action}
-        onValueChange={(action) =>
-          update(index, {
-            action,
-            resultTo: '',
-            input: Object.fromEntries(
-              Object.entries(actionRegistry.actions[action].input).map(([name, field]) => [
+        onValueChange={(action) => {
+          const resetInput = () =>
+            Object.fromEntries(
+              Object.entries(actions[action].input).map(([name, field]) => [
                 name,
                 action === 'app.navigate' && name === 'pageId'
                   ? bindingDraft(
@@ -445,21 +574,37 @@ export function ActionChainEditor({
                     ? bindingDraft({ kind: 'literal', value: false }, field)
                     : bindingDraft(undefined, field),
               ]),
-            ),
-          })
-        }
+            );
+          // 分支改为普通动作时，丢弃失去归属的子调用。
+          const dropIds =
+            call.action === 'control.branch' && action !== 'control.branch'
+              ? collectSubtreeIds(call.id)
+              : null;
+          setDraft((d) => ({
+            ...d,
+            error: '',
+            calls: d.calls.flatMap((item, i) => {
+              if (dropIds?.has(item.id) && item.id !== call.id) return [];
+              if (i !== index) return [item];
+              return [{ ...item, action, resultTo: '', input: resetInput() }];
+            }),
+          }));
+        }}
       >
         {!actionContract(call.action) && (
           <option value={call.action} disabled>
             已不可用 · {call.action}
           </option>
         )}
-        {methodActionIds.length > 0 ? (
+        {methodActionIds.length > 0 || pageActionIds.length > 0 ? (
           <>
             <optgroup label="常用动作">{standardActionIds.map(renderActionOption)}</optgroup>
-            <optgroup label="应用自定义方法">
-              {methodActionIds.map(renderActionOption)}
-            </optgroup>
+            {pageActionIds.length > 0 && (
+              <optgroup label="页面动作代码">{pageActionIds.map(renderActionOption)}</optgroup>
+            )}
+            {methodActionIds.length > 0 && (
+              <optgroup label="应用自定义方法">{methodActionIds.map(renderActionOption)}</optgroup>
+            )}
           </>
         ) : (
           standardActionIds.map(renderActionOption)
@@ -474,8 +619,7 @@ export function ActionChainEditor({
           disabled={!!drag?.isInteracting || drag?.enabled === false}
           onClick={(event) => {
             const method = applicationMethods.get(call.action);
-            if (method && canAuthor())
-              onOpenMethods(event.currentTarget, { methodId: method.id });
+            if (method && canAuthor()) onOpenMethods(event.currentTarget, { methodId: method.id });
           }}
         >
           编辑 JS
@@ -556,7 +700,7 @@ export function ActionChainEditor({
             bindingKind === 'dataRef' &&
             !!boundSource &&
             page.dataSources?.find((item) => item.id === bindingSourceId) === boundSource &&
-            actionRegistry.actions[action]?.input[name] !== undefined;
+            actions[action]?.input[name] !== undefined;
           if (!allowed) return refusePageReference();
           return true;
         };
@@ -645,8 +789,8 @@ export function ActionChainEditor({
             {page.state
               .filter(
                 (state) =>
-                  actionRegistry.actions[call.action].output === 'json' ||
-                  actionRegistry.actions[call.action].output === state.type,
+                  actions[call.action].output === 'json' ||
+                  actions[call.action].output === state.type,
               )
               .map((state) => (
                 <option key={state.id} value={state.id}>
@@ -689,145 +833,233 @@ export function ActionChainEditor({
           此调用已在草稿中移除或替换。当前草稿已保留。
         </div>
       )}
-        {draft.calls.map((call, index) => (
-          <section
-            ref={call === focusedCall ? referenceFocus : undefined}
-            tabIndex={call === focusedCall ? -1 : undefined}
-            className="action-card"
-            aria-label={`动作 ${index + 1}`}
-            key={call.id}
-          >
-            <header>
-              <button
-                type="button"
-                className="action-card-open"
-                aria-label={`打开动作 ${index + 1} 配置`}
-                onClick={() => {
-                  // Opening the dialog is a view action; actual editing stays
-                  // gated by the disabled fieldset and control-level guards.
-                  setEditingCall(index);
-                }}
-              >
-                <strong>
-                  {index + 1}. {actionLabel(call.action)}
-                  {!actionContract(call.action) && (
-                    <span className="action-card-badge">已不可用</span>
-                  )}
-                </strong>
-                <span className="action-card-summary">{callSummary(call)}</span>
-              </button>
-              <div className="action-card-tools">
-                {[
-                  { label: '上移动作', Icon: ArrowUp, offset: -1 },
-                  { label: '下移动作', Icon: ArrowDown, offset: 1 },
-                ].map(({ label, Icon, offset }) => (
-                  <Tip key={label} content={label}>
-                    <Button
-                      className="icon-button"
-                      aria-label={`${label} ${index + 1}`}
-                      disabled={index + offset < 0 || index + offset >= draft.calls.length}
-                      onClick={() => {
-                        if (!canAuthor()) return;
-                        setEditingCall(null);
-                        setDraft((d) => {
-                          const calls = [...d.calls];
-                          [calls[index], calls[index + offset]] = [
-                            calls[index + offset],
-                            calls[index],
-                          ];
-                          return { ...d, calls, error: '' };
-                        });
-                      }}
-                    >
-                      <Icon size={13} />
-                    </Button>
-                  </Tip>
-                ))}
-                <Tip content="编辑动作">
-                  <Button
-                    className="icon-button"
-                    aria-label={`编辑动作 ${index + 1}`}
+      {draft.calls.map((call, index) => (
+        <Fragment key={call.id}>
+        <section
+          ref={call === focusedCall ? referenceFocus : undefined}
+          tabIndex={call === focusedCall ? -1 : undefined}
+          className={`action-card${dragIndex === index ? ' is-dragging' : ''}${
+            call.parentId ? ' is-branch-child' : ''
+          }`}
+          aria-label={`动作 ${index + 1}`}
+          draggable={canAuthor() && !call.parentId}
+          onDragStart={(event) => {
+            if (!canAuthor() || call.parentId) {
+              event.preventDefault();
+              return;
+            }
+            setEditingCall(null);
+            setDragIndex(index);
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', String(index));
+          }}
+          onDragOver={(event) => {
+            if (dragIndex === null || dragIndex === index) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'move';
+          }}
+          onDrop={(event) => {
+            event.preventDefault();
+            const from = dragIndex ?? Number(event.dataTransfer.getData('text/plain'));
+            setDragIndex(null);
+            if (Number.isInteger(from) && from !== index) moveAction(from, index);
+          }}
+          onDragEnd={() => setDragIndex(null)}
+        >
+          <header>
+            <button
+              type="button"
+              className="action-card-open"
+              aria-label={`打开动作 ${index + 1} 配置`}
+              onClick={() => {
+                // Opening the dialog is a view action; actual editing stays
+                // gated by the disabled fieldset and control-level guards.
+                setEditingCall(index);
+              }}
+            >
+              <strong>
+                {index + 1}. {actionLabel(call.action)}
+                {!actionContract(call.action) && (
+                  <span className="action-card-badge">已不可用</span>
+                )}
+              </strong>
+              <span className="action-card-summary">{callSummary(call)}</span>
+            </button>
+            <div className="action-card-tools">
+              <Tip content="拖动排序">
+                <span className="action-drag-handle" aria-hidden="true" title="拖动排序">
+                  <GripVertical size={14} />
+                </span>
+              </Tip>
+              <Tip content="动作操作">
+                <button
+                  type="button"
+                  className="icon-button action-menu-trigger"
+                  aria-label={`动作 ${index + 1} 操作菜单`}
+                  aria-expanded={openMenu === index}
+                  onClick={() => setOpenMenu((current) => (current === index ? null : index))}
+                >
+                  <Ellipsis size={14} />
+                </button>
+              </Tip>
+              {openMenu === index && (
+                <div
+                  className="action-menu-popover"
+                  role="menu"
+                  aria-label={`动作 ${index + 1} 操作`}
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="action-menu-item"
                     onClick={() => {
+                      setOpenMenu(null);
                       setEditingCall(index);
                     }}
                   >
-                    <Pencil size={13} />
-                  </Button>
-                </Tip>
-                <Tip content="删除动作">
-                  <Button
-                    className="icon-button"
-                    aria-label={`删除动作 ${index + 1}`}
+                    <Pencil size={13} /> 编辑动作
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="action-menu-item"
+                    disabled={index === 0 || !!call.parentId}
                     onClick={() => {
-                      if (!canAuthor()) return;
-                      setEditingCall(null);
-                      setDraft((d) => ({
-                        ...d,
-                        error: '',
-                        calls: d.calls.filter((_, i) => i !== index),
-                      }));
+                      setOpenMenu(null);
+                      moveAction(index, index - 1);
                     }}
                   >
-                    <Trash2 size={13} />
-                  </Button>
-                </Tip>
-              </div>
-            </header>
-          </section>
-        ))}
-        {!draft.calls.length && (
-          <p className="editor-note">
-            {pageScope ? '尚未配置页面进入动作。' : '此事件尚未配置动作。'}
-          </p>
-        )}
-        {draft.error && (
-          <p role="alert" className="field-error action-error">
-            {draft.error}
-          </p>
-        )}
-        <div className="action-panel-footer">
-          <div className="action-panel-footer-group">
-            <Button disabled={!authoringAllowed} onClick={add}>
-              <Plus size={13} />
-              添加动作
+                    <ArrowUp size={13} /> 上移
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="action-menu-item"
+                    disabled={index === draft.calls.length - 1 || !!call.parentId}
+                    onClick={() => {
+                      setOpenMenu(null);
+                      moveAction(index, index + 1);
+                    }}
+                  >
+                    <ArrowDown size={13} /> 下移
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="action-menu-item"
+                    disabled={!canAuthor() || !!drag?.isInteracting || !actionContract(call.action)}
+                    onClick={() => {
+                      const current = latest.current;
+                      if (!canAuthor() || drag?.isInteracting || current.canSave?.() === false)
+                        return;
+                      if (current.draft.calls[index] !== call || !actionContract(call.action))
+                        return;
+                      const ids = collectSubtreeIds(call.id);
+                      const idMap = new Map<string, string>();
+                      for (const item of current.draft.calls)
+                        if (ids.has(item.id)) idMap.set(item.id, `action-${crypto.randomUUID()}`);
+                      let last = index;
+                      current.draft.calls.forEach((item, i) => {
+                        if (ids.has(item.id)) last = Math.max(last, i);
+                      });
+                      const copies = current.draft.calls
+                        .filter((item) => ids.has(item.id))
+                        .map((item) => ({
+                          ...structuredClone(item),
+                          id: idMap.get(item.id)!,
+                          ...(item.parentId && idMap.has(item.parentId)
+                            ? { parentId: idMap.get(item.parentId) }
+                            : item.parentId
+                              ? {}
+                              : {}),
+                        }));
+                      current.setDraft((d) => ({
+                        ...d,
+                        error: '',
+                        calls: [...d.calls.slice(0, last + 1), ...copies, ...d.calls.slice(last + 1)],
+                      }));
+                      setOpenMenu(null);
+                    }}
+                  >
+                    <Copy size={13} /> 复制动作
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="action-menu-item"
+                    disabled={!canAuthor()}
+                    onClick={() => {
+                      if (!canAuthor()) return;
+                      setOpenMenu(null);
+                      removeAt(index);
+                    }}
+                  >
+                    <Trash2 size={13} /> 删除动作
+                  </button>
+                </div>
+              )}
+            </div>
+          </header>
+        </section>
+        {call.action === 'control.branch' && (
+          <div className="action-branch-add">
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={!authoringAllowed}
+              onClick={() => addBranchChild(call.id, 'then')}
+            >
+              ＋ 满足条件时
             </Button>
-            {onOpenMethods && authoringAllowed && (
-              <Button
-                type="button"
-                variant="ghost"
-                disabled={!!drag?.isInteracting || drag?.enabled === false || status.stale}
-                onClick={(event) => {
-                  if (canAuthor() && !latest.current.status.stale)
-                    onOpenMethods(event.currentTarget, { onCreated: appendMethod });
-                }}
-              >
-                新建并绑定 JS
-              </Button>
-            )}
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={!authoringAllowed}
+              onClick={() => addBranchChild(call.id, 'else')}
+            >
+              ＋ 否则
+            </Button>
           </div>
-          <Button
-            variant="primary"
-            onClick={save}
-            disabled={!authoringAllowed || !status.dirty || status.stale || hasUnavailableAction}
-          >
-            {saveLabel}
+        )}
+        </Fragment>
+      ))}
+      {!draft.calls.length && (
+        <p className="editor-note">
+          {pageScope ? '尚未配置页面进入动作。' : '此事件尚未配置动作。'}
+        </p>
+      )}
+      {editingCall === null && draft.error && (
+        <p role="alert" className="field-error action-error">
+          {draft.error}
+        </p>
+      )}
+      <div className="action-panel-footer">
+        <div className="action-panel-footer-group">
+          <Button disabled={!authoringAllowed} onClick={add}>
+            <Plus size={13} />
+            添加动作
           </Button>
         </div>
-        <Dialog.Root
-          open={editingCall !== null && draft.calls[editingCall] !== undefined}
-          onOpenChange={(open) => {
-            if (!open) setEditingCall(null);
-          }}
-        >
-          <Dialog.Portal>
-            <Dialog.Backdrop className="material-modal-backdrop" />
-            <Dialog.Popup className="material-modal action-config-dialog">
-              <Dialog.Title className="action-config-heading">
-                {editingCall !== null && draft.calls[editingCall]
-                  ? `动作配置 · ${editingCall + 1}. ${actionLabel(draft.calls[editingCall].action)}`
-                  : '动作配置'}
-              </Dialog.Title>
-              {editingCall !== null && draft.calls[editingCall] && (
+        <Button variant="primary" onClick={save} disabled={!canApply}>
+          {saveLabel}
+        </Button>
+      </div>
+      <Dialog.Root
+        open={editingCall !== null && draft.calls[editingCall] !== undefined}
+        onOpenChange={(open) => {
+          if (!open) setEditingCall(null);
+        }}
+      >
+        <Dialog.Portal>
+          <Dialog.Backdrop className="material-modal-backdrop" />
+          <Dialog.Popup className="material-modal action-config-dialog">
+            <Dialog.Title className="action-config-heading">
+              {editingCall !== null && draft.calls[editingCall]
+                ? `动作配置 · ${editingCall + 1}. ${actionLabel(draft.calls[editingCall].action)}`
+                : '动作配置'}
+            </Dialog.Title>
+            {editingCall !== null && draft.calls[editingCall] && (
+              <div className="workbench-dialog-scroll action-config-scroll">
                 <fieldset
                   className="action-config-body"
                   disabled={!authoringAllowed}
@@ -835,13 +1067,29 @@ export function ActionChainEditor({
                 >
                   {renderCallEditor(draft.calls[editingCall], editingCall)}
                 </fieldset>
-              )}
-              <div className="action-config-footer">
-                <Dialog.Close className="ui-button">完成</Dialog.Close>
+                {draft.error && (
+                  <p role="alert" className="field-error action-error">
+                    {draft.error}
+                  </p>
+                )}
               </div>
-            </Dialog.Popup>
-          </Dialog.Portal>
-        </Dialog.Root>
+            )}
+            <div className="action-config-footer">
+              <Dialog.Close className="ui-button">完成</Dialog.Close>
+              <Button
+                type="button"
+                variant="primary"
+                disabled={!canApply}
+                onClick={() => {
+                  if (save()) setEditingCall(null);
+                }}
+              >
+                应用并关闭
+              </Button>
+            </div>
+          </Dialog.Popup>
+        </Dialog.Portal>
+      </Dialog.Root>
     </>
   );
 }
@@ -900,7 +1148,6 @@ export function ActionPanel({
   eventTarget?: ApplicationMethodReference;
 }) {
   const drag = useDragDrop();
-  const canOpenMethods = useAuthorGuard(document, snapshot, node.id, !!onOpenMethods);
   const events = registry.components[node.component].events ?? [];
   const allowed = events.filter(
     (name) =>
@@ -960,19 +1207,6 @@ export function ActionPanel({
               ))}
             </Select>
           </label>
-          {onOpenMethods && (
-            <Button
-              type="button"
-              variant="ghost"
-              className="page-logic-methods-button"
-              disabled={!!drag?.isInteracting || drag?.enabled === false}
-              onClick={(event) => {
-                if (canOpenMethods()) onOpenMethods(event.currentTarget);
-              }}
-            >
-              应用自定义方法
-            </Button>
-          )}
           <EventChain
             key={`${snapshot.selection.pageId}/${node.id}/${eventName}`}
             document={document}

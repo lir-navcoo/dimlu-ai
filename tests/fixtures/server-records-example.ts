@@ -4,7 +4,8 @@ import type {
   Json,
   NodeSchema,
   Value,
-} from '../packages/schema/types';
+} from '../../packages/schema/types';
+import { pageHeader } from '../../src/example-header.ts';
 const literal = (value: Json): Value => ({ kind: 'literal', value });
 const expression = (source: string): Value => ({
   kind: 'expression',
@@ -52,7 +53,6 @@ export const serverRecordsExample: ApplicationSchema = {
   dependencies: {
     components: Object.fromEntries(
       [
-        'ui.heading',
         'ui.layout',
         'ui.input',
         'ui.number',
@@ -154,16 +154,11 @@ export const serverRecordsExample: ApplicationSchema = {
       ],
       onEnter: query('enter'),
       children: [
-        {
-          id: 'heading',
-          component: 'ui.heading',
-          props: {
-            title: literal('服务端记录管理'),
-            description: literal(
-              '查询、分页、排序由本地 mock 服务执行。搜索“查询失败”验证重试；编辑姓名为“保存失败”或“刷新失败”验证两类错误。',
-            ),
-          },
-        },
+        ...pageHeader(
+          'heading',
+          '服务端记录管理',
+          '查询、分页、排序由本地 mock 服务执行。搜索“查询失败”验证重试；编辑姓名为“保存失败”或“刷新失败”验证两类错误。',
+        ),
         {
           id: 'query-filter',
           component: 'ui.input',

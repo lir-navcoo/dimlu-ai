@@ -55,7 +55,17 @@ export interface ActionContext {
   resetForm(formId: string): void;
   submitForm(formId: string): Promise<void>;
   executeDataSource(sourceId: string, input?: Record<string, Json>): Promise<Json>;
+  /** Invoke a compiled application method (`app.method.<id>`) from other action code. */
+  invokeApplication?(methodId: string, payload?: unknown): Promise<Json>;
   emitEffect(effect: { type: string; data: Record<string, Json> }): void;
+  pageActions?: {
+    setState(patch: unknown): void;
+    getValue(nodeId: string): Json;
+    setValue(nodeId: string, value: unknown): void;
+    validateField(nodeId: string): boolean;
+    resetField(nodeId: string): void;
+    validateForm(formId: string): boolean;
+  };
 }
 export interface ActionContract {
   version: string;
@@ -152,6 +162,14 @@ export function createRegistry(
         },
         execute(input, context) {
           context.setState(String(input.stateId), input.value);
+        },
+      },
+      // 条件分支由运行时在动作链循环中直接执行（then/else 子链），不经过 execute。
+      'control.branch': {
+        version: '1.0.0',
+        input: { when: { type: 'boolean', required: true } },
+        execute() {
+          throw new Error('条件分支由运行时直接执行');
         },
       },
       ...actions,

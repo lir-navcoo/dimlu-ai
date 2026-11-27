@@ -1,7 +1,7 @@
 import { act, StrictMode, useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import componentExample from '../public/examples/components.json';
+import { componentsExample as componentExample } from './fixtures/example-json';
 import { registry, materials } from '../src/materials';
 import { catalog } from '../src/editor/catalog';
 import { defaultArrayFields } from '../src/editor/extended-catalog';
@@ -19,6 +19,12 @@ import type {
   Value,
 } from '../packages/schema/types';
 import { RadioGroupMaterial, CheckboxGroupMaterial } from '../src/materials/groups';
+import { RateMaterial } from '../src/materials/rate';
+import { SliderMaterial } from '../src/materials/slider';
+import { ColorPickerMaterial } from '../src/materials/color-picker';
+import { CascaderMaterial } from '../src/materials/cascader';
+import { UploadMaterial, readFiles } from '../src/materials/upload';
+import { RichTextMaterial } from '../src/materials/rich-text';
 import { DateMaterial } from '../src/materials/temporal';
 import { FieldArrayMaterial } from '../src/materials/field-array';
 import { TableMaterial, safeHref, ImageMaterial, DataStatus } from '../src/materials/data';
@@ -115,6 +121,214 @@ describe('extended material contracts', () => {
     ).toEqual(literal('items'));
     document.undo();
     expect(document.getSnapshot().plan.schema.pages[0].forms![0].arrays).toBeUndefined();
+  });
+});
+
+describe('rate material', () => {
+  it('updates full and half ratings while exposing the grade', () => {
+    const changed = vi.fn();
+    function Demo() {
+      const [value, setValue] = useState(0);
+      return (
+        <RateMaterial
+          label="满意度"
+          value={value}
+          allowHalf
+          showGrade
+          onValueChange={(next) => {
+            changed(next);
+            setValue(next);
+          }}
+        />
+      );
+    }
+    render(<Demo />);
+    fireEvent.click(screen.getByRole('button', { name: '3 分' }));
+    expect(changed).toHaveBeenLastCalledWith(3);
+    expect(screen.getByText('3/5')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '3.5 分' }));
+    expect(changed).toHaveBeenLastCalledWith(3.5);
+    expect(screen.getByText('3.5/5')).toBeTruthy();
+  });
+  it('honors count and disabled state', () => {
+    render(<RateMaterial label="评分" value={2} count={3} disabled showGrade />);
+    expect(screen.getByText('2/3')).toBeTruthy();
+    expect(
+      screen.getAllByRole('button').every((button) => (button as HTMLButtonElement).disabled),
+    ).toBe(true);
+  });
+  it('clears the current rating when allowClear is on', () => {
+    const changed = vi.fn();
+    function Demo() {
+      const [value, setValue] = useState(3);
+      return (
+        <RateMaterial
+          label="评分"
+          value={value}
+          allowClear
+          onValueChange={(next) => {
+            changed(next);
+            setValue(next);
+          }}
+        />
+      );
+    }
+    render(<Demo />);
+    fireEvent.click(screen.getByRole('button', { name: '3 分' }));
+    expect(changed).toHaveBeenLastCalledWith(0);
+    fireEvent.click(screen.getByRole('button', { name: '3 分' }));
+    expect(changed).toHaveBeenLastCalledWith(3);
+  });
+});
+
+describe('slider material', () => {
+  it('updates the value and keeps it within min/max, snapped to step', () => {
+    const changed = vi.fn();
+    function Demo() {
+      const [value, setValue] = useState(30);
+      return (
+        <SliderMaterial
+          label="进度"
+          value={value}
+          min={0}
+          max={10}
+          step={2}
+          onValueChange={(next) => {
+            changed(next);
+            setValue(next);
+          }}
+        />
+      );
+    }
+    render(<Demo />);
+    const range = screen.getByRole('slider') as HTMLInputElement;
+    expect(range.min).toBe('0');
+    expect(range.max).toBe('10');
+    expect(range.step).toBe('2');
+    fireEvent.change(range, { target: { value: '7' } });
+    expect(changed).toHaveBeenLastCalledWith(8);
+    expect(screen.getByText('8')).toBeTruthy();
+  });
+  it('honors disabled and hides the value output on demand', () => {
+    render(<SliderMaterial label="音量" value={5} disabled showValue={false} />);
+    const range = screen.getByRole('slider') as HTMLInputElement;
+    expect(range.disabled).toBe(true);
+    expect(screen.queryByText('5')).toBeNull();
+  });
+});
+
+describe('color picker material', () => {
+  it('emits hex colors from the swatch and keeps the text field in sync', () => {
+    const changed = vi.fn();
+    function Demo() {
+      const [value, setValue] = useState('#4f46e5');
+      return (
+        <ColorPickerMaterial
+          label="主题色"
+          value={value}
+          onValueChange={(next) => {
+            changed(next);
+            setValue(next);
+          }}
+        />
+      );
+    }
+    render(<Demo />);
+    fireEvent.change(screen.getByLabelText('主题色颜色选择器'), { target: { value: '#ff0000' } });
+    expect(changed).toHaveBeenLastCalledWith('#ff0000');
+    expect((screen.getByLabelText('主题色颜色值') as HTMLInputElement).value).toBe('#ff0000');
+  });
+  it('ignores invalid hex typed into the text field', () => {
+    const changed = vi.fn();
+    render(<ColorPickerMaterial label="颜色" value="#123456" onValueChange={changed} />);
+    fireEvent.change(screen.getByLabelText('颜色颜色值'), { target: { value: 'not-a-color' } });
+    expect(changed).not.toHaveBeenCalled();
+  });
+});
+
+describe('cascader material', () => {
+  const options = [
+    {
+      label: '华东',
+      value: 'east',
+      children: [
+        { label: '上海', value: 'shanghai' },
+        { label: '杭州', value: 'hangzhou' },
+      ],
+    },
+    { label: '华北', value: 'north', children: [{ label: '北京', value: 'beijing' }] },
+  ];
+  it('walks columns and commits a leaf path', () => {
+    const changed = vi.fn();
+    function Demo() {
+      const [value, setValue] = useState<string[]>([]);
+      return (
+        <CascaderMaterial
+          label="地区"
+          options={options}
+          value={value}
+          onValueChange={(next) => {
+            changed(next);
+            setValue(next);
+          }}
+        />
+      );
+    }
+    render(<Demo />);
+    fireEvent.click(screen.getByText('请选择'));
+    expect(screen.getByText('华北')).toBeTruthy();
+    fireEvent.click(screen.getByText('华东'));
+    fireEvent.click(screen.getByText('杭州'));
+    expect(changed).toHaveBeenLastCalledWith(['east', 'hangzhou']);
+    expect(screen.getByText('华东 / 杭州')).toBeTruthy();
+  });
+  it('shows selected labels for a controlled path', () => {
+    render(
+      <CascaderMaterial label="地区" options={options} value={['north', 'beijing']} disabled />,
+    );
+    const trigger = screen.getByText('华北 / 北京').closest('button')!;
+    expect(trigger.disabled).toBe(true);
+  });
+});
+
+describe('upload material', () => {
+  it('renders existing attachments and removes one', () => {
+    const changed = vi.fn();
+    render(
+      <UploadMaterial
+        label="附件"
+        value={['data:image/png;base64,aGk=', 'https://example.com/a.pdf']}
+        onValueChange={changed}
+        multiple
+      />,
+    );
+    expect(screen.getByAltText('附件 1')).toBeTruthy();
+    expect(screen.getByText('附件 2')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '移除附件 2' }));
+    expect(changed).toHaveBeenLastCalledWith(['data:image/png;base64,aGk=']);
+  });
+  it('disables the picker at maxCount', () => {
+    render(<UploadMaterial label="附件" value={['a', 'b']} maxCount={2} multiple />);
+    expect((screen.getByLabelText('附件选择文件') as HTMLInputElement).disabled).toBe(true);
+  });
+});
+
+describe('rich text material', () => {
+  it('renders initial HTML and accepts external value changes without publishing edits', async () => {
+    const changed = vi.fn();
+    const view = render(<RichTextMaterial label="正文" value="<p>hello</p>" onValueChange={changed} />);
+    expect(screen.getByRole('textbox', { name: '正文' }).textContent).toBe('hello');
+    view.rerender(<RichTextMaterial label="正文" value="<p>world</p>" onValueChange={changed} />);
+    await waitFor(() => expect(screen.getByRole('textbox', { name: '正文' }).textContent).toBe('world'));
+    expect(changed).not.toHaveBeenCalled();
+  });
+  it('exposes format tools and honors disabled', () => {
+    render(<RichTextMaterial label="正文" value="" disabled />);
+    expect(screen.getByRole('button', { name: '粗体' })).toBeTruthy();
+    expect((screen.getByRole('button', { name: '粗体' }) as HTMLButtonElement).disabled).toBe(true);
+    const editor = screen.getByRole('textbox', { name: '正文' });
+    expect(editor.getAttribute('contenteditable')).toBe('false');
+    expect(editor.getAttribute('aria-disabled')).toBe('true');
   });
 });
 

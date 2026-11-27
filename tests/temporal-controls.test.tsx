@@ -49,6 +49,30 @@ function Controlled({
 }
 
 describe('custom temporal controls: retained field contracts', () => {
+  it('renders configured placeholders for date, time and range inputs', () => {
+    const view = render(
+      <DateMaterial label="日期" value="" placeholder="选择业务日期" clearable={false} />,
+    );
+    expect(input('日期').placeholder).toBe('选择业务日期');
+
+    view.rerender(
+      <DateMaterial label="日期范围" value={[]} range placeholder="业务日期" clearable={false} />,
+    );
+    expect(input('日期范围开始').placeholder).toBe('开始业务日期');
+    expect(input('日期范围结束').placeholder).toBe('结束业务日期');
+
+    view.rerender(
+      <DateMaterial
+        label="时间"
+        mode="time"
+        value=""
+        placeholder="选择交接时间"
+        clearable={false}
+      />,
+    );
+    expect(input('时间').placeholder).toBe('选择交接时间');
+  });
+
   it.each([
     ['date', '2026-11-08'],
     ['month', '2026-11'],

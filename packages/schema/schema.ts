@@ -27,6 +27,21 @@ export const applicationJsonSchema = {
       },
     },
     pages: { type: 'array', minItems: 1, items: { $ref: '#/$defs/page' } },
+    sharedDataSources: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['id', 'kind', 'transport', 'input', 'initial'],
+        properties: {
+          id: { $ref: '#/$defs/id' },
+          kind: { enum: ['query', 'mutation'] },
+          transport: { $ref: '#/$defs/id' },
+          input: { $ref: '#/$defs/values' },
+          initial: { $ref: '#/$defs/json' },
+        },
+      },
+    },
   },
   $defs: {
     id: { type: 'string', pattern: '^[a-zA-Z][a-zA-Z0-9_.-]*$' },
@@ -133,6 +148,8 @@ export const applicationJsonSchema = {
         action: { $ref: '#/$defs/id' },
         input: { $ref: '#/$defs/values' },
         resultTo: { $ref: '#/$defs/id' },
+        then: { type: 'array', items: { $ref: '#/$defs/action' } },
+        else: { type: 'array', items: { $ref: '#/$defs/action' } },
       },
     },
     applicationMethod: {
@@ -345,6 +362,7 @@ export const applicationJsonSchema = {
         id: { $ref: '#/$defs/id' },
         title: { type: 'string', minLength: 1 },
         description: { type: 'string' },
+        css: { type: 'string', maxLength: 12000 },
         code: {
           type: 'object',
           additionalProperties: false,
@@ -355,6 +373,12 @@ export const applicationJsonSchema = {
             source: { type: 'string' },
             css: { type: 'string' },
           },
+        },
+        actionCode: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['source'],
+          properties: { source: { type: 'string', maxLength: 32768 } },
         },
         forms: { type: 'array', items: { $ref: '#/$defs/form' } },
         dataSources: { type: 'array', items: { $ref: '#/$defs/dataSource' } },
@@ -374,20 +398,37 @@ export const applicationJsonSchema = {
         children: { $ref: '#/$defs/nodes' },
         onEnter: { $ref: '#/$defs/actions' },
         onLeave: { $ref: '#/$defs/actions' },
+        didMount: { $ref: '#/$defs/actions' },
+        willUnmount: { $ref: '#/$defs/actions' },
         extensions: { $ref: '#/$defs/extensions' },
       },
     },
     dataSource: {
-      type: 'object',
-      additionalProperties: false,
-      required: ['id', 'kind', 'transport', 'input', 'initial'],
-      properties: {
-        id: { $ref: '#/$defs/id' },
-        kind: { enum: ['query', 'mutation'] },
-        transport: { $ref: '#/$defs/id' },
-        input: { $ref: '#/$defs/values' },
-        initial: { $ref: '#/$defs/json' },
-      },
+      oneOf: [
+        {
+          type: 'object',
+          additionalProperties: false,
+          required: ['id', 'kind', 'transport', 'input', 'initial'],
+          properties: {
+            id: { $ref: '#/$defs/id' },
+            kind: { enum: ['query', 'mutation'] },
+            transport: { $ref: '#/$defs/id' },
+            input: { $ref: '#/$defs/values' },
+            initial: { $ref: '#/$defs/json' },
+            ref: { not: {} },
+          },
+        },
+        {
+          type: 'object',
+          additionalProperties: false,
+          required: ['id', 'ref', 'input'],
+          properties: {
+            id: { $ref: '#/$defs/id' },
+            ref: { $ref: '#/$defs/id' },
+            input: { $ref: '#/$defs/values' },
+          },
+        },
+      ],
     },
   },
 } as const;

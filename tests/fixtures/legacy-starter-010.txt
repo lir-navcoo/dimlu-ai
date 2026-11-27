@@ -5,21 +5,20 @@
   "entryPageId": "purchase",
   "dependencies": {
     "components": {
-      "ui.layout": "1.0.0",
-      "ui.text": "1.0.0",
-      "ui.heading": "1.0.0",
-      "ui.input": "1.0.0",
-      "ui.number": "1.0.0",
+      "react.counter": "1.0.0",
+      "react.purchaseItems": "1.0.0",
+      "ui.badge": "1.0.0",
       "ui.button": "1.0.0",
+      "ui.empty": "1.0.0",
       "ui.form": "1.0.0",
       "ui.formStatus": "1.0.0",
-      "react.purchaseItems": "1.0.0",
-      "ui.summary": "1.0.0",
-      "ui.badge": "1.0.0",
+      "ui.input": "1.0.0",
+      "ui.layout": "1.0.0",
+      "ui.number": "1.0.0",
       "ui.record": "1.0.0",
-      "ui.empty": "1.0.0",
       "ui.recordCard": "1.0.0",
-      "react.counter": "1.0.0"
+      "ui.summary": "1.0.0",
+      "ui.text": "1.0.0"
     },
     "actions": {
       "state.set": "1.0.0",
@@ -219,15 +218,25 @@
       "children": [
         {
           "id": "purchase-heading",
-          "component": "ui.heading",
+          "component": "ui.text",
           "props": {
-            "title": {
+            "value": {
               "kind": "literal",
               "value": "创建采购申请"
-            },
-            "description": {
+            }
+          }
+        },
+        {
+          "id": "purchase-heading-note",
+          "component": "ui.text",
+          "props": {
+            "value": {
               "kind": "literal",
               "value": "填写申请与采购明细，可新增、排序或删除；金额自动汇总。"
+            },
+            "tone": {
+              "kind": "literal",
+              "value": "muted"
             }
           }
         },
@@ -479,15 +488,25 @@
       "children": [
         {
           "id": "people-heading",
-          "component": "ui.heading",
+          "component": "ui.text",
           "props": {
-            "title": {
+            "value": {
               "kind": "literal",
               "value": "找到你的协作伙伴"
-            },
-            "description": {
+            }
+          }
+        },
+        {
+          "id": "people-heading-note",
+          "component": "ui.text",
+          "props": {
+            "value": {
               "kind": "literal",
               "value": "按姓名或部门查询，数据由本地模拟服务异步返回。"
+            },
+            "tone": {
+              "kind": "literal",
+              "value": "muted"
             }
           }
         },
@@ -690,15 +709,25 @@
       "children": [
         {
           "id": "composition-heading",
-          "component": "ui.heading",
+          "component": "ui.text",
           "props": {
-            "title": {
+            "value": {
               "kind": "literal",
               "value": "组合能力，保持原生"
-            },
-            "description": {
+            }
+          }
+        },
+        {
+          "id": "composition-heading-note",
+          "component": "ui.text",
+          "props": {
+            "value": {
               "kind": "literal",
               "value": "Schema 组织组件，自定义代码继续使用 React 的 JSX、Hooks 和事件。"
+            },
+            "tone": {
+              "kind": "literal",
+              "value": "muted"
             }
           }
         },
@@ -719,17 +748,27 @@
               "children": [
                 {
                   "id": "card-heading",
-                  "component": "ui.heading",
+                  "component": "ui.text",
                   "props": {
-                    "title": {
+                    "value": {
                       "kind": "expression",
                       "language": "javascript",
                       "source": "scope.record.name"
-                    },
-                    "description": {
+                    }
+                  }
+                },
+                {
+                  "id": "card-heading-note",
+                  "component": "ui.text",
+                  "props": {
+                    "value": {
                       "kind": "expression",
                       "language": "javascript",
                       "source": "scope.record.department + ' / ' + scope.record.role"
+                    },
+                    "tone": {
+                      "kind": "literal",
+                      "value": "muted"
                     }
                   }
                 }

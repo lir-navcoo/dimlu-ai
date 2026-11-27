@@ -70,6 +70,33 @@ describe('unified text input', () => {
     runtime.dispose();
   });
 
+  it('applies input type, disabled, read-only and length props to the native control', () => {
+    const app = structuredClone(formEditorApplication);
+    const page = app.pages[0];
+    page.forms = [{ id: 'model', fields: [{ ...structuredClone(nameField), initial: '' }] }];
+    const form = page.children[0];
+    form.formId = 'model';
+    const input = form.children![0];
+    delete input.field;
+    input.props = {
+      label: { kind: 'literal', value: '姓名' },
+      value: { kind: 'literal', value: '' },
+      type: { kind: 'literal', value: 'email' },
+      disabled: { kind: 'literal', value: true },
+      readOnly: { kind: 'literal', value: false },
+      minLength: { kind: 'literal', value: 3 },
+      maxLength: { kind: 'literal', value: 12 },
+    };
+    const runtime = new PageRuntime(compileApplication(app, registry), 'page');
+    render(<RuntimeRenderer runtime={runtime} materials={materials} />);
+    const field = screen.getByRole('textbox', { name: '姓名' }) as HTMLInputElement;
+    expect(field.type).toBe('email');
+    expect(field.disabled).toBe(true);
+    expect(field.minLength).toBe(3);
+    expect(field.maxLength).toBe(12);
+    runtime.dispose();
+  });
+
   it('allows native React textarea code to reuse the same field adapter', () => {
     function NativeText() {
       const field = useField('model', 'name');

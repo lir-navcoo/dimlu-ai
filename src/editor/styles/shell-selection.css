@@ -19,7 +19,9 @@
   right: -2px;
   bottom: 100%;
   display: flex;
+  width: max-content;
   align-items: center;
+  justify-content: flex-start;
   gap: 2px;
   pointer-events: auto;
   background: #5471e9;

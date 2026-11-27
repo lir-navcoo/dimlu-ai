@@ -3,8 +3,8 @@
   height: 32px;
   padding: 0 12px;
   gap: 12px;
-  font-size: 12px;
-  border-radius: 4px;
+  font-size: var(--material-font-sm);
+  border-radius: var(--material-radius-sm);
 }
 .material-form > .material-button,
 .material-form > .editor-node > .material-button {
@@ -23,14 +23,14 @@
   font-size: 22px;
 }
 .material-summary > span {
-  font-size: 12px;
+  font-size: var(--material-font-sm);
 }
 .material-record {
   padding: 12px 0;
   gap: 12px;
 }
 .material-record strong {
-  font-size: 13px;
+  font-size: var(--material-font-md);
 }
 .native-counter {
   margin-top: 16px;
@@ -38,16 +38,16 @@
 }
 .native-counter strong {
   margin: 6px 0;
-  font-size: 13px;
+  font-size: var(--material-font-md);
 }
 .native-counter button {
   height: 32px;
   padding: 0 10px;
-  font-size: 12px;
+  font-size: var(--material-font-sm);
 }
 .purchase-item {
   padding: 12px;
-  border-radius: 6px;
+  border-radius: var(--material-radius-md);
 }
 .item-footer {
   margin-top: 10px;
@@ -55,5 +55,5 @@
 .item-action {
   height: 28px;
   padding: 0 8px;
-  font-size: 12px;
+  font-size: var(--material-font-sm);
 }

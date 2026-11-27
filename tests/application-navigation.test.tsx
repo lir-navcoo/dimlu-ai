@@ -18,7 +18,7 @@ const navigationApplication = (target = 'details'): ApplicationSchema => ({
       'ui.button': registry.components['ui.button'].version,
       'ui.text': registry.components['ui.text'].version,
     },
-    actions: {},
+    actions: { 'ui.notify': registry.actions['ui.notify'].version },
   },
   pages: [
     {
@@ -96,6 +96,41 @@ describe('application page navigation action', () => {
       },
     ];
     const plan = compileApplication(schema, registry);
+    window.history.replaceState({}, '', applicationRoutePath(plan.schema.id));
+    render(<ApplicationRuntimeHost plan={plan} />);
+    await waitFor(() =>
+      expect(window.location.pathname).toBe(applicationRoutePath(plan.schema.id, 'details')),
+    );
+    expect(await screen.findByText('已到达详情页')).toBeTruthy();
+  });
+
+  it('accepts didMount/willUnmount aliases and normalizes them to onEnter/onLeave', async () => {
+    const schema = navigationApplication();
+    schema.pages[0].didMount = [
+      {
+        id: 'enter-details',
+        action: 'app.navigate',
+        input: { pageId: literal('details'), replace: { kind: 'literal', value: true } },
+      },
+    ];
+    const leaveCall = {
+      id: 'leave-notice',
+      action: 'ui.notify',
+      input: { title: literal('离开详情页'), tone: literal('info') },
+    };
+    schema.pages[1].willUnmount = [leaveCall];
+    // Alias and canonical name must not coexist on the same page.
+    schema.pages[1].onLeave = [leaveCall];
+    const issues = validateApplication(schema, registry);
+    expect(issues.some((issue) => issue.code === 'page.lifecycle.alias')).toBe(true);
+    delete schema.pages[1].onLeave;
+
+    const plan = compileApplication(schema, registry);
+    const home = plan.pages.get('home')!;
+    expect(home.schema.onEnter).toHaveLength(1);
+    expect(home.schema.didMount).toBeUndefined();
+    expect(plan.pages.get('details')!.schema.onLeave).toEqual([leaveCall]);
+    expect(plan.pages.get('details')!.schema.willUnmount).toBeUndefined();
     window.history.replaceState({}, '', applicationRoutePath(plan.schema.id));
     render(<ApplicationRuntimeHost plan={plan} />);
     await waitFor(() =>

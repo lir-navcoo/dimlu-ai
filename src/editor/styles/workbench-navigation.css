@@ -21,11 +21,8 @@
 .app-header .brand {
   gap: 6px;
 }
-.app-header .brand-mark {
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
-  font: bold 20px/22px Georgia, serif;
+.app-header .brand-logo {
+  height: 36px;
 }
 .app-header .brand strong {
   font-size: 14px;
@@ -91,18 +88,12 @@
 /* 组件/大纲面板内容区留白：与面板边界保持呼吸感。 */
 .sidebar-content.components-workspace {
   padding: 12px;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 .sidebar-content.components-workspace > .component-tree,
 .sidebar-content.components-workspace > .insert-panel {
   min-width: 0;
-}
-.components-panel {
-  display: flex;
-  min-width: 0;
-  min-height: 0;
-  flex-direction: column;
-  height: 100%;
 }
 .data-panel-context {
   display: grid;
@@ -127,55 +118,6 @@
   border-color: #dc2626;
   background: #dc2626;
   color: #fff;
-}
-.components-tabs {
-  display: flex;
-  min-width: 0;
-  min-height: 0;
-  flex: 1;
-  flex-direction: column;
-}
-.components-tabs-list {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px;
-  /* Match the inspector title bar's 40px band and 12px gutter so both panels
-     start their content on the same horizontal and vertical line. */
-  height: 40px;
-  flex: 0 0 40px;
-  align-items: center;
-  padding: 0 12px;
-  border-bottom: 1px solid var(--border);
-}
-.components-tabs-list > button {
-  display: flex;
-  min-width: 0;
-  height: 28px;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 0 6px;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  background: transparent;
-  color: #64748b;
-  font-size: 11px;
-}
-.components-tabs-list > button:hover {
-  background: #f8fafc;
-}
-.components-tabs-list > button[data-active] {
-  border-color: #c7d2fe;
-  background: #eef0ff;
-  color: #4338ca;
-  font-weight: 600;
-}
-.components-tabs-panel.sidebar-content {
-  padding: 12px;
-}
-.components-tabs-panel .panel-search {
-  top: 0;
-  padding-top: 0;
 }
 .model-field-search {
   display: grid;
@@ -345,15 +287,6 @@
 .side-drawer.right .property-panel-title {
   display: none;
 }
-.components-tabs-panel .material-grid {
-  gap: 8px;
-}
-.components-tabs-panel .material-tile {
-  width: auto;
-  min-height: 36px;
-  gap: 8px;
-  padding-inline: 8px;
-}
 .selected-material > span {
   flex: 0 0 28px;
 }
@@ -389,17 +322,6 @@
 .style-source-editor .field-error {
   overflow-wrap: anywhere;
 }
-.inspector-empty {
-  justify-items: center;
-  gap: 8px;
-  margin: 0;
-  padding-block: 32px;
-  background: transparent;
-  text-align: center;
-}
-.inspector-empty > svg {
-  color: #64748b;
-}
 /* 参数首行：名称居左、取值方式与类型靠右，避免三行堆叠；加载顺序在冻结分区之后。 */
 .action-parameter-label > label {
   flex: 1;
@@ -427,8 +349,10 @@
   font-size: 10px;
   color: #94a3b8;
 }
-/* 动作链容器：卡片、说明与底部按钮之间统一间距（外层 section 本身无样式）。 */
-.action-panel > .action-chain {
+/* 动作链容器：卡片、说明与底部按钮之间统一间距。
+   组件事件面板中 action-chain 是 action-panel 直接子级；
+   页面逻辑面板中则嵌在 lifecycle-block 下，故用类选择器而非子代选择器。 */
+.action-chain {
   display: grid;
   min-width: 0;
   gap: 10px;
@@ -487,24 +411,204 @@
   color: #4338ca;
   font-size: 10px;
 }
-.data-source-dialog {
-  /* material-modal 的宽度走 --modal-width 变量；加宽以容纳参数行。 */
+/* Workbench dialogs opt into a width by content; material overlays keep their schema width. */
+.material-modal:is(
+  .project-confirmation,
+  .application-delete-dialog,
+  .state-definition-dialog,
+  .field-settings-dialog,
+  .action-config-dialog,
+  .data-source-dialog,
+  .application-settings-dialog,
+  .application-method-dialog
+) {
+  box-sizing: border-box;
+  width: min(var(--modal-width), calc(100% - 32px));
+  overflow-wrap: anywhere;
+}
+.material-modal:is(.project-confirmation, .application-delete-dialog) {
+  --modal-width: 400px;
+}
+.material-modal.state-definition-dialog {
+  --modal-width: 480px;
+}
+.material-modal:is(.field-settings-dialog, .action-config-dialog) {
   --modal-width: 560px;
-  padding: 16px;
-  max-height: calc(100dvh - 96px);
-  overflow-x: hidden;
-  overflow-y: auto;
 }
-/* 参数首行在窄弹窗内可收缩，避免取值方式下拉把标签挤出可视区。 */
-.data-source-dialog .action-parameter-label > .ui-select {
-  flex-shrink: 1;
-  min-width: 88px;
+.material-modal.data-source-dialog {
+  --modal-width: 640px;
 }
-.data-source-dialog-head {
+.material-modal.application-settings-dialog {
+  --modal-width: 760px;
+}
+.material-modal:is(.application-methods-dialog, .application-method-dialog) {
+  --modal-width: 840px;
+}
+/* Keep scroll ownership in the content area, not on the popup or its form. */
+.material-modal:is(
+  .state-definition-dialog,
+  .data-source-dialog,
+  .field-settings-dialog,
+  .action-config-dialog,
+  .application-settings-dialog,
+  .application-method-dialog
+) {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  overflow: clip;
+}
+.workbench-dialog-scroll {
+  flex: 0 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  scrollbar-color: #94a3b8 transparent;
+}
+.workbench-dialog-actions {
+  flex: none;
+  min-width: 0;
+  border-top: 1px solid #edf0f5;
+}
+.data-definition-dialog-head {
+  display: flex;
+  flex: none;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
+  padding: 12px 16px 10px;
+  border-bottom: 1px solid #edf0f5;
+}
+.data-definition-dialog-heading {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+.data-definition-dialog-heading > h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 600;
+}
+.data-definition-dialog-heading > .editor-note {
+  margin: 0;
+}
+.data-definition-dialog-head > .ui-button,
+.material-modal.field-settings-dialog > header,
+.material-modal.field-settings-dialog > header .ui-button {
+  flex: none;
+}
+.material-modal:is(.state-definition-dialog, .data-source-dialog) .data-definition,
+.material-modal.field-settings-dialog > .material-modal-body,
+.material-modal.field-settings-dialog .field-definition {
+  display: flex;
+  flex: 0 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  gap: 0;
+}
+/* 数据源抽屉的表单与内容区必须接管剩余高度，避免被通用收缩规则压成空白。 */
+.material-modal.data-source-dialog .data-definition {
+  flex: 1 1 auto;
+}
+.material-modal.data-source-dialog .workbench-dialog-scroll.data-definition-fields {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+.field-conditions {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid #e5eaf2;
+  padding-top: 12px;
+}
+.field-conditions > h4 {
+  margin: 0;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 600;
+}
+.field-condition {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #f8fafc;
+}
+.field-condition > label {
+  margin: 0;
+}
+.field-condition > .field-condition-boolean {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.field-condition > .editor-note {
+  margin: 0;
+}
+.field-condition .action-parameter {
+  min-width: 0;
+  margin: 0;
+}
+.field-condition .code-editor {
+  min-width: 0;
+}
+.material-modal.field-settings-dialog > .material-modal-body {
+  padding: 0;
+}
+.material-modal.field-settings-dialog > header {
+  padding: 12px 16px 10px;
+  border-bottom: 1px solid #edf0f5;
+}
+.data-definition-fields,
+.field-definition-fields {
+  padding: 12px 16px;
+}
+.data-definition-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 12px;
+}
+.data-definition-fields > label {
+  display: grid;
+  gap: 5px;
+  font-size: 11px;
+  color: #475569;
+}
+.data-definition-actions,
+.field-definition-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  padding: 10px 16px;
+  gap: 6px;
+}
+.material-modal.field-settings-dialog .field-definition-actions .apply-button {
+  margin: 0;
+}
+.material-modal:is(.data-source-dialog, .action-config-dialog) .action-parameter-label {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+.material-modal:is(.data-source-dialog, .action-config-dialog) .action-parameter-label > label {
+  flex-basis: 120px;
+}
+.material-modal:is(.data-source-dialog, .action-config-dialog) .action-parameter-label > code {
+  margin-inline-start: auto;
+}
+.material-modal.project-confirmation .project-confirmation-actions {
+  flex-wrap: wrap;
+}
+@media (max-width: 420px) {
+  .material-modal:is(.data-source-dialog, .action-config-dialog)
+    .action-parameter-label:has(> .ui-select)
+    > label {
+    flex-basis: 100%;
+  }
 }
 /* 动作链底部按钮组：辅助按钮靠左成组，保存主按钮靠右。 */
 .action-panel-footer-group {
@@ -519,15 +623,39 @@
   gap: 8px;
   padding-top: 2px;
 }
-/* 物料分类条单行横向滚动，分类按钮不收缩折行；覆盖冻结分区里的换行布局。 */
+/* 物料分类条保持单行；空间不足时由“更多”下拉承接剩余分类，不出现横向滚动条。 */
 .material-categories {
+  position: relative;
   flex-wrap: nowrap;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: thin;
+  overflow: hidden;
 }
 .material-categories > .ui-button {
   flex-shrink: 0;
+}
+.material-categories-measure {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  display: flex;
+  width: max-content;
+  gap: 4px;
+  visibility: hidden;
+  pointer-events: none;
+}
+.material-more-select {
+  flex: 0 0 auto;
+  width: 48px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0 4px;
+  border: 1px solid var(--border, #dce1e9);
+  border-radius: 4px;
+  background: #fff;
+  color: #64748b;
+  font-size: 11px;
+}
+.material-more-select:disabled {
+  opacity: 0.5;
 }
 .canvas-tools {
   flex: 0 0 auto;
@@ -579,6 +707,7 @@
   padding: 0;
 }
 .canvas-toolbar {
+  height: auto;
   min-height: 40px;
   flex-wrap: wrap;
   gap: 6px 8px;
@@ -590,12 +719,7 @@
   padding-inline-start: 10px;
   border-inline-start: 1px solid var(--border);
 }
-.canvas-toolbar-viewport {
-  display: flex;
-  min-width: 0;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 8px;
+.canvas-toolbar-actions > .viewport-controls {
   padding-inline-start: 10px;
   border-inline-start: 1px solid var(--border);
 }
@@ -610,9 +734,6 @@
   flex: 0 0 auto;
   align-items: center;
   gap: 4px;
-}
-.canvas-viewport-band {
-  min-width: 0;
 }
 .canvas-tools .viewport-feedback {
   white-space: normal;
@@ -741,13 +862,15 @@
 .action-card > header {
   gap: 4px;
   padding: 7px 8px 7px 10px;
+  min-width: 0;
 }
 .action-card > header strong {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  display: block;
   font-size: 12px;
   overflow-wrap: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .action-card-badge {
   flex-shrink: 0;
@@ -772,33 +895,99 @@
   cursor: pointer;
 }
 .action-card-open > strong {
-  display: inline-flex;
-  align-items: center;
-  flex-shrink: 1;
+  display: block;
+  flex: 0 1 auto;
   min-width: 0;
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .action-card-summary {
   min-width: 0;
-  flex: 1;
+  flex: 1 1 0;
   overflow: hidden;
   color: #64748b;
   font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.action-config-dialog {
+.action-card.is-dragging {
+  opacity: 0.5;
+}
+.action-card-tools {
   display: flex;
-  width: min(520px, calc(100vw - 32px));
+  flex-shrink: 0;
+  align-items: center;
+  gap: 2px;
+  position: relative;
+}
+.action-menu-popover {
+  position: absolute;
+  z-index: 20;
+  top: 100%;
+  right: 0;
+  min-width: 108px;
+  padding: 4px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 6px 20px rgb(15 23 42 / 12%);
+}
+.action-menu-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #334155;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.action-menu-item:hover:not(:disabled) {
+  background: #eef2ff;
+}
+.action-menu-item:disabled {
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+.action-drag-handle {
+  display: inline-flex;
+  width: 22px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  cursor: grab;
+  touch-action: none;
+}
+.action-card[draggable='false'] .action-drag-handle {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.action-menu-trigger {
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0;
+}
+.ui-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.material-modal.action-config-dialog {
   max-height: min(680px, calc(100dvh - 48px));
-  flex-direction: column;
-  gap: 10px;
-  padding: 14px 16px;
-  overflow: auto;
+}
+.action-config-scroll {
+  padding: 10px 16px;
 }
 .action-config-heading {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid #edf0f5;
   flex-shrink: 0;
   font-size: 13px;
   font-weight: 600;
@@ -806,11 +995,13 @@
 }
 .action-config-body {
   display: grid;
-  min-height: 0;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
-  padding-right: 2px;
 }
 .action-config-footer {
+  padding: 10px 16px;
+  border-top: 1px solid #edf0f5;
   display: flex;
   flex-shrink: 0;
   justify-content: flex-end;
@@ -867,33 +1058,6 @@
   cursor: pointer;
   background: none;
 }
-.number-setter {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-  align-items: stretch;
-  gap: 3px;
-}
-.number-setter .ui-input {
-  min-width: 0;
-  flex: 1;
-}
-.number-stepper {
-  display: flex;
-  flex-direction: column;
-  flex: 0 0 auto;
-  gap: 1px;
-}
-.number-stepper .icon-button {
-  width: 18px;
-  min-width: 18px;
-  height: 13px;
-  padding: 0;
-}
-.number-stepper .icon-button svg {
-  width: 10px;
-  height: 10px;
-}
 
 /* --- History timeline panel --------------------------------------------- */
 .history-timeline {
@@ -949,4 +1113,122 @@ li.history-current .history-step {
 }
 .tree-flags [data-flag='hidden'] {
   color: #64748b;
+}
+
+/* --- Right inspector: page settings landing (logic + style) -------------- */
+.page-settings-landing {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.page-settings-hint {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 11px;
+}
+.page-settings-tabs-root {
+  min-width: 0;
+}
+.page-settings-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid #e2e8f0;
+}
+.page-settings-tabs > button {
+  flex: 1;
+  padding: 7px 4px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #64748b;
+  font-size: 12px;
+  cursor: pointer;
+}
+.page-settings-tabs > button[data-active] {
+  border-bottom-color: #4f46e5;
+  color: #4338ca;
+  font-weight: 600;
+}
+.page-settings-tabs-root > [role='tabpanel'] {
+  min-width: 0;
+}
+.page-settings-tabs-root > [role='tabpanel'] > .action-panel {
+  gap: 14px;
+  padding-top: 4px;
+}
+.page-settings-tabs-root > [role='tabpanel'] > .action-panel > .lifecycle-block {
+  gap: 10px;
+  padding: 10px 12px;
+}
+.page-code-entry {
+  display: grid;
+  gap: 8px;
+  padding: 8px 2px;
+}
+.lifecycle-block {
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  min-width: 0;
+}
+.lifecycle-block-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.lifecycle-block-head h3 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+.lifecycle-block-head code {
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 10px;
+}
+.lifecycle-help {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  border: 1px solid #cbd5e1;
+  border-radius: 50%;
+  color: #94a3b8;
+  font-size: 10px;
+  cursor: help;
+}
+/* 页面方法弹窗：统一方法列表 + 行内新建（宜搭式）。 */
+.material-modal.page-method-dialog {
+  --modal-width: 420px;
+}
+.page-method-list {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.page-method-list .page-action-item {
+  width: 100%;
+}
+/* 条件分支：子调用缩进显示归属，分支卡片下提供 then/else 添加入口。 */
+.action-card.is-branch-child {
+  margin-left: 24px;
+  border-left: 2px solid var(--accent, #4f46e5);
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.action-branch-add {
+  display: flex;
+  gap: 8px;
+  margin: -4px 0 4px 24px;
 }

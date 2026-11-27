@@ -12,14 +12,14 @@ import {
   type ReactSetterProps,
 } from '../src/editor/Setters';
 import { catalog } from '../src/editor/catalog';
-import { exampleApplication } from '../src/examples';
+import { exampleApplication } from './fixtures/examples';
 import { materials, registry } from '../src/materials';
 
 afterEach(cleanup);
 
 const title = (document: EditorDocument) =>
   findNode(document.getSnapshot().plan.pages.get('purchase')!.schema, 'purchase-heading')!.node
-    .props.title;
+    .props.value;
 
 function Harness({
   document,
@@ -36,7 +36,7 @@ function Harness({
   useEffect(() => () => runtime.dispose(), [runtime]);
   const metadata = useMemo(() => {
     const next = structuredClone(catalog);
-    next['ui.heading'].properties.find((property) => property.name === 'title')!.setter = {
+    next['ui.text'].properties.find((property) => property.name === 'value')!.setter = {
       kind: 'custom',
       id: 'acceptance.native',
     };
@@ -77,17 +77,17 @@ describe('cycle 007 independent setter acceptance', () => {
   it('updates actual runtime output through a native TSX setter and groups a focus session', () => {
     const document = new EditorDocument(exampleApplication, registry);
     render(<Harness document={document} />);
-    const control = screen.getByRole('textbox', { name: '标题' });
+    const control = screen.getByRole('textbox', { name: '文本内容' });
     fireEvent.focus(control);
     fireEvent.change(control, { target: { value: '验' } });
     fireEvent.change(control, { target: { value: '验收原生 TSX' } });
     fireEvent.blur(control);
-    expect(screen.getByRole('heading', { name: '验收原生 TSX' })).toBeTruthy();
+    expect(screen.getByText('验收原生 TSX', { exact: true })).toBeTruthy();
     act(() => document.undo());
-    expect(screen.getByRole('heading', { name: '创建采购申请' })).toBeTruthy();
+    expect(screen.getByText('创建采购申请', { exact: true })).toBeTruthy();
     expect(document.getSnapshot().canUndo).toBe(false);
     act(() => document.redo());
-    expect(screen.getByRole('heading', { name: '验收原生 TSX' })).toBeTruthy();
+    expect(screen.getByText('验收原生 TSX', { exact: true })).toBeTruthy();
     expect(document.exportJson()).not.toContain('acceptance.native');
   });
 
@@ -95,19 +95,19 @@ describe('cycle 007 independent setter acceptance', () => {
     const document = new EditorDocument(exampleApplication, registry);
     render(<Harness document={document} />);
     const before = document.getSnapshot();
-    fireEvent.change(screen.getByRole('textbox', { name: '标题' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: '文本内容' }), {
       target: { value: '#无效草稿' },
     });
     expect(document.getSnapshot()).toBe(before);
-    expect(screen.getByRole('heading', { name: '创建采购申请' })).toBeTruthy();
+    expect(screen.getByText('创建采购申请', { exact: true })).toBeTruthy();
     act(() => document.select('purchase', 'purchase-name'));
     expect(screen.queryByText('验收无效草稿')).toBeNull();
     act(() => document.select('purchase', 'purchase-heading'));
-    expect((screen.getByRole('textbox', { name: '标题' }) as HTMLInputElement).value).toBe(
+    expect((screen.getByRole('textbox', { name: '文本内容' }) as HTMLInputElement).value).toBe(
       '#无效草稿',
     );
     expect(screen.getByRole('alert').textContent).toBe('验收无效草稿');
-    fireEvent.click(screen.getByRole('button', { name: '标题放弃草稿' }));
+    fireEvent.click(screen.getByRole('button', { name: '文本内容放弃草稿' }));
     expect(screen.queryByRole('alert')).toBeNull();
     expect(title(document)).toEqual({ kind: 'literal', value: '创建采购申请' });
   });

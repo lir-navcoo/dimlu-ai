@@ -13,7 +13,7 @@ import { registry } from '../src/materials';
 import { purchaseManagementExample } from '../src/purchase-management-example';
 import { TipProvider } from '../src/ui/primitives';
 import { eventAuthor, eventSpecialText } from './event-reference-paths-fixture';
-import { changeControl, closeActionConfig, openActionConfig } from './ui-helpers';
+import { actionOperation, changeControl, closeActionConfig, openActionConfig } from './ui-helpers';
 
 type Handler = (...arguments_: any[]) => unknown;
 const held = vi.hoisted(() => ({
@@ -242,7 +242,9 @@ const trigger = (index = 1, parameter = 'title') => {
 };
 const pathInput = (index = 1, parameter = 'title') => {
   ensureDialog(index);
-  return within(dialog()).getByRole('textbox', { name: `${parameter}数据路径` }) as HTMLInputElement;
+  return within(dialog()).getByRole('textbox', {
+    name: `${parameter}数据路径`,
+  }) as HTMLInputElement;
 };
 const menu = () => screen.getByRole('menu');
 function option(path = eventSpecialText) {
@@ -462,7 +464,7 @@ describe('054 page-entry saved initial paths', () => {
     }
   });
 
-  it('same-page none and multiple selections keep dirty page draft but permanently retire old menu and parent choice', () => {
+  it('same-page none and multiple selections keep dirty page draft but permanently retire old menu and parent choice', async () => {
     const h = harness();
     fireEvent.change(pathInput(), { target: { value: '["future"]' } });
     const entry = h.entry();
@@ -483,7 +485,7 @@ describe('054 page-entry saved initial paths', () => {
     h.requests();
   });
 
-  it('reorder ABA, deletion/index reuse and action replacement cannot redirect an old option or captured parent writer', () => {
+  it('reorder ABA, deletion/index reuse and action replacement cannot redirect an old option or captured parent writer', async () => {
     const h = harness();
     open();
     const old = capture(),
@@ -491,13 +493,13 @@ describe('054 page-entry saved initial paths', () => {
       close = held.roots.at(-1)!;
     // Row tools live outside the dialog; close it first.
     closeActionConfig();
-    fireEvent.click(within(card(1)).getByRole('button', { name: '下移动作 1' }));
-    fireEvent.click(within(card(2)).getByRole('button', { name: '上移动作 2' }));
+    await actionOperation(1, 'down');
+    await actionOperation(2, 'up');
     noWrites(h, () => {
       old();
       owner.choosePath(eventSpecialText);
     });
-    fireEvent.click(within(card(1)).getByRole('button', { name: '删除动作 1' }));
+    await actionOperation(1, 'delete');
     expect(h.entry().value.calls[0].id).toBe('enter-a-notice-b');
     open();
     noWrites(h, () => {
@@ -801,8 +803,8 @@ describe('054 page-entry saved initial paths', () => {
     // Parameter helpers mount with the config dialog; open it before capture.
     openActionConfig(1);
     const seed = held.helpers.find(
-      (props) => props.owner.callId === 'enter-a-notice-a' && props.owner.parameter === 'title',
-    )!,
+        (props) => props.owner.callId === 'enter-a-notice-a' && props.owner.parameter === 'title',
+      )!,
       page = h.page();
     h.view.unmount();
     const change = vi.fn(),

@@ -105,7 +105,7 @@ function schema(): ApplicationSchema {
   );
   return result;
 }
-function mount(definition = schema()) {
+function mount(definition = schema(), saveDelayMs = 1) {
   const saved = JSON.stringify({
     storageVersion: 1,
     savedAt: 'stage-independent',
@@ -119,7 +119,7 @@ function mount(definition = schema()) {
       storage.set(key, value);
     },
   };
-  return { ...render(<App projectStorage={adapter} saveDelayMs={1} />), storage };
+  return { ...render(<App projectStorage={adapter} saveDelayMs={saveDelayMs} />), storage };
 }
 function frameIn(container: HTMLElement) {
   const frame = container.querySelector<HTMLIFrameElement>('iframe[aria-label="画布运行文档"]');
@@ -174,6 +174,24 @@ function currentRuntime() {
 }
 
 describe('actual compiled-mode App canvas integration', () => {
+  it('saves only when the current iframe owns edit focus and leaves its text inputs alone', () => {
+    const view = mount(schema(), 60_000);
+    const frame = frameIn(view.container);
+    const child = ready(frame);
+    const original = view.storage.get(PROJECT_STORAGE_KEY);
+    act(() => captured.author!.setProp('a', 'alpha', 'value', lit('阶段快捷保存')));
+    const canvas = child.author();
+    expect(key(canvas, 's', { ctrlKey: true }).defaultPrevented).toBe(false);
+    const input = child.query.getByRole('textbox', { name: '阶段本地输入' });
+    input.focus();
+    expect(document.activeElement).toBe(frame);
+    expect(key(input, 's', { ctrlKey: true }).defaultPrevented).toBe(false);
+    expect(view.storage.get(PROJECT_STORAGE_KEY)).toBe(original);
+    canvas.focus();
+    expect(key(canvas, 's', { ctrlKey: true }).defaultPrevented).toBe(true);
+    expect(view.storage.get(PROJECT_STORAGE_KEY)).toContain('阶段快捷保存');
+  });
+
   it('A1 keeps the platform document outside real committed runtime loading gaps and retires it on page lifetime changes', async () => {
     const view = mount();
     const frame = frameIn(view.container);

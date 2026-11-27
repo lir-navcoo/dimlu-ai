@@ -1,4 +1,5 @@
-import type { ApplicationSchema, Value, NodeSchema, ActionCall } from '../packages/schema/types';
+import type { ApplicationSchema, Value, NodeSchema, ActionCall } from '../../packages/schema/types';
+import { pageHeader } from '../../src/example-header.ts';
 const literal = (value: any): Value => ({ kind: 'literal', value });
 const expr = (source: string): Value => ({ kind: 'expression', language: 'javascript', source });
 const ref = (stateId: string): Value => ({ kind: 'stateRef', stateId });
@@ -23,7 +24,6 @@ export const exampleApplication: ApplicationSchema = {
       [
         'ui.layout',
         'ui.text',
-        'ui.heading',
         'ui.input',
         'ui.number',
         'ui.button',
@@ -142,14 +142,11 @@ export const exampleApplication: ApplicationSchema = {
         },
       ],
       children: [
-        {
-          id: 'purchase-heading',
-          component: 'ui.heading',
-          props: {
-            title: literal('创建采购申请'),
-            description: literal('填写申请与采购明细，可新增、排序或删除；金额自动汇总。'),
-          },
-        },
+        ...pageHeader(
+          'purchase-heading',
+          '创建采购申请',
+          '填写申请与采购明细，可新增、排序或删除；金额自动汇总。',
+        ),
         {
           id: 'purchase-form',
           component: 'ui.form',
@@ -262,14 +259,7 @@ export const exampleApplication: ApplicationSchema = {
         },
       ],
       children: [
-        {
-          id: 'people-heading',
-          component: 'ui.heading',
-          props: {
-            title: literal('找到你的协作伙伴'),
-            description: literal('按姓名或部门查询，数据由本地模拟服务异步返回。'),
-          },
-        },
+        ...pageHeader('people-heading', '找到你的协作伙伴', '按姓名或部门查询，数据由本地模拟服务异步返回。'),
         {
           id: 'people-search',
           component: 'ui.form',
@@ -359,16 +349,11 @@ export const exampleApplication: ApplicationSchema = {
         },
       ],
       children: [
-        {
-          id: 'composition-heading',
-          component: 'ui.heading',
-          props: {
-            title: literal('组合能力，保持原生'),
-            description: literal(
-              'Schema 组织组件，自定义代码继续使用 React 的 JSX、Hooks 和事件。',
-            ),
-          },
-        },
+        ...pageHeader(
+          'composition-heading',
+          '组合能力，保持原生',
+          'Schema 组织组件，自定义代码继续使用 React 的 JSX、Hooks 和事件。',
+        ),
         {
           id: 'person-card',
           component: 'ui.recordCard',
@@ -377,14 +362,8 @@ export const exampleApplication: ApplicationSchema = {
             header: {
               params: ['record'],
               children: [
-                {
-                  id: 'card-heading',
-                  component: 'ui.heading',
-                  props: {
-                    title: expr('scope.record.name'),
-                    description: expr("scope.record.department + ' / ' + scope.record.role"),
-                  },
-                },
+                text('card-heading', expr('scope.record.name')),
+                text('card-heading-sub', expr("scope.record.department + ' / ' + scope.record.role"), 'muted'),
               ],
             },
             body: {

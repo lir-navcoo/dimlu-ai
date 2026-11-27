@@ -25,6 +25,7 @@ import {
   X,
 } from 'lucide-react';
 import { Button, Tip, TipProvider } from './ui/primitives';
+import { BrandLogo } from './ui/BrandLogo';
 import { ResizeHandle } from './ui/ResizeHandle';
 import { PageRuntime } from '../packages/runtime/engine';
 import { purchaseManagementExample } from './purchase-management-example';
@@ -62,7 +63,7 @@ import {
   ApplicationDirectory,
   type ApplicationDirectory as ApplicationDirectoryType,
 } from '../packages/editor/application-directory';
-import { isAuthorEscape } from './editor/author-escape';
+import { isAuthorEscape, isSaveKeyFamily, resizingWindows } from './editor/author-escape';
 import { CanvasStage, useCanvasStageVersion } from './editor/canvas-stage';
 import {
   editorApplicationPath,
@@ -144,7 +145,9 @@ function useLayout() {
   const [layout, setLayout] = useState<Layout>(() => {
     try {
       const current = localStorage.getItem('dimlu.workbench.layout.v2');
-      const saved = JSON.parse(current ?? localStorage.getItem('dimlu.workbench.layout.v1') ?? '{}');
+      const saved = JSON.parse(
+        current ?? localStorage.getItem('dimlu.workbench.layout.v1') ?? '{}',
+      );
       if (!current && saved) {
         if (saved.leftWidth === 224) saved.leftWidth = defaultLayout.leftWidth;
         if (saved.rightWidth === 304) saved.rightWidth = defaultLayout.rightWidth;
@@ -500,6 +503,81 @@ function NavigationEnvironment({
   ]);
   return null;
 }
+function ProjectSaveShortcut({ project, mode }: { project: ProjectStorage; mode: CanvasMode }) {
+  const drag = useDragDrop();
+  const stage = drag?.stage;
+  useLayoutEffect(() => {
+    if (mode !== 'edit') return;
+    const parent = window;
+    let detachFrame = () => {};
+    const attach = (owner: Window, frame?: HTMLIFrameElement) => {
+      let composing = false;
+      const start = () => {
+        composing = true;
+      };
+      const end = () => {
+        composing = false;
+      };
+      const save = (event: KeyboardEvent) => {
+        if (
+          event.defaultPrevented ||
+          !event.cancelable ||
+          event.ctrlKey === event.metaKey ||
+          event.altKey ||
+          event.shiftKey ||
+          event.repeat ||
+          event.isComposing ||
+          composing ||
+          event.keyCode === 229 ||
+          !isSaveKeyFamily(event) ||
+          drag?.isInteracting ||
+          resizingWindows.has(owner) ||
+          project.getSnapshot().protected ||
+          (frame && (parent.document.activeElement !== frame || stage?.platform()?.frame !== frame))
+        )
+          return;
+        const excluded =
+          'input,textarea,select,[contenteditable]:not([contenteditable="false"]),.monaco-editor,.code-editor,[role="textbox"],[role="combobox"],[role="dialog"],[role="alertdialog"],[role="menu"],[role="listbox"],[popover]';
+        if (
+          event
+            .composedPath()
+            .some(
+              (target) =>
+                target instanceof owner.document.defaultView!.Element && target.matches(excluded),
+            )
+        )
+          return;
+        event.preventDefault();
+        project.flush();
+      };
+      owner.addEventListener('keydown', save);
+      owner.addEventListener('compositionstart', start, true);
+      owner.addEventListener('compositionend', end, true);
+      owner.addEventListener('blur', end);
+      return () => {
+        owner.removeEventListener('keydown', save);
+        owner.removeEventListener('compositionstart', start, true);
+        owner.removeEventListener('compositionend', end, true);
+        owner.removeEventListener('blur', end);
+      };
+    };
+    const detachParent = attach(parent);
+    const bindFrame = () => {
+      detachFrame();
+      const frame = stage?.platform()?.frame;
+      detachFrame = frame?.contentWindow ? attach(frame.contentWindow, frame) : () => {};
+    };
+    const unsubscribe = stage?.subscribe(bindFrame);
+    bindFrame();
+    return () => {
+      unsubscribe?.();
+      detachFrame();
+      detachParent();
+    };
+  }, [project, mode, drag, stage]);
+  return null;
+}
+
 type MethodReferenceRequest = { document: EditorDocument; reference: ApplicationMethodReference };
 
 function Workbench({
@@ -535,10 +613,22 @@ function Workbench({
     selection: { pageId, nodeId },
   } = snapshot;
   const session = useEditorSession();
+  const [pageLogicRequest, setPageLogicRequest] = useState<{ pageId: string }>();
   const routeState = useRef({ document, plan, session });
   routeState.current = { document, plan, session };
   useLayoutEffect(() => {
     const restore = () => {
+      const { pathname } = window.location;
+      // Leave workspace navigation to RoutedWorkspace instead of rewriting its destination.
+      if (
+        pathname === '/' ||
+        pathname === editorApplicationsPath() ||
+        isEditorApplicationLocation(window.location) ||
+        isEditorPagesLocation(window.location) ||
+        pathname === '/apps' ||
+        pathname.startsWith('/apps/')
+      )
+        return;
       const current = routeState.current;
       const route = parseEditorLocation(window.location);
       const routePageExists = !!route.pageId && current.plan.pages.has(route.pageId);
@@ -552,6 +642,19 @@ function Workbench({
       }
 
       const emptyPage = current.plan.pages.get(nextPageId)?.schema;
+      // 页面逻辑深链（?panel=logic）展开右侧页面设置并取消选中组件，URL 保持原样。
+      if (new URLSearchParams(window.location.search).get('panel') === 'logic') {
+        current.document.select(nextPageId, null);
+        setPageLogicRequest({ pageId: nextPageId });
+        setRightOpen(true);
+        setLayout((layoutCurrent) =>
+          layoutCurrent.rightCollapsed
+            ? { ...layoutCurrent, rightCollapsed: false }
+            : layoutCurrent,
+        );
+        current.session.setLeftTab('outline');
+        return;
+      }
       const hasExplicitPanel = new URLSearchParams(window.location.search).has('panel');
       const effectivePanel =
         route.panel === 'outline' &&
@@ -690,6 +793,20 @@ function Workbench({
     if (clearOpening) setLeftLogOpening(null);
   };
   const navigatePanel = (panelId: string) => {
+    if (panelId === 'logic') {
+      // 页面逻辑已迁入右侧「页面设置」：取消选中组件并展开右侧面板。
+      retireLogPresentation(true);
+      const current = document.getSnapshot();
+      if (selectedNodeIds(current.selection).length > 0)
+        document.select(current.selection.pageId, null);
+      setPageLogicRequest({ pageId });
+      setRightOpen(true);
+      setLayout((layoutCurrent) =>
+        layoutCurrent.rightCollapsed ? { ...layoutCurrent, rightCollapsed: false } : layoutCurrent,
+      );
+      writeEditorRoute(pageId, 'logic' as EditorPanelId);
+      return;
+    }
     const panel = editorPanelRoute(panelId);
     if (!panel) return;
 
@@ -700,6 +817,14 @@ function Workbench({
       setLayout((current) => (current.leftWidth < 380 ? { ...current, leftWidth: 420 } : current));
     writeEditorRoute(pageId, panelId as EditorPanelId);
   };
+  useEffect(() => {
+    const onNavigate = (event: Event) => {
+      const detail = (event as CustomEvent<string>).detail;
+      if (typeof detail === 'string') navigatePanel(detail);
+    };
+    window.addEventListener('dimlu:navigate-panel', onNavigate);
+    return () => window.removeEventListener('dimlu:navigate-panel', onNavigate);
+  }, [pageId, session]);
   const navigatePage = (nextPageId: string) => {
     const current = document.getSnapshot();
     if (!current.plan.pages.has(nextPageId)) return;
@@ -750,12 +875,15 @@ function Workbench({
         current.rightCollapsed ? { ...current, rightCollapsed: false } : current,
       );
     } else {
-      setRightOpen(false);
-      session.activatePanel('logic');
+      // 页面逻辑在右侧「页面设置」：展开右侧面板承接页面进入动作的定位。
+      setRightOpen(true);
+      setLayout((current) =>
+        current.rightCollapsed ? { ...current, rightCollapsed: false } : current,
+      );
     }
     writeEditorRoute(
       page.id,
-      owner ? 'outline' : 'logic',
+      owner ? 'outline' : ('logic' as EditorPanelId),
       isEditorApplicationLocation(window.location),
     );
   }, [methodReferenceRequest]);
@@ -932,12 +1060,16 @@ function Workbench({
       onCommit={() => session.setLeftOpen(false)}
     >
       <NavigationEnvironment document={document} snapshot={snapshot} mode={mode} />
-      <div className="app-shell" ref={shell} style={{ '--workspace-top': `${workspaceTop}px` } as React.CSSProperties}>
+      <ProjectSaveShortcut project={project} mode={mode} />
+      <div
+        className="app-shell"
+        ref={shell}
+        style={{ '--workspace-top': `${workspaceTop}px` } as React.CSSProperties}
+      >
         <header className="app-header">
           <div className="app-header-context">
             <div className="brand">
-              <span className="brand-mark" aria-hidden="true">d</span>
-              <strong>dimlu</strong>
+              <BrandLogo className="brand-logo" />
             </div>
             <Menu.Root>
               <Menu.Trigger
@@ -1041,11 +1173,7 @@ function Workbench({
           >
             {designPanels.map(({ id, title, icon: Icon }) => (
               <Tip key={id} content={title} side="right">
-                <Tabs.Tab
-                  value={id}
-                  aria-label={title}
-                  onClick={() => navigatePanel(id)}
-                >
+                <Tabs.Tab value={id} aria-label={title} onClick={() => navigatePanel(id)}>
                   <Icon size={17} aria-hidden="true" />
                 </Tabs.Tab>
               </Tip>
@@ -1120,13 +1248,11 @@ function Workbench({
                   onOpenPagePanel={navigatePanel}
                 />
                 <CanvasBreadcrumb document={document} snapshot={snapshot} />
-                <div
-                  className="canvas-toolbar-viewport"
-                  inert={debugOpen && (rightNarrow || debugMaximized)}
-                >
-                  <ViewportControls mode={mode} />
-                </div>
                 <div className="canvas-toolbar-actions">
+                  <ViewportControls
+                    mode={mode}
+                    inert={debugOpen && (rightNarrow || debugMaximized)}
+                  />
                   {runtime && !runtime.disposed && <RuntimeStatus runtime={runtime} />}
                   <Tip content="重置当前页面的运行数据" side="bottom">
                     <Button
@@ -1147,7 +1273,9 @@ function Workbench({
                           : '收起右侧面板'
                     }
                     variant="ghost"
-                    onClick={rightNarrow && mode === 'edit' && nodeId ? editProperties : toggleRight}
+                    onClick={
+                      rightNarrow && mode === 'edit' && nodeId ? editProperties : toggleRight
+                    }
                   >
                     <PanelRight size={15} aria-hidden="true" />
                   </Button>
@@ -1168,21 +1296,31 @@ function Workbench({
               aria-label="页面画布"
               inert={debugOpen && (rightNarrow || debugMaximized)}
             >
-              <CanvasViewport mode={mode} stage={staged ? canvasStage : undefined}>
-                {runtime &&
-                runtime.plan === plan &&
-                runtime.page.schema.id === pageId &&
-                !runtime.disposed ? (
-                  plan.pages.get(pageId)!.schema.code?.enabled ? (
-                    <CanvasSurface>
-                      <CodePageCanvas
-                        code={plan.pages.get(pageId)!.schema.code!}
-                        runtime={runtime}
-                        mode={mode}
-                        openCode={() => navigatePanel('code')}
-                      />
-                    </CanvasSurface>
-                  ) : (
+              {plan.pages.get(pageId)!.schema.code?.enabled && mode === 'edit' ? (
+                <CodePageCanvas
+                  code={plan.pages.get(pageId)!.schema.code!}
+                  mode={mode}
+                  document={document}
+                  snapshot={snapshot}
+                />
+              ) : plan.pages.get(pageId)!.schema.code?.enabled ? (
+                runtime && runtime.plan === plan && runtime.page.schema.id === pageId && !runtime.disposed ? (
+                  <CodePageCanvas
+                    code={plan.pages.get(pageId)!.schema.code!}
+                    runtime={runtime}
+                    mode={mode}
+                    document={document}
+                    snapshot={snapshot}
+                  />
+                ) : (
+                  <p>正在创建运行实例…</p>
+                )
+              ) : (
+                <CanvasViewport mode={mode} stage={staged ? canvasStage : undefined}>
+                  {runtime &&
+                  runtime.plan === plan &&
+                  runtime.page.schema.id === pageId &&
+                  !runtime.disposed ? (
                     <EditorCanvas
                       document={document}
                       snapshot={snapshot}
@@ -1191,11 +1329,11 @@ function Workbench({
                     >
                       <RuntimeNotice runtime={runtime} />
                     </EditorCanvas>
-                  )
-                ) : (
-                  <p>正在创建运行实例…</p>
-                )}
-              </CanvasViewport>
+                  ) : (
+                    <p>正在创建运行实例…</p>
+                  )}
+                </CanvasViewport>
+              )}
             </div>
             {runtime && !runtime.disposed && (
               <DebugDock
@@ -1229,7 +1367,8 @@ function Workbench({
               min={inspectorMin}
               max={rightLimit}
               onChange={(width) => {
-                if (width !== rightWidth) setLayout((current) => ({ ...current, rightWidth: width }));
+                if (width !== rightWidth)
+                  setLayout((current) => ({ ...current, rightWidth: width }));
               }}
               controls="right-panel"
             />
@@ -1251,15 +1390,22 @@ function Workbench({
             <aside className="inspector">
               <div className="property-panel-title">
                 <Settings2 size={14} aria-hidden="true" />
-                <span>组件设置</span>
+                <span>
+                  {plan.pages.get(pageId)!.schema.code?.enabled || !snapshot.selection.nodeId
+                    ? '页面设置'
+                    : '组件设置'}
+                </span>
               </div>
               <PropertyPanel
-                key={`${pageId}/${nodeId}`}
+                key={pageId}
                 document={document}
                 snapshot={snapshot}
                 onOpenMethods={mode === 'edit' ? onOpenMethods : undefined}
                 eventTarget={eventTarget}
                 propertyRequest={propertyRequest}
+                authoringAllowed={mode === 'edit'}
+                focusReference={pageEntryTarget}
+                pageLogicRequest={pageLogicRequest?.pageId === pageId ? pageLogicRequest : undefined}
               />
             </aside>
           </ResponsiveSide>
@@ -1360,7 +1506,7 @@ function RoutedWorkspace({
       pendingReference.current = request;
       setApplicationDialog(null);
     } else {
-      writeEditorRoute(reference.pageId, reference.owner ? 'outline' : 'logic');
+      writeEditorRoute(reference.pageId, reference.owner ? 'outline' : ('logic' as EditorPanelId));
       setMethodReferenceRequest(request);
       setRoute('editor');
     }
@@ -1382,6 +1528,18 @@ function RoutedWorkspace({
       <ApplicationDirectoryHome
         directory={directory}
         onSelect={onSelectApplication}
+        onDuplicate={(appId) => {
+          if (appId === directory.activeAppId) {
+            project.flush();
+            const { status, error } = project.getSnapshot();
+            if (status !== 'saved') {
+              throw new Error(
+                `无法复制当前应用：${error ?? '项目尚未保存'}。请返回编辑器检查本地保存状态后重试。`,
+              );
+            }
+          }
+          return directory.duplicateApplication(appId);
+        }}
         onDelete={onDeleteApplication}
       />
     ) : (
@@ -1460,7 +1618,7 @@ function RoutedWorkspace({
         <Dialog.Portal>
           <Dialog.Backdrop className="material-modal-backdrop" />
           <Dialog.Popup
-            className="material-modal application-settings-dialog"
+            className={`material-modal application-settings-dialog${applicationDialog === 'methods' ? ' application-methods-dialog' : ''}`}
             aria-label={applicationDialog === 'methods' ? '应用自定义方法' : '应用设置'}
             finalFocus={() => {
               const trigger = methodsTrigger.current;

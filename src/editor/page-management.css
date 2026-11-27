@@ -78,19 +78,19 @@
   background: white;
   box-shadow: 0 8px 30px #0f172a0a;
 }
-.application-settings-dialog {
-  width: min(900px, calc(100vw - 32px));
-  max-height: min(900px, calc(100vh - 32px));
-  overflow: auto;
+.material-modal.application-settings-dialog {
+  max-height: min(900px, calc(100dvh - 32px));
+  padding: 0;
 }
 .application-settings-embedded {
+  display: flex;
+  flex: 0 1 auto;
+  flex-direction: column;
   min-height: 0;
   background: #f8fafc;
 }
 .application-settings-embedded .page-management-header {
-  position: sticky;
-  top: 0;
-  z-index: 1;
+  flex: none;
   min-height: 64px;
   padding: 10px 20px;
 }
@@ -114,6 +114,7 @@
   flex: 0 0 auto;
 }
 .application-settings-embedded .application-settings-content {
+  max-width: none;
   margin: 0;
   border: 0;
   border-radius: 0;
@@ -341,13 +342,34 @@
   font-size: 11px;
   line-height: 1.5;
 }
-.application-method-dialog {
-  display: grid;
-  width: min(760px, calc(100vw - 32px));
-  max-height: min(820px, calc(100vh - 32px));
-  gap: 12px;
-  overflow: auto;
-  padding: 20px;
+.material-modal.application-method-dialog {
+  max-height: min(820px, calc(100dvh - 32px));
+  padding: 0;
+}
+.application-method-dialog > :is(.application-method-dialog-title, .application-method-dialog-description) {
+  flex: none;
+  padding-inline: 16px;
+}
+.application-method-dialog > .application-method-dialog-title {
+  padding-top: 12px;
+}
+.application-method-dialog > .application-method-dialog-description {
+  padding-block: 4px 10px;
+  border-bottom: 1px solid #edf0f5;
+}
+.application-method-scroll {
+  padding: 12px 16px;
+}
+.application-method-dialog > .workbench-dialog-actions {
+  padding: 10px 16px;
+}
+.application-method-dialog .application-method-actions {
+  flex-wrap: wrap;
+}
+.application-method-dialog .application-method-result {
+  max-height: none;
+  overflow: visible;
+  overflow-wrap: anywhere;
 }
 .application-method-dialog-title {
   margin: 0;
@@ -358,9 +380,6 @@
   margin: 0;
   color: #64748b;
   font-size: 12px;
-}
-.application-method-dialog .application-method-editor {
-  gap: 12px;
 }
 .application-method-dialog .application-method-help {
   padding: 8px 10px;
@@ -427,7 +446,6 @@
 }
 .application-delete-dialog {
   display: grid;
-  width: min(420px, calc(100vw - 32px));
   gap: 14px;
   padding: 20px;
 }

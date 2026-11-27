@@ -36,6 +36,7 @@ export function DateMaterial({
   value,
   onValueChange,
   clearable = true,
+  placeholder,
   ...field
 }: FieldPresentation & {
   mode?: TemporalFormat;
@@ -43,11 +44,12 @@ export function DateMaterial({
   value: TemporalValue;
   onValueChange?: (value: TemporalValue) => void;
   clearable?: boolean;
+  placeholder?: string;
 }) {
   const [selected, change] = useMaterialValue(value, onValueChange);
   const design = useDesignMode();
   const environment = useRuntimeDomEnvironment();
-  const origin = JSON.stringify([selected, mode, range, !!field.disabled, design]);
+  const origin = JSON.stringify([selected, mode, range, !!(field.disabled || field.readOnly), design]);
   const [session, setSession] = useState<PickerSession | null>(null);
   const [portalHost, setPortalHost] = useState<HTMLElement | ShadowRoot | null>(null);
   const portalContainer =
@@ -55,10 +57,10 @@ export function DateMaterial({
   const sessionRef = useRef<PickerSession | null>(null);
   const sequence = useRef(0);
   const mounted = useRef(true);
-  const latest = useRef({ origin, disabled: !!field.disabled, design, change, range, environment });
-  latest.current = { origin, disabled: !!field.disabled, design, change, range, environment };
+  const latest = useRef({ origin, disabled: !!(field.disabled || field.readOnly), design, change, range, environment });
+  latest.current = { origin, disabled: !!(field.disabled || field.readOnly), design, change, range, environment };
   const activeSession =
-    session && session.origin === origin && !field.disabled && !design ? session : null;
+    session && session.origin === origin && !(field.disabled || field.readOnly) && !design ? session : null;
   sessionRef.current = activeSession;
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
   const control = useRef<HTMLDivElement>(null);
@@ -203,7 +205,7 @@ export function DateMaterial({
               ref={control}
               className="material-temporal-control"
               data-range={range || undefined}
-              data-disabled={field.disabled || undefined}
+              data-disabled={(field.disabled || field.readOnly) || undefined}
               data-invalid={a11y['aria-invalid'] || undefined}
               onFocusCapture={() => {
                 focused.current = true;
@@ -242,10 +244,14 @@ export function DateMaterial({
                         field.name ? (range ? `${field.name}.${index}` : field.name) : undefined
                       }
                       value={displayTemporal(parts[index] ?? '', mode)}
-                      disabled={field.disabled}
+                      disabled={field.disabled || field.readOnly}
                       readOnly={design}
                       required={field.required}
-                      placeholder={range ? `${index ? '结束' : '开始'}${kind}` : `请选择${kind}`}
+                      placeholder={
+                        range
+                          ? `${index ? '结束' : '开始'}${placeholder || kind}`
+                          : (placeholder ?? `请选择${kind}`)
+                      }
                       onFocus={() => {
                         lastInput.current = index;
                       }}
@@ -269,7 +275,7 @@ export function DateMaterial({
                     className="material-temporal-control-clear"
                     variant="ghost"
                     aria-label={`清空${field.label}`}
-                    disabled={field.disabled || design}
+                    disabled={field.disabled || field.readOnly || design}
                     onClick={() => {
                       close('clear');
                       emit(range ? [] : '');
@@ -301,7 +307,7 @@ export function DateMaterial({
                     <Button type="button" className="material-temporal-picker" variant="ghost" />
                   }
                   aria-label={`选择${field.label}`}
-                  disabled={field.disabled || design}
+                  disabled={field.disabled || field.readOnly || design}
                 >
                   <PickerIcon size={16} aria-hidden="true" />
                 </Popover.Trigger>
@@ -406,10 +412,12 @@ function temporalContract(time: boolean): Contracts[string] {
       range: boolProp,
       clearable: boolProp,
       disabled: boolProp,
+      readOnly: boolProp,
       required: boolProp,
+      placeholder: textProp,
       ...(!time ? { mode: textProp } : {}),
     },
-    events: ['onValueChange', 'onBlur'],
+    events: ['onValueChange', 'onBlur', 'onClick'],
     validateProps: (props, { fieldType, fieldItemType, field }) => {
       const errors = enumErrors(props, time ? {} : { mode: ['date', 'month', 'datetime-local'] });
       const range = props.range === true,

@@ -265,8 +265,13 @@ export class EditorDocument {
   setEntryPage = (pageId: string) => this.pages.setEntryPage(pageId);
   removePage = (pageId: string, replacementEntryId?: string) =>
     this.pages.removePage(pageId, replacementEntryId);
+  setPageCss = (pageId: string, css: string | undefined) => this.pages.setPageCss(pageId, css);
   setPageCode = (pageId: string, code: import('../schema/types').PageCode | undefined) =>
     this.pages.setPageCode(pageId, code);
+  setPageActionCode = (
+    pageId: string,
+    code: import('../schema/types').PageActionCode | undefined,
+  ) => this.pages.setPageActionCode(pageId, code);
 
   createApplicationMethod = (
     input?: string | Omit<import('../schema/types').ApplicationMethod, 'id'>,
@@ -281,6 +286,8 @@ export class EditorDocument {
     >,
   ) => this.actions.updateApplicationMethod(methodId, patch);
   removeApplicationMethod = (methodId: string) => this.actions.removeApplicationMethod(methodId);
+  liftPageAction = (pageId: string, name: string) =>
+    this.actions.liftPageAction(pageId, name);
   setPageEnterActions = (pageId: string, actions: import('../schema/types').ActionCall[]) =>
     this.actions.setPageEnterActions(pageId, actions);
   setPageLeaveActions = (pageId: string, actions: import('../schema/types').ActionCall[]) =>
@@ -344,6 +351,13 @@ export class EditorDocument {
     input: Omit<import('../schema/types').DataSourceDefinition, 'id'>,
   ) => this.models.updateDataSource(pageId, id, input);
   removeDataSource = (pageId: string, id: string) => this.models.removeDataSource(pageId, id);
+  createSharedDataSource = (input: import('../schema/types').DataSourceDefinition) =>
+    this.models.createSharedDataSource(input);
+  updateSharedDataSource = (
+    id: string,
+    input: Omit<import('../schema/types').DataSourceDefinition, 'id'>,
+  ) => this.models.updateSharedDataSource(id, input);
+  removeSharedDataSource = (id: string) => this.models.removeSharedDataSource(id);
   createForm = (pageId: string, nodeId: string, input: import('../schema/types').FormDefinition) =>
     this.models.createForm(pageId, nodeId, input);
   bindForm = (pageId: string, nodeId: string, formId?: string) =>
@@ -367,7 +381,8 @@ export class EditorDocument {
     pageId: string,
     formId: string,
     fieldId: string,
-    input: Pick<import('../schema/types').FieldDefinition, 'label' | 'initial' | 'rules'>,
+    input: Pick<import('../schema/types').FieldDefinition, 'label' | 'initial' | 'rules'> &
+      Partial<Pick<import('../schema/types').FieldDefinition, 'when' | 'disabled'>>,
   ) => this.models.updateField(pageId, formId, fieldId, input);
   removeField = (pageId: string, formId: string, fieldId: string) =>
     this.models.removeField(pageId, formId, fieldId);

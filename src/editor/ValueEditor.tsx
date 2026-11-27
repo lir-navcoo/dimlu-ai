@@ -1,7 +1,7 @@
 import { useId } from 'react';
 import type { ContractField } from '../../packages/runtime/registry';
 import type { PageSchema, Value } from '../../packages/schema/types';
-import { Input, Select } from '../ui/primitives';
+import { Checkbox, Input, Select } from '../ui/primitives';
 import { CodeEditor } from '../ui/CodeEditor';
 import { ExpressionContext, type ExpressionContextProps } from './ExpressionContext';
 import { ReferencePaths, type ReferencePathOwner } from './ReferencePaths';
@@ -46,7 +46,13 @@ export function parseBinding(draft: BindingDraft, field: ContractField): Value |
     case 'literal':
       return {
         kind: 'literal',
-        value: field.type === 'string' ? draft.text : JSON.parse(draft.text),
+        value:
+          field.type === 'string'
+            ? draft.text
+            : // An unticked boolean checkbox represents false, including before first interaction.
+              field.type === 'boolean' && draft.text === ''
+                ? false
+                : JSON.parse(draft.text),
       };
     case 'expression':
       return { kind: 'expression', language: 'javascript', source: draft.text };
@@ -211,6 +217,23 @@ export function ValueInput({
             readOnly={readOnly}
             id={id}
             aria-label={label}
+            value={draft.text}
+            onChange={(e) => update({ text: e.target.value })}
+          />
+        ) : field.type === 'boolean' ? (
+          <Checkbox
+            id={id}
+            aria-label={label}
+            checked={draft.text === 'true'}
+            onCheckedChange={(checked) => update({ text: String(checked) })}
+          />
+        ) : field.type === 'number' ? (
+          <Input
+            readOnly={readOnly}
+            id={id}
+            aria-label={label}
+            type="number"
+            step="any"
             value={draft.text}
             onChange={(e) => update({ text: e.target.value })}
           />

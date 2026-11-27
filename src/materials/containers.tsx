@@ -9,6 +9,7 @@ import {
   type ReactNode,
   type CSSProperties,
   type FormHTMLAttributes,
+  type MouseEventHandler,
 } from 'react';
 import { Tabs } from '@base-ui/react/tabs';
 import {
@@ -39,6 +40,7 @@ export function LayoutMaterial({
   wrap = true,
   maxHeight,
   scroll = false,
+  onClick,
   children,
   style: nodeStyle,
 }: {
@@ -52,6 +54,7 @@ export function LayoutMaterial({
   wrap?: boolean;
   maxHeight?: number;
   scroll?: boolean;
+  onClick?: MouseEventHandler<HTMLDivElement>;
   children?: ReactNode;
 }) {
   const style: CSSProperties = {
@@ -73,6 +76,7 @@ export function LayoutMaterial({
     <div
       className={`material-layout ${variant}`}
       style={{ ...style, ...nodeStyle }}
+      onClick={onClick}
       {...materialStyleTarget(nodeStyle)}
     >
       {children}
@@ -176,12 +180,14 @@ export function CardMaterial({
   children,
   slots = {},
   style,
+  onClick,
 }: {
   style?: CSSProperties;
   title?: string;
   description?: string;
   children?: ReactNode;
   slots?: SlotRenderers;
+  onClick?: MouseEventHandler<HTMLElement>;
 }) {
   const footer = useHasSlot('footer', slots),
     design = useDesignMode();
@@ -189,6 +195,7 @@ export function CardMaterial({
     <section
       className="material-card material-generic-card"
       style={style}
+      onClick={onClick}
       {...materialStyleTarget(style)}
     >
       {(title || description) && (
@@ -203,19 +210,47 @@ export function CardMaterial({
     </section>
   );
 }
+export function ContainerMaterial({
+  minHeight,
+  children,
+  style,
+  onClick,
+}: {
+  style?: CSSProperties;
+  minHeight?: number;
+  onClick?: MouseEventHandler<HTMLDivElement>;
+  children?: ReactNode;
+}) {
+  const design = useDesignMode();
+  const empty = design && (!children || (Array.isArray(children) && children.length === 0));
+  return (
+    <div
+      className={`material-container${empty ? ' empty' : ''}`}
+      style={{ ...style, ...(minHeight !== undefined ? { minHeight } : {}) }}
+      onClick={onClick}
+      {...materialStyleTarget(style)}
+    >
+      {empty && <span className="material-placeholder">容器 · 从左侧拖入组件</span>}
+      {children}
+    </div>
+  );
+}
 export function DividerMaterial({
   label,
   orientation = 'horizontal',
   style,
+  onClick,
 }: {
   style?: CSSProperties;
   label?: string;
   orientation?: 'horizontal' | 'vertical';
+  onClick?: MouseEventHandler<HTMLDivElement>;
 }) {
   return (
     <div
       className={`material-divider ${orientation}`}
       style={style}
+      onClick={onClick}
       {...materialStyleTarget(style)}
       role="separator"
       aria-orientation={orientation}
@@ -233,12 +268,14 @@ export function TabsMaterial({
   children,
   label = '标签页',
   style,
+  onClick,
 }: {
   style?: CSSProperties;
   value?: string;
   onValueChange?: (value: string) => void;
   children?: ReactNode;
   label?: string;
+  onClick?: MouseEventHandler<HTMLDivElement>;
 }) {
   const [tabs, setTabs] = useState<TabInfo[]>([]);
   const [selected, change] = useMaterialValue(value, onValueChange);
@@ -277,6 +314,7 @@ export function TabsMaterial({
         value={active}
         onValueChange={(next) => change(next ?? '')}
         className={`material-tabs ${design ? 'design' : ''}`}
+        onClick={onClick}
       >
         <Tabs.List aria-label={label} className="material-tab-list">
           {ordered.map((tab) => (
@@ -285,7 +323,9 @@ export function TabsMaterial({
             </Tabs.Tab>
           ))}
         </Tabs.List>
-        {!tabs.length && <p className="material-placeholder">拖入“标签页面板”创建内容页</p>}
+        {design && !tabs.length && (
+          <p className="material-placeholder">拖入“标签页面板”创建内容页</p>
+        )}
         {children}
       </Tabs.Root>
     </TabContext.Provider>
@@ -297,12 +337,14 @@ export function TabPanelMaterial({
   disabled = false,
   children,
   style,
+  onClick,
 }: {
   style?: CSSProperties;
   value: string;
   label: string;
   disabled?: boolean;
   children?: ReactNode;
+  onClick?: MouseEventHandler<HTMLElement>;
 }) {
   const context = useContext(TabContext),
     id = useId(),
@@ -315,9 +357,13 @@ export function TabPanelMaterial({
   );
   if (!context)
     return (
-      <section className="material-tab-panel" style={style} {...materialStyleTarget(style)}>
+      <section
+        className="material-tab-panel"
+        style={style}
+        onClick={onClick}
+        {...materialStyleTarget(style)}
+      >
         <strong>{label}</strong>
-        <p className="material-placeholder">请放入标签页容器</p>
         {children}
       </section>
     );
@@ -327,6 +373,7 @@ export function TabPanelMaterial({
       keepMounted
       className="material-tab-panel"
       style={style}
+      onClick={onClick}
       {...materialStyleTarget(style)}
       {...(design ? { hidden: false } : {})}
     >
@@ -341,9 +388,20 @@ export function TabPanelMaterial({
   );
 }
 export const containerContracts: Contracts = {
+  'ui.container': {
+    version: '1.0.0',
+    children: true,
+    props: { minHeight: numberProp },
+    events: ['onClick'],
+    validateProps: (props) =>
+      'minHeight' in props && (Number(props.minHeight) < 0 || Number(props.minHeight) > 2000)
+        ? ['最小高度必须在 0 到 2000 之间']
+        : [],
+  },
   'ui.layout': {
     version: '1.0.0',
     children: true,
+    events: ['onClick'],
     props: {
       variant: textProp,
       gap: numberProp,
@@ -384,7 +442,7 @@ export const containerContracts: Contracts = {
       readOnly: boolProp,
       showErrors: boolProp,
     },
-    events: ['onSubmit', 'onReset'],
+    events: ['onSubmit', 'onReset', 'onClick'],
     validateProps: (props) => [
       ...enumErrors(props, { labelLayout: ['top', 'left'] }),
       ...('columns' in props &&
@@ -403,21 +461,24 @@ export const containerContracts: Contracts = {
     children: true,
     slots: { header: [], footer: [] },
     props: { title: textProp, description: textProp },
+    events: ['onClick'],
   },
   'ui.divider': {
     version: '1.0.0',
     props: { label: textProp, orientation: textProp },
     validateProps: (props) => enumErrors(props, { orientation: ['horizontal', 'vertical'] }),
+    events: ['onClick'],
   },
   'ui.tabs': {
     version: '1.0.0',
     children: true,
     props: { value: textProp, label: textProp },
-    events: ['onValueChange'],
+    events: ['onValueChange', 'onClick'],
   },
   'ui.tabPanel': {
     version: '1.0.0',
     children: true,
     props: { value: requiredText, label: requiredText, disabled: boolProp },
+    events: ['onClick'],
   },
 };

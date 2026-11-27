@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { EditorDocument, findNode } from '../packages/editor/document';
-import { exampleApplication } from '../src/examples';
+import { exampleApplication } from './fixtures/examples';
 import { registry } from '../src/materials';
 import { NodeLogicPanel } from '../src/editor/NodeLogicPanel';
 import { EditorSessionProvider } from '../src/editor/session';

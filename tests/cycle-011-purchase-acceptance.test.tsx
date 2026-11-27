@@ -100,7 +100,7 @@ describe('cycle 011 independent purchase composition acceptance', () => {
     expect(project.getSnapshot().document.getSnapshot().canUndo).toBe(false);
     expect(m.raw()).toBe(legacyRaw);
     expect(m.adapter.setItem).not.toHaveBeenCalled();
-    project.getSnapshot().document.setProp('purchase', 'purchase-heading', 'title', {
+    project.getSnapshot().document.setProp('purchase', 'purchase-heading', 'value', {
       kind: 'literal',
       value: '旧项目继续编辑',
     });
@@ -125,7 +125,7 @@ describe('cycle 011 independent purchase composition acceptance', () => {
     const m = memory(legacyRaw);
     const query = vi.spyOn(registry.transports!['demo.purchasesQuery'], 'execute');
     render(<App projectStorage={m.adapter} saveDelayMs={1} />);
-    expect(screen.getByRole('heading', { name: '创建采购申请' })).toBeTruthy();
+    expect(within(screen.getByLabelText('页面编辑画布')).getByText('创建采购申请')).toBeTruthy();
     expect(screen.getByRole('button', { name: '编辑模式' }).getAttribute('aria-pressed')).toBe(
       'true',
     );
