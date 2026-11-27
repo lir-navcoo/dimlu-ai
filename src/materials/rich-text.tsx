@@ -556,6 +556,7 @@ export const richTextContracts: Contracts = {
       value: { ...textProp, required: true },
       hint: textProp,
     },
+    events: ['onClick'],
     validateProps: (props) =>
       props.value !== undefined && typeof props.value !== 'string'
         ? ['value 必须为 HTML 文本']

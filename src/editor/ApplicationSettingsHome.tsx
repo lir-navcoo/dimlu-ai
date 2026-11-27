@@ -18,7 +18,7 @@ import { registry } from '../materials';
 import { Button, Input, Textarea } from '../ui/primitives';
 import { BrandLogo } from '../ui/BrandLogo';
 import { CodeEditor } from '../ui/CodeEditor';
-import { editorPagesPath } from './router';
+import { editorPagesPath, writeEditorHistory } from './router';
 import { executeApplicationMethod } from '../../packages/runtime/application-methods';
 import { isJson, type ApplicationMethod } from '../../packages/schema/types';
 import './page-management.css';
@@ -299,7 +299,7 @@ export function ApplicationSettingsHome({
             <Button
               variant="ghost"
               onClick={() => {
-                window.history.pushState({}, '', editorPagesPath());
+                writeEditorHistory(editorPagesPath());
                 window.dispatchEvent(new PopStateEvent('popstate'));
               }}
             >

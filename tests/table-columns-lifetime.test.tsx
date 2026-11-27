@@ -255,9 +255,17 @@ describe('old local callbacks protect the same session draft as the core command
       }
       expect(observed).toBe(true);
       expect(entry(h)).toBe(before);
-      expect(columnInput(1, '标题').value).toBe('Do not clear');
       expect(screen.queryAllByRole('alert')).toHaveLength(0);
       expect(acceptedColumns(h.author)).toEqual(baseColumns);
+      if (kind === 'code') {
+        expect(screen.getByRole('tab', { name: '页面代码', selected: true })).toBeTruthy();
+        expect(screen.queryByRole('textbox', { name: '列 1 标题' })).toBeNull();
+        const code = h.author.getSnapshot().plan.pages.get('a')!.schema.code!;
+        act(() => h.author.setPageCode('a', { ...code, enabled: false }));
+        expect(entry(h)).toBe(before);
+      }
+      expect(columnInput(1, '标题').value).toBe('Do not clear');
+      expect(screen.queryAllByRole('alert')).toHaveLength(0);
     },
   );
 

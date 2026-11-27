@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import type { ApplicationPlan } from '../packages/runtime/engine';
 import { PageRuntime as Runtime } from '../packages/runtime/engine';
 import { RuntimeRenderer } from '../packages/react-runtime/Renderer';
 import { CodePageCanvas } from './code/CodePage';
 import { materials } from './materials';
-import { Button } from './ui/primitives';
+import { MaterialEffects } from './materials/feedback';
+import { Button, TipProvider } from './ui/primitives';
 import {
   applicationRoutePath,
   resolveApplicationRoute,
@@ -32,9 +33,8 @@ function RuntimePage({
   pageId: string;
   onNavigate: (pageId: string, replace: boolean) => void;
 }) {
-  // StrictMode double-invokes effects; the first cleanup disposes the runtime
-  // while enter() is still in flight, so a disposed instance is rebuilt here.
   const [runtime, setRuntime] = useState(() => new Runtime(plan, pageId));
+  if (runtime.plan !== plan) setRuntime(new Runtime(plan, pageId));
   const navigateRef = useRef(onNavigate);
   navigateRef.current = onNavigate;
   useEffect(() => {
@@ -46,22 +46,32 @@ function RuntimePage({
       if (effect.type === 'app.navigate' && typeof effect.data.pageId === 'string')
         navigateRef.current(effect.data.pageId, effect.data.replace === true);
     });
-    void runtime.enter();
+    let lifecycle: 'pending' | 'entered' | 'cancelled' = 'pending';
+    // 等通知视口订阅完成。StrictMode 的首次清理也会在进入动作前取消这次启动。
+    queueMicrotask(() => {
+      if (lifecycle !== 'pending') return;
+      lifecycle = 'entered';
+      void runtime.enter();
+    });
     return () => {
       unsubscribe();
-      // Leave actions run before disposal so their lane stays alive; without
-      // leave actions disposal stays synchronous to preserve focus-gap semantics.
-      if (runtime.willRunLeaveActions()) void runtime.leave().finally(() => runtime.dispose());
+      // 离开动作需要运行时仍可用。没有离开动作时立即销毁，以保留焦点间隙行为。
+      if (lifecycle === 'entered' && runtime.willRunLeaveActions())
+        void runtime.leave().finally(() => runtime.dispose());
       else runtime.dispose();
+      lifecycle = 'cancelled';
     };
   }, [runtime, plan, pageId]);
   const page = runtime.page.schema;
   return (
-    <RuntimeRenderer runtime={runtime} materials={materials}>
-      {page.code?.enabled ? (
-        <CodePageCanvas code={page.code} runtime={runtime} mode="preview" />
-      ) : undefined}
-    </RuntimeRenderer>
+    <TipProvider key={runtime.instanceId} delay={350}>
+      <MaterialEffects runtime={runtime} />
+      <RuntimeRenderer runtime={runtime} materials={materials}>
+        {page.code?.enabled ? (
+          <CodePageCanvas code={page.code} runtime={runtime} mode="preview" />
+        ) : undefined}
+      </RuntimeRenderer>
+    </TipProvider>
   );
 }
 
@@ -75,12 +85,12 @@ export function ApplicationRuntimeHost({
   previewPageId?: string;
 }) {
   const isMobilePreview = previewPageId !== undefined;
-  const [route, setRoute] = useState(() => readRoute(plan, previewPageId));
+  const [, updateRoute] = useReducer((revision: number) => revision + 1, 0);
+  const route = readRoute(plan, previewPageId);
   useEffect(() => {
-    const update = () => setRoute(readRoute(plan, previewPageId));
-    window.addEventListener('popstate', update);
-    return () => window.removeEventListener('popstate', update);
-  }, [plan, previewPageId]);
+    window.addEventListener('popstate', updateRoute);
+    return () => window.removeEventListener('popstate', updateRoute);
+  }, []);
   const navigate = useCallback(
     (pageId: string, replace = false) => {
       if (!plan.pages.has(pageId)) return;
@@ -92,9 +102,9 @@ export function ApplicationRuntimeHost({
         path = `${url.pathname}${url.search}${url.hash}`;
       }
       window.history[method]({}, '', path);
-      setRoute(readRoute(plan, previewPageId));
+      updateRoute();
     },
-    [plan, isMobilePreview, previewPageId],
+    [plan, isMobilePreview],
   );
   if (route.kind !== 'page')
     return (

@@ -4,12 +4,11 @@ import { URL as FileURL } from 'node:url';
 import postcss, { type ChildNode } from 'postcss';
 import { describe, expect, it } from 'vitest';
 
-// Frozen independently from the current partitioned sources after isolating project-storage UI.
-// Keep this test runnable from the repository alone; no external pipeline/snapshot dependency.
-// Pre-extraction styles.css: 9fac727d2c13b1e1fafd0c798566509fd130c8838d341127d66864ed8ba18fa1 (ui.container added 2026-11-24).
+// Frozen against the reviewed shared styles at 1af508a (material tokens, inspector
+// and shell updates). Keep this test runnable without an external snapshot.
 // Normalization: drop imports; flatten ONLY top-level @layer base into [base, raw child];
 // preserve every other raw top-level subtree as [null, raw node], in its original order.
-const PARTITIONED_LEAF_DIGEST = '89f1d537719c4018e7462f70e6d686b34750fac89096be4c0bc43abf7ffdfe21';
+const PARTITIONED_LEAF_DIGEST = '2322374655c5fd03a4622da91515b9722c88db65589397edd86ed7dc3e79ee1b';
 const PROJECT_STORAGE_DIGEST = 'd235fba194609dab8469d245040f9294e16462ae4f79d64eb93695978cf34445';
 const ORIGINAL_MARKER_DIGEST = '9a71e4d94563ca07dfb96e8aa0f623a2b93f743d3f6d93d42c95086a3975da53';
 const ORIGINAL_OVERLAY_REMAINDER_DIGEST =
@@ -61,7 +60,7 @@ function importPath(node: ChildNode): string {
 }
 
 describe('runtime shared CSS partition', () => {
-  it('preserves all 457 ordered raw nodes through the shared imports and three named base wrappers', () => {
+  it('preserves all 483 ordered raw nodes through the shared imports and three named base wrappers', () => {
     const entry = postcss.parse(read(sourceEntry));
     const imports = entry.nodes.map(importPath);
     expect(imports).toEqual(['tailwindcss', ...ORDERED_IMPORTS, ...ADDITIVE_IMPORTS]);
@@ -88,8 +87,8 @@ describe('runtime shared CSS partition', () => {
     }
     expect(baseFiles).toEqual(BASE_WRAPPER_IMPORTS);
     expect(baseLeaves).toBe(11);
-    expect(leaves).toHaveLength(454);
-    expect(digest(JSON.stringify(leaves))).toBe(PARTITIONED_LEAF_DIGEST + (process.env.PRINT_DIGEST ? ' actual=' + digest(JSON.stringify(leaves)) : ''));
+    expect(leaves).toHaveLength(483);
+    expect(digest(JSON.stringify(leaves))).toBe(PARTITIONED_LEAF_DIGEST);
   });
 
   it('extracts only the exact hidden marker while preserving the three original parent overlay subtrees', () => {

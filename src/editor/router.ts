@@ -32,12 +32,21 @@ export function parseEditorLocation(location: Location): EditorRoute {
   };
 }
 
+export function editorApplicationHistoryKey(): string | undefined {
+  const key: unknown = window.history.state?.dimluApplicationKey;
+  return typeof key === 'string' ? key : undefined;
+}
+
+export function writeEditorHistory(path: string, replace = false, appKey = editorApplicationHistoryKey()) {
+  const method = replace ? 'replaceState' : 'pushState';
+  window.history[method]({ dimluApplicationKey: appKey }, '', path);
+}
+
 export function writeEditorRoute(pageId: string, panel: EditorPanelId, replace = false) {
   const next = editorRoutePath(pageId, panel);
   const current = `${window.location.pathname}${window.location.search}`;
   if (current === next) return;
-  const method = replace ? 'replaceState' : 'pushState';
-  window.history[method]({}, '', next);
+  writeEditorHistory(next, replace);
 }
 
 export function editorRootPath() {

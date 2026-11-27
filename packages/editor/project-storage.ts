@@ -3,6 +3,16 @@ import type { Registry } from '../runtime/registry';
 import type { ApplicationSchema, NodeSchema, Value } from '../schema/types';
 
 export const PROJECT_STORAGE_KEY = 'dimlu.workbench.project.v1';
+export function emptyApplicationSchema(id: string, title: string): ApplicationSchema {
+  return {
+    schemaVersion: '0.1.0',
+    id,
+    title,
+    entryPageId: 'home',
+    dependencies: { components: {}, actions: {} },
+    pages: [{ id: 'home', title: '首页', state: [], children: [] }],
+  };
+}
 export interface ProjectStorageAdapter {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
@@ -125,12 +135,14 @@ export class ProjectStorage {
   private readonly delay: number;
   private readonly now: () => string;
   private readonly storageKey: string;
+  readonly resetToEmpty: boolean;
   constructor(
     private adapter: ProjectStorageAdapter,
     private registry: Registry,
     private fallback: ApplicationSchema,
-    options: { debounceMs?: number; now?: () => string; storageKey?: string } = {},
+    options: { debounceMs?: number; now?: () => string; storageKey?: string; resetToEmpty?: boolean } = {},
   ) {
+    this.resetToEmpty = options.resetToEmpty ?? false;
     this.delay = options.debounceMs ?? 350;
     this.now = options.now ?? (() => new Date().toISOString());
     this.storageKey = options.storageKey ?? PROJECT_STORAGE_KEY;
@@ -155,7 +167,7 @@ export class ProjectStorage {
     } catch (reason) {
       error = `本地项目恢复失败：${message(reason)}`;
     }
-    this.dirty = !restored;
+    this.dirty = !restored && !error;
     this.snapshot = Object.freeze({
       document,
       status: error ? 'protected' : restored ? 'saved' : 'saving',
@@ -222,7 +234,8 @@ export class ProjectStorage {
   /** Flush reads the latest committed snapshot, never a revision captured when a timer was scheduled. */
   flush = () => {
     this.cancelTimer();
-    if (!this.active || !this.dirty || this.snapshot.protected) return;
+    if (!this.dirty) return true;
+    if (!this.active || this.snapshot.protected) return false;
     try {
       const { plan, selection } = this.snapshot.document.getSnapshot();
       const savedAt = this.now();
@@ -235,8 +248,10 @@ export class ProjectStorage {
       this.adapter.setItem(this.storageKey, JSON.stringify(saved));
       this.dirty = false;
       this.publish({ status: 'saved', error: null, savedAt, raw: null });
+      return true;
     } catch (reason) {
       this.publish({ status: 'error', error: `本地保存失败：${message(reason)}` });
+      return false;
     }
   };
   retry = () => {
@@ -268,7 +283,9 @@ export class ProjectStorage {
   };
   /** Confirmed reset uses a new document/session, with no Undo history or unsaved editor drafts. */
   reset = () => {
-    const document = new EditorDocument(this.fallback, this.registry);
+    const { id, title } = this.snapshot.document.getSnapshot().plan.schema;
+    const schema = this.resetToEmpty ? emptyApplicationSchema(id, title) : this.fallback;
+    const document = new EditorDocument(schema, this.registry);
     this.bindDocument(document, this.registry, {
       protected: false,
       error: null,

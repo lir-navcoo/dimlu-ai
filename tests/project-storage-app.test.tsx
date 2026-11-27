@@ -167,11 +167,13 @@ describe('workbench saved project recovery', () => {
     expect(await screen.findByRole('dialog', { name: '重置本地项目？' })).toBeTruthy();
     expect(within(screen.getByLabelText('页面编辑画布')).getByText('已修改项目')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '确认重置' }));
-    expect(within(screen.getByLabelText('页面编辑画布')).getByText('采购申请管理')).toBeTruthy();
+    expect(within(screen.getByLabelText('页面编辑画布')).queryByText('已修改项目')).toBeNull();
     expect((undoButton() as HTMLButtonElement).disabled).toBe(true);
-    expect(savedHeading(localStorage.getItem(PROJECT_STORAGE_KEY)!)).toEqual({
-      kind: 'literal',
-      value: '采购申请管理',
+    expect(JSON.parse(localStorage.getItem(PROJECT_STORAGE_KEY)!).schema).toMatchObject({
+      id: exampleApplication.id,
+      title: exampleApplication.title,
+      entryPageId: 'home',
+      pages: [{ id: 'home', children: [] }],
     });
   });
   it('keeps write failures visible, preserves current memory and retries the latest committed Schema', async () => {

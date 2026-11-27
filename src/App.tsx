@@ -54,6 +54,7 @@ import { refreshEditorDocument } from './editor/refresh-document';
 import {
   ProjectStorage,
   browserProjectStorage,
+  emptyApplicationSchema,
   type ProjectStorageAdapter,
   type ProjectStorageSnapshot,
 } from '../packages/editor/project-storage';
@@ -61,6 +62,7 @@ import { ProjectMenu } from './editor/ProjectMenu';
 import { MobilePreviewDialog } from './editor/MobilePreviewDialog';
 import {
   ApplicationDirectory,
+  applicationProjectStorageKey,
   type ApplicationDirectory as ApplicationDirectoryType,
 } from '../packages/editor/application-directory';
 import { isAuthorEscape, isSaveKeyFamily, resizingWindows } from './editor/author-escape';
@@ -68,6 +70,8 @@ import { CanvasStage, useCanvasStageVersion } from './editor/canvas-stage';
 import {
   editorApplicationPath,
   editorApplicationsPath,
+  editorApplicationHistoryKey,
+  writeEditorHistory,
   editorRoutePath,
   isEditorApplicationLocation,
   isEditorLocation,
@@ -1414,6 +1418,12 @@ function Workbench({
     </DragDropProvider>
   );
 }
+function requireSavedProject(project: ProjectStorage) {
+  if (!project.flush()) {
+    throw new Error(project.getSnapshot().error ?? '当前项目尚未保存，请先保存再继续。');
+  }
+}
+
 function RoutedWorkspace({
   project,
   projectSnapshot,
@@ -1441,6 +1451,16 @@ function RoutedWorkspace({
   const pendingReference = useRef<MethodReferenceRequest | null>(null);
   const [methodReferenceRequest, setMethodReferenceRequest] =
     useState<MethodReferenceRequest | null>(null);
+  const activePlan = projectSnapshot.document.getSnapshot().plan;
+  const [runtimeAppId, setRuntimeAppId] = useState(() => applicationIdFromLocation(window.location));
+  const runtimePlan = useMemo(() => {
+    if (!directory || !runtimeAppId || runtimeAppId === activePlan.schema.id) return activePlan;
+    try {
+      return compileApplication(directory.getApplication(runtimeAppId), registry);
+    } catch {
+      return activePlan; // The runtime host renders the unknown-application error.
+    }
+  }, [activePlan, directory, runtimeAppId]);
   const [route, setRoute] = useState<
     'runtime' | 'application' | 'pages' | 'applications' | 'editor'
   >(() =>
@@ -1459,6 +1479,7 @@ function RoutedWorkspace({
       pendingReference.current = null;
       setApplicationDialog(null);
       setDirectMethod(null);
+      setRuntimeAppId(applicationIdFromLocation(window.location));
       setRoute(
         window.location.pathname === '/' || window.location.pathname === editorApplicationsPath()
           ? 'applications'
@@ -1475,28 +1496,29 @@ function RoutedWorkspace({
     return () => window.removeEventListener('popstate', update);
   }, []);
   const openApplications = () => {
-    project.flush();
+    if (!project.flush()) return;
     window.history.pushState({}, '', editorApplicationsPath());
     setRoute('applications');
   };
   const openApplicationSettings = () => {
     methodsTrigger.current = null;
-    window.history.pushState({}, '', editorApplicationPath());
+    writeEditorHistory(editorApplicationPath());
     setApplicationDialog('settings');
   };
   const openApplicationSettingsRoute = () => {
-    window.history.pushState({}, '', editorApplicationPath());
+    writeEditorHistory(editorApplicationPath());
     setApplicationDialog(null);
     setRoute('application');
   };
   const openApplicationRuntime = () => {
     const schema = projectSnapshot.document.getSnapshot().plan.schema;
     window.history.pushState({}, '', applicationRoutePath(schema.id));
+    setRuntimeAppId(schema.id);
     setRoute('runtime');
   };
   const backToEditor = () => {
     const pageId = projectSnapshot.document.getSnapshot().selection.pageId;
-    window.history.pushState({}, '', editorRoutePath(pageId, 'outline'));
+    writeEditorHistory(editorRoutePath(pageId, 'outline'));
     setRoute('editor');
   };
   const openMethodReference = (reference: ApplicationMethodReference) => {
@@ -1511,23 +1533,14 @@ function RoutedWorkspace({
       setRoute('editor');
     }
   };
-  if (route === 'runtime') {
-    let runtimePlan = projectSnapshot.document.getSnapshot().plan;
-    const requestedAppId = applicationIdFromLocation(window.location);
-    if (directory && requestedAppId && requestedAppId !== runtimePlan.schema.id) {
-      try {
-        runtimePlan = compileApplication(directory.getApplication(requestedAppId), registry);
-      } catch {
-        // Keep the active plan so the runtime host can render its typed unknown-app error.
-      }
-    }
+  if (route === 'runtime')
     return <ApplicationRuntimeHost plan={runtimePlan} onEditApplication={onEditApplication} />;
-  }
   if (route === 'applications')
     return directory && onSelectApplication && onDeleteApplication ? (
       <ApplicationDirectoryHome
         directory={directory}
         onSelect={onSelectApplication}
+        onBeforeCreate={() => requireSavedProject(project)}
         onDuplicate={(appId) => {
           if (appId === directory.activeAppId) {
             project.flush();
@@ -1537,7 +1550,7 @@ function RoutedWorkspace({
                 `无法复制当前应用：${error ?? '项目尚未保存'}。请返回编辑器检查本地保存状态后重试。`,
               );
             }
-          }
+          } else requireSavedProject(project);
           return directory.duplicateApplication(appId);
         }}
         onDelete={onDeleteApplication}
@@ -1667,49 +1680,98 @@ export default function App({
         ? new ProjectStorage(
             directory.storageAdapterFor(activeAppId),
             registry,
-            purchaseManagementExample,
-            { debounceMs: saveDelayMs, storageKey: directory.storageKey },
+            activeAppId === purchaseManagementExample.id
+              ? purchaseManagementExample
+              : emptyApplicationSchema(activeAppId, '新建应用'),
+            {
+              debounceMs: saveDelayMs,
+              storageKey: applicationProjectStorageKey(activeAppId),
+              resetToEmpty: activeAppId !== purchaseManagementExample.id,
+            },
           )
         : new ProjectStorage(storageAdapter, registry, purchaseManagementExample, {
             debounceMs: saveDelayMs,
           }),
     [directory, activeAppId, saveDelayMs, storageAdapter],
   );
+  useLayoutEffect(() => {
+    if (!directory) return;
+    const isEditorEntry = () =>
+      isEditorLocation(window.location) ||
+      isEditorApplicationLocation(window.location) ||
+      isEditorPagesLocation(window.location);
+    const markEditorEntry = () => {
+      if (isEditorEntry() && editorApplicationHistoryKey() !== activeAppId) {
+        writeEditorHistory(window.location.href, true, activeAppId);
+      }
+    };
+    markEditorEntry();
+    const restore = (event: PopStateEvent) => {
+      if (!isEditorEntry()) return;
+      const appId = editorApplicationHistoryKey();
+      if (!appId || appId === activeAppId || !directory.hasApplication(appId)) {
+        markEditorEntry();
+        return;
+      }
+      event.stopImmediatePropagation();
+      try {
+        requireSavedProject(project);
+        directory.setActive(appId);
+        setActiveAppId(appId);
+      } catch (reason) {
+        const { pageId } = project.getSnapshot().document.getSnapshot().selection;
+        writeEditorHistory(editorRoutePath(pageId, 'outline'), true, activeAppId);
+        setNavigationError(reason instanceof Error ? reason.message : String(reason));
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      }
+    };
+    window.addEventListener('popstate', restore, true);
+    return () => window.removeEventListener('popstate', restore, true);
+  }, [activeAppId, directory, project]);
+  const [navigationError, setNavigationError] = useState<string | null>(null);
   const selectApplication = (appId: string) => {
     if (!directory) return;
+    if (appId !== activeAppId) requireSavedProject(project);
     directory.setActive(appId);
     setActiveAppId(appId);
-    window.history.pushState({}, '', '/editor');
+    writeEditorHistory('/editor', false, appId);
     window.dispatchEvent(new PopStateEvent('popstate'));
   };
   const editApplication = (appId: string, pageId: string) => {
     if (!directory) return;
     const entry = directory.getApplications().find((application) => application.id === appId);
     const storageId = entry?.key ?? appId;
-    directory.setActive(storageId);
-    setActiveAppId(storageId);
-    window.history.pushState({}, '', editorRoutePath(pageId, 'outline'));
-    window.dispatchEvent(new PopStateEvent('popstate'));
+    try {
+      if (storageId !== activeAppId) requireSavedProject(project);
+      directory.setActive(storageId);
+      setActiveAppId(storageId);
+      writeEditorHistory(editorRoutePath(pageId, 'outline'), false, storageId);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    } catch (reason) {
+      setNavigationError(reason instanceof Error ? reason.message : String(reason));
+    }
   };
   const deleteApplication = (appId: string, replacementAppId?: string) => {
     if (!directory) return;
     const wasActive = directory.activeAppId === appId;
+    if (wasActive) requireSavedProject(project);
     directory.removeApplication(appId, replacementAppId);
     if (wasActive && replacementAppId) {
       setActiveAppId(replacementAppId);
-      window.history.pushState({}, '', '/editor');
+      writeEditorHistory('/editor', false, replacementAppId);
       window.dispatchEvent(new PopStateEvent('popstate'));
     }
   };
   const renameApplicationId = (nextId: string) => {
     if (!directory) return;
-    project.flush();
+    requireSavedProject(project);
+    if (project.getSnapshot().protected) throw new Error('请先恢复受保护的本地项目。');
     const renamedKey = directory.renameApplicationId(activeAppId, nextId);
     setActiveAppId(renamedKey);
-    window.history.replaceState(
-      {},
-      '',
+    writeEditorHistory(
       editorRoutePath(snapshot.document.getSnapshot().selection.pageId, 'outline'),
+      true,
+      renamedKey,
     );
     window.dispatchEvent(new PopStateEvent('popstate'));
   };
@@ -1728,7 +1790,12 @@ export default function App({
   }, [project]);
   return (
     <TipProvider delay={350}>
-      <EditorSessionProvider key={snapshot.session}>
+      {navigationError && (
+        <div className="project-storage-notice" role="alert">
+          {navigationError} <Button onClick={() => setNavigationError(null)}>关闭</Button>
+        </div>
+      )}
+      <EditorSessionProvider key={`${activeAppId}:${snapshot.session}`}>
         <RoutedWorkspace
           project={project}
           projectSnapshot={snapshot}

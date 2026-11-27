@@ -1,6 +1,7 @@
 import { EditorDocument } from './document';
 import {
   PROJECT_STORAGE_KEY,
+  emptyApplicationSchema,
   restoreProjectDocument,
   type ProjectStorageAdapter,
   type SavedProject,
@@ -234,8 +235,12 @@ export class ApplicationDirectory {
     return nextStorageId;
   }
 
+  hasApplication(appId: string): boolean {
+    return this.record.appIds.includes(appId);
+  }
+
   setActive(appId: string): boolean {
-    if (!this.record.appIds.includes(appId)) throw new Error(`应用不存在：${appId}`);
+    if (!this.hasApplication(appId)) throw new Error(`应用不存在：${appId}`);
     if (this.record.activeAppId === appId) return false;
     this.saveRecord({ ...this.record, activeAppId: appId });
     return true;
@@ -253,7 +258,7 @@ export class ApplicationDirectory {
       JSON.stringify(this.savedProject(app, { pageId: app.entryPageId, nodeId: null })),
     );
     this.saveRecord({
-      directoryVersion: 1,
+      ...this.record,
       activeAppId: app.id,
       appIds: [...this.record.appIds, app.id],
     });
@@ -265,18 +270,11 @@ export class ApplicationDirectory {
     if (!normalizedTitle) throw new Error('应用名称不能为空');
     let index = 1;
     while (
-      this.record.appIds.includes(`application-${index}`) ||
+      this.adapter.getItem(applicationProjectStorageKey(`application-${index}`)) !== null ||
       this.getApplications().some((entry) => entry.id === `application-${index}`)
     )
       index++;
-    return this.addApplication({
-      schemaVersion: '0.1.0',
-      id: `application-${index}`,
-      title: normalizedTitle,
-      entryPageId: 'home',
-      dependencies: { components: {}, actions: {} },
-      pages: [{ id: 'home', title: '首页', state: [], children: [] }],
-    });
+    return this.addApplication(emptyApplicationSchema(`application-${index}`, normalizedTitle));
   }
 
   duplicateApplication(appId: string): string {
@@ -285,7 +283,7 @@ export class ApplicationDirectory {
     let index = 1;
     let nextId = `${source.id}-copy-${index}`;
     while (
-      this.record.appIds.includes(nextId) ||
+      this.adapter.getItem(applicationProjectStorageKey(nextId)) !== null ||
       this.getApplications().some((entry) => entry.id === nextId)
     ) {
       index++;

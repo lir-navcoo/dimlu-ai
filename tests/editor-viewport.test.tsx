@@ -240,18 +240,15 @@ function physicalViewport(logicalHeight = 1400) {
 }
 
 describe('viewport model separates logical device width from edit presentation', () => {
-  it('fills the available editing width while preserving the preview width cap and shared floor', () => {
+  it('fills the available width above the shared floor and keeps zoom in both modes', () => {
     const viewport = new ViewportStore();
-    for (const [available, editWidth, previewWidth] of [
-      [100, 240, 240],
-      [700, 700, 700],
-      [1600, 1600, 960],
-    ] as const) {
+    for (const [available, width] of [[100, 240], [700, 700], [1600, 1600]]) {
       viewport.measure(available, 600);
       for (const scale of [0.5, 1, 1.5]) {
         viewport.setScale(scale);
-        expect(resolveViewport(viewport.getSnapshot(), 'edit').width).toBe(editWidth);
-        expect(resolveViewport(viewport.getSnapshot(), 'preview').width).toBe(previewWidth);
+        for (const mode of ['edit', 'preview'] as const) {
+          expect(resolveViewport(viewport.getSnapshot(), mode)).toMatchObject({ width, scale });
+        }
       }
     }
   });
@@ -266,27 +263,22 @@ describe('viewport model separates logical device width from edit presentation',
       ['phone', 390],
     ] as const) {
       viewport.setPreset(preset);
-      expect(resolveViewport(viewport.getSnapshot(), 'edit')).toMatchObject({
-        width: expected,
-        scale: 0.75,
-      });
-      expect(resolveViewport(viewport.getSnapshot(), 'preview')).toMatchObject({
-        width: expected,
-        scale: 1,
-      });
-      expect(resolveViewport(viewport.getSnapshot(), 'edit').scale).toBe(0.75);
+      for (const mode of ['edit', 'preview'] as const) {
+        expect(resolveViewport(viewport.getSnapshot(), mode)).toMatchObject({
+          width: expected,
+          scale: 0.75,
+        });
+      }
     }
     viewport.setCustomWidth(1234);
     viewport.setPreset('custom');
     viewport.measure(280, 300);
-    expect(resolveViewport(viewport.getSnapshot(), 'edit')).toMatchObject({
-      width: 1234,
-      scale: 0.75,
-    });
-    expect(resolveViewport(viewport.getSnapshot(), 'preview')).toMatchObject({
-      width: 1234,
-      scale: 1,
-    });
+    for (const mode of ['edit', 'preview'] as const) {
+      expect(resolveViewport(viewport.getSnapshot(), mode)).toMatchObject({
+        width: 1234,
+        scale: 0.75,
+      });
+    }
   });
 
   it('validates custom integer widths and finite zoom without publishing malformed state', () => {
@@ -549,12 +541,17 @@ describe('viewport physical geometry and independent resize boundaries', () => {
     act(() => setMode('preview'));
     expect(view.container.querySelector('.canvas-scaled-surface')).toBe(surface);
     expect(screen.getByLabelText('稳定业务输入')).toBe(input);
+    expect(surface.style.transform).toBe('scale(0.5)');
+    expect(host.style.width).toBe('720px');
+    expect(space.style.width).toBe('720px');
+    expect(space.style.height).toBe('700px');
+    act(() => viewport.setScale(1));
     expect(surface.style.transform).toBe('');
     expect(host.style.width).toBe('1440px');
     expect(space.style.height).toBe('1400px');
     act(() => setMode('edit'));
-    expect(surface.style.transform).toBe('scale(0.5)');
-    expect(host.style.width).toBe('720px');
+    expect(surface.style.transform).toBe('');
+    expect(host.style.width).toBe('1440px');
     expect(screen.getByLabelText('稳定业务输入')).toBe(input);
   });
 
@@ -612,11 +609,14 @@ describe('viewport physical geometry and independent resize boundaries', () => {
     expect(physical.outer.scrollLeft).toBeCloseTo(182.5, 10);
     expect(physical.outer.scrollTop).toBeCloseTo(322.5, 10);
     act(() => setMode('preview'));
+    expect(physical.outer.scrollLeft).toBeCloseTo(182.5, 10);
+    expect(physical.outer.scrollTop).toBeCloseTo(322.5, 10);
+    const surface = view.container.querySelector<HTMLElement>('.canvas-scaled-surface')!;
+    expect(surface.style.transform).toBe('scale(1.25)');
+    act(() => viewport.setScale(1));
     expect(physical.outer.scrollLeft).toBeCloseTo(70, 10);
     expect(physical.outer.scrollTop).toBeCloseTo(200, 10);
-    expect(
-      view.container.querySelector<HTMLElement>('.canvas-scaled-surface')!.style.transform,
-    ).toBe('');
+    expect(surface.style.transform).toBe('');
     act(() => viewport.setPreset('phone'));
     expect(physical.outer.scrollLeft).toBe(0);
     expect(physical.outer.scrollTop).toBeCloseTo(200, 10);
@@ -795,7 +795,7 @@ describe('stable viewport host preserves the business tree and editor session', 
     expect(mounted.mock.calls.every((call) => call[2] === runtime)).toBe(true);
   });
 
-  it('does not remount a native React code component during one preview when only device width or edit zoom changes', async () => {
+  it('does not remount a native React code component when device width or zoom changes in preview', async () => {
     const runtime = new PageRuntime(compileApplication(fixture(), registry), 'page', {
       designMode: true,
     });
@@ -834,20 +834,23 @@ describe('stable viewport host preserves the business tree and editor session', 
     const button = shadow.querySelector('button')!;
     fireEvent.click(button);
     expect(button.textContent).toBe('Count 1');
-    for (const action of [
-      () => viewport.measure(900, 600),
-      () => viewport.setPreset('phone'),
-      () => viewport.setScale(0.5),
-      () => viewport.setFit(),
-      () => viewport.setCustomWidth(1100),
-      () => viewport.setPreset('custom'),
-    ]) {
-      act(action);
+    for (const [action, width, scale] of [
+      [() => viewport.measure(900, 600), 900, 1],
+      [() => viewport.setPreset('phone'), 390, 1],
+      [() => viewport.setScale(0.5), 390, 0.5],
+      [() => viewport.setFit(), 390, 1.5],
+      [() => viewport.setCustomWidth(1100), 1100, 900 / 1100],
+      [() => viewport.setPreset('phone'), 390, 1.5],
+      [() => viewport.setPreset('custom'), 1100, 900 / 1100],
+    ] as const) {
+      act(() => {
+        action();
+      });
       expect(shadow.querySelector('button')).toBe(button);
       expect(button.textContent).toBe('Count 1');
-      expect(
-        view.container.querySelector('.canvas-viewport')?.getAttribute('data-viewport-scale'),
-      ).toBe('1');
+      const host = view.container.querySelector<HTMLElement>('.canvas-viewport')!;
+      expect(Number(host.dataset.viewportWidth)).toBe(width);
+      expect(Number(host.dataset.viewportScale)).toBeCloseTo(scale, 10);
     }
     expect((globalThis as Record<string, unknown>).__viewportCodeProbe).toEqual({
       mounts: 1,

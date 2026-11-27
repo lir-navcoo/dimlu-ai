@@ -10,11 +10,13 @@ import './page-management.css';
 export function ApplicationDirectoryHome({
   directory,
   onSelect,
+  onBeforeCreate,
   onDuplicate,
   onDelete,
 }: {
   directory: ApplicationDirectory;
   onSelect: (appId: string) => void;
+  onBeforeCreate: () => void;
   onDuplicate: (appId: string) => string;
   onDelete: (appId: string, replacementAppId?: string) => void;
 }) {
@@ -22,9 +24,16 @@ export function ApplicationDirectoryHome({
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<ApplicationDirectoryEntry | null>(null);
   const [replacementAppId, setReplacementAppId] = useState('');
-  const open = (application: ApplicationDirectoryEntry) => onSelect(application.key);
+  const open = (application: ApplicationDirectoryEntry) => {
+    try {
+      onSelect(application.key);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    }
+  };
   const create = () => {
     try {
+      onBeforeCreate();
       const id = directory.createApplication();
       onSelect(id);
     } catch (reason) {

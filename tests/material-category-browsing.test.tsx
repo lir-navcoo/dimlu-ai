@@ -30,6 +30,25 @@ const categoryGroup = () => screen.getByRole('group', { name: '物料分类' });
 const all = () => within(categoryGroup()).getByRole('button', { name: '查看全部物料' });
 const category = (name: string) =>
   within(categoryGroup()).getByRole('button', { name: `筛选分类：${name}` });
+const more = () =>
+  within(categoryGroup()).getByRole<HTMLSelectElement>('combobox', { name: '更多物料分类' });
+const selectOverflow = (value: string) => fireEvent.change(more(), { target: { value } });
+const overflowValues = () => Array.from(more().options, ({ value }) => value);
+
+function measureCategoryRow(width: number) {
+  // jsdom 不计算布局；为分类测量行和按钮提供固定尺寸，覆盖展开及溢出两种路径。
+  const clientWidth = Object.getOwnPropertyDescriptor(Element.prototype, 'clientWidth')!.get!;
+  vi.spyOn(Element.prototype, 'clientWidth', 'get').mockImplementation(function (this: Element) {
+    return this.classList.contains('material-categories') ? width : clientWidth.call(this);
+  });
+  const getBoundingClientRect = Element.prototype.getBoundingClientRect;
+  vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+    return this.matches('.material-categories-measure button')
+      ? new DOMRect(0, 0, 36, 24)
+      : getBoundingClientRect.call(this);
+  });
+}
+
 const tileNames = () =>
   screen
     .queryAllByRole('button', { name: /^拖入 / })
@@ -41,6 +60,7 @@ const selected = () =>
 
 describe('material category browsing through the actual retained palette', () => {
   it('derives ordered visible categories and preserves distinct raw unknown, All-named and whitespace identities without author mutations', () => {
+    measureCategoryRow(960);
     const h = savedHarness();
     const before = h.author.getSnapshot();
     const exported = h.author.exportJson();
@@ -57,7 +77,7 @@ describe('material category browsing through the actual retained palette', () =>
     expect(selected()).toEqual([category('输入')]);
     expect(tileNames()).toContain('拖入 文本输入');
     expect(tileNames()).toContain('拖入 数字输入');
-    expect(tileNames()).not.toContain('拖入 标题');
+    expect(tileNames()).not.toContain('拖入 文本');
     expect(tileNames()).not.toContain('拖入 数据表格');
     expect(tileNames()).toEqual(originalTiles.filter((name) => tileNames().includes(name)));
     fireEvent.click(all());
@@ -124,7 +144,8 @@ describe('material category browsing through the actual retained palette', () =>
     expect(h.author.getSnapshot().canUndo).toBe(false);
   });
 
-  it('intersects raw ID search with categories and resets only the category while retaining actual search and FragmentPanel DOM and local feedback', () => {
+  it('intersects raw ID search with overflow categories and resets only the category while retaining actual search and FragmentPanel DOM and local feedback', () => {
+    measureCategoryRow(84);
     const author = savedAuthor();
     author.saveFragment('source', ['source-text'], 'Kept fragment');
     author.copyNodeToClipboard('source', 'source-text');
@@ -141,26 +162,26 @@ describe('material category browsing through the actual retained palette', () =>
     const before = author.getSnapshot();
     const library = author.getSavedFragmentsSnapshot();
     const clipboard = author.getClipboardSnapshot();
-    const buttonLabels = within(categoryGroup())
-      .getAllByRole('button')
-      .map((button) => button.getAttribute('aria-label'));
-    fireEvent.click(category('数据'));
+    expect(within(categoryGroup()).getAllByRole('button')).toEqual([all()]);
+    const overflow = more();
+    const options = ['', '布局', '基础', '输入', '展示', '表单', '数据', '反馈'];
+    expect(overflowValues()).toEqual(options);
+    selectOverflow('数据');
     search('  Ui.TaBlE  ');
     input.focus();
     input.setSelectionRange(3, 7);
     expect(tileNames()).toEqual(['拖入 数据表格']);
-    fireEvent.click(category('输入'));
+    selectOverflow('输入');
     expect(tileNames()).toEqual([]);
     expect(screen.getByText('当前分类没有匹配的物料')).toBeTruthy();
-    expect(selected()).toEqual([category('输入')]);
-    expect(
-      within(categoryGroup())
-        .getAllByRole('button')
-        .map((button) => button.getAttribute('aria-label')),
-    ).toEqual(buttonLabels);
+    expect(selected()).toEqual([]);
+    expect(more()).toBe(overflow);
+    expect(overflow.value).toBe('输入');
+    expect(overflowValues()).toEqual(options);
     expect(savedRow('Kept fragment')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '查看全部分类' }));
     expect(selected()).toEqual([all()]);
+    expect(overflow.value).toBe('');
     expect(tileNames()).toEqual(['拖入 数据表格']);
     expect(searchInput()).toBe(input);
     expect(input.value).toBe('  Ui.TaBlE  ');
@@ -171,9 +192,10 @@ describe('material category browsing through the actual retained palette', () =>
     expect(screen.getByRole('region', { name: '会话片段' })).toBe(fragmentPanel);
     expect(screen.getByRole('alert')).toBe(feedback);
     expect(feedback.textContent).toBe(feedbackText);
-    fireEvent.click(category('数据'));
+    selectOverflow('数据');
     const retainedTable = screen.getByRole('button', { name: '拖入 数据表格' });
     fireEvent.click(all());
+    expect(overflow.value).toBe('');
     expect(screen.getByRole('button', { name: '拖入 数据表格' })).toBe(retainedTable);
     expect(author.getSnapshot()).toBe(before);
     expect(author.getSavedFragmentsSnapshot()).toBe(library);
@@ -181,6 +203,7 @@ describe('material category browsing through the actual retained palette', () =>
   });
 
   it('retains session browsing across panel returns, projects stale values without repair writes and refuses category/reset changes during pending or active drag', () => {
+    measureCategoryRow(960);
     const author = savedAuthor();
     author.saveFragment('source', ['source-text'], 'Kept fragment');
     const h = savedHarness(author);

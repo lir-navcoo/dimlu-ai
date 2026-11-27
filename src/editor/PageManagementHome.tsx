@@ -6,7 +6,7 @@ import { registry } from '../materials';
 import { PagePanel } from './PagePanel';
 import { Button } from '../ui/primitives';
 import { BrandLogo } from '../ui/BrandLogo';
-import { editorRoutePath } from './router';
+import { editorRoutePath, writeEditorHistory } from './router';
 import './page-management.css';
 
 export function PageManagementHome({
@@ -33,7 +33,7 @@ export function PageManagementHome({
     const current = document.getSnapshot();
     if (!current.plan.pages.has(pageId)) return;
     if (current.selection.pageId !== pageId) document.selectPage(pageId);
-    window.history.pushState({}, '', editorRoutePath(pageId, 'outline'));
+    writeEditorHistory(editorRoutePath(pageId, 'outline'));
     window.dispatchEvent(new PopStateEvent('popstate'));
   };
   return (

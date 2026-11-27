@@ -903,6 +903,101 @@ describe('page management authoring UI', () => {
     expect(screen.getByRole('combobox', { name: '切换页面' }).getAttribute('data-value')).toBe('a');
   });
 
+  it('edits a new blank app, runs the committed in-memory revision and restores it after save', async () => {
+    window.history.replaceState({}, '', '/editor/apps');
+    const view = render(<App saveDelayMs={60_000} />);
+    fireEvent.click(screen.getByRole('button', { name: '新建空白应用' }));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Schema' }));
+    const schemaInput = screen.getByLabelText('应用定义 · JSON');
+    const schema: ApplicationSchema = JSON.parse((schemaInput as HTMLTextAreaElement).value);
+    schema.dependencies.components['ui.text'] = registry.components['ui.text'].version;
+    schema.pages[0].children.push({
+      id: 'new-app-text',
+      component: 'ui.text',
+      props: { value: { kind: 'literal', value: '新建应用运行验收' } },
+    });
+    changeControl(schemaInput, JSON.stringify(schema));
+    fireEvent.click(screen.getByRole('button', { name: '校验并应用' }));
+    const key = applicationProjectStorageKey(schema.id);
+    expect(localStorage.getItem(key)).not.toContain('新建应用运行验收');
+    fireEvent.click(screen.getByRole('button', { name: '预览模式' }));
+    expect(await within(screen.getByLabelText('页面交互预览')).findByText('新建应用运行验收')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '运行应用' }));
+    expect(window.location.pathname).toBe('/apps/application-1');
+    expect(await screen.findByText('新建应用运行验收')).toBeTruthy();
+    expect(localStorage.getItem(key)).not.toContain('新建应用运行验收');
+    fireEvent(window, new Event('pagehide'));
+    expect(localStorage.getItem(key)).toContain('新建应用运行验收');
+    view.unmount();
+    render(<App />);
+    expect(await screen.findByText('新建应用运行验收')).toBeTruthy();
+  });
+
+  it('resets a blank app in place without overwriting its ID or another project', async () => {
+    window.history.replaceState({}, '', '/editor/apps');
+    render(<App />);
+    const originalKey = applicationProjectStorageKey(JSON.parse(localStorage.getItem(APPLICATION_DIRECTORY_KEY)!).activeAppId);
+    const original = localStorage.getItem(originalKey);
+    fireEvent.click(screen.getByRole('button', { name: '新建空白应用' }));
+    fireEvent.click(await screen.findByRole('button', { name: '本地项目菜单' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: '重置项目…' }));
+    fireEvent.click(await screen.findByRole('button', { name: '确认重置' }));
+    expect(JSON.parse(localStorage.getItem(applicationProjectStorageKey('application-1'))!).schema).toMatchObject({
+      id: 'application-1', title: '新建应用', pages: [{ id: 'home', children: [] }],
+    });
+    expect(localStorage.getItem(originalKey)).toBe(original);
+    fireEvent.click(screen.getByRole('button', { name: '运行应用' }));
+    expect(window.location.pathname).toBe('/apps/application-1');
+  });
+
+  it('restores the matching editor application on browser back and forward', async () => {
+    localStorage.setItem(PROJECT_STORAGE_KEY, JSON.stringify({ storageVersion: 1, schema: application() }));
+    window.history.replaceState({}, '', '/editor/page/a');
+    render(<App />);
+    const activeTitle = () => screen.getByRole('button', { name: '当前应用菜单' }).textContent;
+    expect(activeTitle()).toBe('页面管理界面验收');
+    fireEvent.click(screen.getByRole('button', { name: '当前应用菜单' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: '切换应用' }));
+    fireEvent.click(screen.getByRole('button', { name: '新建空白应用' }));
+    expect(activeTitle()).toBe('新建应用');
+    window.history.go(-2);
+    await waitFor(() => expect(activeTitle()).toBe('页面管理界面验收'));
+    expect(window.location.pathname).toBe('/editor/page/a');
+    window.history.go(2);
+    await waitFor(() => expect(activeTitle()).toBe('新建应用'));
+    expect(window.location.pathname).toBe('/editor/page/home');
+  });
+
+  it.each(['switch', 'rename'] as const)('retains unsaved committed edits when %s cannot flush them', async (operation) => {
+    const schema = application();
+    localStorage.setItem(PROJECT_STORAGE_KEY, JSON.stringify({ storageVersion: 1, schema }));
+    const key = applicationProjectStorageKey(schema.id);
+    window.history.replaceState({}, '', '/editor/page/a');
+    render(<App saveDelayMs={60_000} />);
+    fireEvent.click(screen.getByRole('button', { name: '选中 文本 a-text' }));
+    changeControl(screen.getByRole('textbox', { name: '文本内容' }), '保存失败仍保留');
+    const original = localStorage.getItem(key);
+    const setItem = Storage.prototype.setItem;
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, writeKey, value) {
+      if (writeKey === key) throw new DOMException('存储已满', 'QuotaExceededError');
+      setItem.call(this, writeKey, value);
+    });
+    fireEvent.click(screen.getByRole('button', { name: '当前应用菜单' }));
+    if (operation === 'switch') {
+      fireEvent.click(await screen.findByRole('menuitem', { name: '切换应用' }));
+      expect(window.location.pathname).toBe('/editor/page/a');
+      expect((screen.getByRole('textbox', { name: '文本内容' }) as HTMLInputElement).value).toBe('保存失败仍保留');
+    } else {
+      fireEvent.click(await screen.findByRole('menuitem', { name: '应用设置' }));
+      changeControl(screen.getByLabelText('应用 ID'), 'renamed-on-error');
+      fireEvent.click(screen.getByRole('button', { name: '修改 ID' }));
+      expect(screen.getByRole('dialog', { name: '应用设置' })).toBeTruthy();
+      expect(localStorage.getItem(applicationProjectStorageKey('renamed-on-error'))).toBeNull();
+    }
+    expect(screen.getAllByRole('alert').some((alert) => alert.textContent?.includes('存储已满'))).toBe(true);
+    expect(localStorage.getItem(key)).toBe(original);
+  });
+
   it.each([false, true])(
     'copies the latest committed edits without drafts (save fails: %s)',
     (fails) => {

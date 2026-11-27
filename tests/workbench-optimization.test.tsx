@@ -41,12 +41,14 @@ describe('workbench organization and session state', () => {
     seedLegacyProject();
     render(<App />);
     fireEvent.click(screen.getByRole('tab', { name: '组件' }));
-    for (const name of ['成员行', '摘要', 'React 计数器', '插槽卡片'])
+    for (const name of ['成员行', '摘要', 'React 计数器', '插槽卡片', '标题'])
       expect(screen.queryByRole('button', { name: `拖入 ${name}` })).toBeNull();
+    for (const name of ['容器', '富文本', '图文展示', '评分', '滑块', '颜色选择', '级联选择', '附件上传'])
+      expect(screen.getByRole('button', { name: `拖入 ${name}` })).toBeTruthy();
     expect(screen.queryByLabelText('组件类型')).toBeNull();
     expect(screen.queryByRole('button', { name: '＋ 添加组件' })).toBeNull();
     const materials = document.querySelectorAll('.material-tile');
-    expect(materials.length).toBe(37);
+    expect(materials).toHaveLength(38);
     expect(
       [...materials].every(
         (tile) =>

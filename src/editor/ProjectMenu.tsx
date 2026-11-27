@@ -109,7 +109,9 @@ export function ProjectMenu({
             </Dialog.Title>
             <Dialog.Description className="project-confirmation-description">
               {confirmation === 'reset'
-                ? '当前项目将恢复初始示例，撤销历史和未提交草稿将清除。'
+                ? project.resetToEmpty
+                  ? '将保留应用名称和 ID，清除现有页面内容、撤销历史和未提交草稿，并重建空白首页。'
+                  : '当前项目将恢复初始示例，撤销历史和未提交草稿将清除。'
                 : '将用当前已提交的项目定义覆盖无法恢复的原副本。建议先导出恢复原文；未提交的面板草稿不包含在内。'}
             </Dialog.Description>
             <div className="project-confirmation-actions">

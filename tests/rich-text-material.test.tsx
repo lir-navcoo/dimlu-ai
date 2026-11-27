@@ -207,6 +207,19 @@ describe('Plate rich text material', () => {
     expect(container.querySelector('[role="toolbar"]')).toBeNull();
   });
 
+  it('dispatches the display material click handler from rendered content', () => {
+    const onClick = vi.fn();
+    render(
+      <RichTextDisplayMaterial
+        label="图文展示"
+        value="<p><strong>可点击内容</strong></p>"
+        onClick={onClick}
+      />,
+    );
+    fireEvent.click(screen.getByText('可点击内容'));
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
   it('registers the rich text display material and rich text setter', () => {
     expect(extendedCatalog['ui.richTextDisplay'].title).toBe('图文展示');
     const property = extendedCatalog['ui.richTextDisplay'].properties.find(
