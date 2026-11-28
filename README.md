@@ -2,9 +2,9 @@
 
 # Dimlu
 
-### 本地优先的 React 低代码应用搭建器
+### 声明式 React 低代码应用搭建器
 
-从可视化编辑到运行时预览，以 Schema 驱动页面、表单和交互。
+以 JSON Schema 声明页面结构、组件属性、状态、表单、数据源与动作，由独立运行时校验、编译并执行。提供本地优先的可视化工作台，适合学习低代码运行时、验证交互方案和构建内部工具原型。
 
 [快速开始](#快速开始) · [界面预览](#界面预览) · [架构概览](#架构概览) · [设计文档](#设计文档)
 
@@ -102,6 +102,43 @@ Windows PowerShell 用户也可以将 `npm` 替换为 `npm.cmd`。
 ```text
 /apps/<applicationId>
 ```
+
+### 声明式使用
+
+应用以 JSON Schema 描述页面和交互，不需要在页面定义中直接编写 React 组件。编辑器负责修改定义；运行时校验并编译为 `ApplicationPlan`，再创建页面实例，由 React 适配层负责渲染和订阅。
+
+一个最小页面定义示意如下：
+
+```json
+{
+  "schemaVersion": "0.1.0",
+  "id": "hello-dimlu",
+  "title": "Hello Dimlu",
+  "entryPageId": "home",
+  "dependencies": {
+    "components": { "ui.text": "1.0.0" },
+    "actions": {}
+  },
+  "pages": [
+    {
+      "id": "home",
+      "title": "首页",
+      "state": [],
+      "children": [
+        {
+          "id": "greeting",
+          "component": "ui.text",
+          "props": {
+            "text": { "kind": "literal", "value": "Hello, Dimlu" }
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+实际可导入定义请以仓库中的公开示例和当前 Schema 为准；Schema 表达式是受约束的子集，不是完整 JavaScript 沙箱。页面 TSX 能力属于独立的原型功能，不能与声明式 Schema 混为一谈。
 
 ### 导入示例
 
@@ -279,4 +316,4 @@ npm run schema:export
 
 ## 许可证
 
-当前仓库未包含 `LICENSE` 文件。若要在开源分发时明确授予他人使用、修改和再分发的权利，请在发布前补充合适的开源许可证。
+本项目采用 [Apache License 2.0](LICENSE)。使用、修改或再分发时，请遵守许可证中的版权、专利和 NOTICE 条款。Apache-2.0 不授予使用 Dimlu 名称或商标的权利；仓库依赖及第三方资源仍各自受其许可证约束。
