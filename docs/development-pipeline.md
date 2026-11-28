@@ -56,7 +56,7 @@
 
 ## N10 采购业务案例
 
-N10 已随 `013-overlay-layer-fix` 正式接受。默认fallback改为采购申请管理，保留旧 `exampleApplication` 作为内部兼容回归fixture；按后续明确需求，旧案例已停止对外导出和下载；不改变本地存储键、版本或已有合法项目优先恢复行为。通用物料组成列表、筛选分页、受控抽屉和动态明细表单，复用金额计算、统一提交、保存防重与仅重试查询流程；本地mock工厂校验并权威重算金额。用法见 [采购申请管理](purchase-management.md)，画面见 [采购抽屉与部门选择](purchase-management-preview.jpg)。
+N10 已随 `013-overlay-layer-fix` 正式接受。默认fallback改为采购申请管理，保留旧 `exampleApplication` 作为内部兼容回归fixture；按后续明确需求，旧案例已停止对外导出和下载；不改变本地存储键、版本或已有合法项目优先恢复行为。通用物料组成列表、筛选分页、受控抽屉和动态明细表单，复用金额计算、统一提交、保存防重与仅重试查询流程；本地mock工厂校验并权威重算金额。用法见 [采购申请管理](purchase-management.md)，当前代表画面见 [采购申请独立运行页](readme-purchase-runtime.jpg)。
 
 011 原始全量448项及静态/评审曾通过，但浏览器发现部门Select被Drawer遮挡的P2，因此011不作为最终接受版本。原截图、命中证据和失败结论保留；012为包含N11的中间冻结，也未掩盖该浮层问题。013统一修复物料/编辑器Select、Menu/Combobox与Tooltip层级，并通过真实鼠标及键盘选择、Escape、焦点恢复和自定义Tip验证。层级说明见 [浮层层级](overlay-layers.md)。
 

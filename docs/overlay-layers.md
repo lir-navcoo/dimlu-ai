@@ -10,4 +10,4 @@
 
 013已正式验收：真实浏览器中Drawer/Dialog选项中心命中返回Popup内选项文本，Popup1500高于模态1401；鼠标、键盘选择、Escape、焦点返回和Tooltip1600均通过。011的部门遮挡原始失败截图与命中证据保留，012中间快照不改写；最终报告位于外部 `E:\dimlu-ai-pipeline\reports\013-overlay-layer-fix\browser-evidence.json`。最终组合60文件469项测试及全部检查、52组独立评审通过，主Agent已正式接受。
 
-稳定修复画面见 [采购抽屉与部门选择](purchase-management-preview.jpg)，完整状态见 [开发流水线](development-pipeline.md)。
+稳定修复画面见 [采购申请独立运行页](readme-purchase-runtime.jpg)，完整状态见 [开发流水线](development-pipeline.md)。
