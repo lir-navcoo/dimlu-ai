@@ -1,10 +1,26 @@
+<div align="center">
+
 # Dimlu
 
-Dimlu 是一个本地优先的 React 低代码应用搭建器原型。
+### 本地优先的 React 低代码应用搭建器
 
-它将可序列化的应用 Schema、独立页面运行时、React 渲染适配层和可视化编辑器组合在一起，用于探索从“定义页面”到“编辑、预览、运行和恢复应用”的完整链路。
+从可视化编辑到运行时预览，以 Schema 驱动页面、表单和交互。
 
-> 当前项目处于原型和持续演进阶段。它适合学习、验证低代码运行时设计、开发内部工具原型和作为二次开发基础，不定位为开箱即用的生产级 SaaS。
+[快速开始](#快速开始) · [界面预览](#界面预览) · [架构概览](#架构概览) · [设计文档](#设计文档)
+
+</div>
+
+## 界面预览
+
+**可视化工作台**：左侧是组件树，中间是页面画布，右侧是选中组件的属性面板。
+
+![Dimlu 工作台：组件树、采购表单画布和属性面板](docs/workbench-optimized.jpg)
+
+**采购申请示例**：在列表中打开新建抽屉，填写申请、增删采购明细，系统自动合计金额。
+
+![采购申请管理：左侧是申请列表，右侧是新建申请抽屉与金额汇总](docs/purchase-management-preview.jpg)
+
+> 项目处于原型和持续演进阶段，适合学习低代码运行时设计、验证交互方案和开发内部工具原型，不定位为开箱即用的生产级 SaaS。
 
 ## 主要能力
 
@@ -98,25 +114,61 @@ Windows PowerShell 用户也可以将 `npm` 替换为 `npm.cmd`。
 
 ## 架构概览
 
-```text
-应用 Schema / TypeScript 定义
-            |
-            v
-结构校验 + 引用校验 + 物料/表达式语义校验
-            |
-            v
-不可变应用定义 -> 预解析运行计划
-            |
-            v
-独立页面实例
-状态、表单、数据源、动作链、生命周期、诊断
-            |
-            v
-React 适配层
-节点渲染、订阅、原生事件和编辑器装饰
+Dimlu 把“可编辑的定义”和“可执行的页面实例”分开：编辑器修改 Schema，运行时先校验并编译成运行计划，再创建独立的页面实例。React 只负责渲染和订阅，不承载核心业务状态。
+
+```mermaid
+flowchart TB
+    editor["可视化编辑器<br/>物料 · 组件树 · 画布 · 属性面板"]
+    definition["应用 Schema<br/>JSON 或 TypeScript 定义"]
+    validate["校验与编译<br/>结构 · 引用 · 物料 · 表达式"]
+    plan["ApplicationPlan<br/>不可变定义与预解析运行计划"]
+    instance["页面运行时 · TypeScript<br/>实例 · 状态 · 表单 · 数据源 · 动作"]
+    react["React 适配<br/>渲染 · 订阅 · 事件"]
+    storage["浏览器本地存储<br/>已提交定义与编辑位置"]
+
+    editor --> definition --> validate --> plan --> instance --> react
+    plan -->|保存定义| storage
+    storage -->|刷新后读取| definition
+
+    classDef source fill:#eef2ff,stroke:#4f46e5,color:#1e1b4b
+    classDef core fill:#ecfeff,stroke:#0891b2,color:#164e63
+    classDef runtime fill:#f0fdf4,stroke:#16a34a,color:#14532d
+    classDef edge fill:#fff7ed,stroke:#ea580c,color:#7c2d12
+
+    class editor,definition source
+    class validate,plan core
+    class instance,react runtime
+    class storage edge
 ```
 
-项目按职责分为四层：
+### 从编辑到运行
+
+```mermaid
+sequenceDiagram
+    actor User as 使用者
+    participant Editor as 编辑器
+    participant Compiler as Schema 编译器
+    participant Storage as 本地存储
+    participant Runtime as 运行宿主
+
+    User->>Editor: 提交编辑或导入定义
+    Editor->>Compiler: 校验并编译 Schema
+    alt 定义有效
+        Compiler-->>Editor: 返回 ApplicationPlan
+        Editor->>Storage: 保存已提交定义与编辑位置
+        User->>Editor: 进入预览或独立运行页
+        Editor->>Runtime: 使用已编译的计划
+        Runtime-->>User: 渲染页面并处理交互
+    else 定义无效
+        Compiler-->>Editor: 返回诊断，保留原定义
+    end
+    User->>Editor: 刷新编辑器
+    Editor->>Storage: 读取已保存定义与编辑位置
+    Storage-->>Editor: 返回项目记录
+    Editor->>Compiler: 重新校验并编译
+```
+
+核心包与应用目录：
 
 - `packages/schema`：应用 Schema、JSON Schema、类型和语义校验。
 - `packages/runtime`：表达式、运行计划、页面实例、表单、动作和数据源运行时。
@@ -128,7 +180,7 @@ React 适配层
 - `src/ui`：基础控件、Monaco 编辑器和本地 Worker。
 - `src/App.tsx`：应用目录、编辑器路由和运行页宿主。
 
-更详细的设计说明见：
+## 设计文档
 
 - [架构与设计决策](docs/architecture.md)
 - [Schema v0.1](docs/schema-v0.1.md)
